@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { EditorState, Plugin } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
-import { history, undo, redo } from 'prosemirror-history';
+import { history } from 'prosemirror-history';
 import { keymap } from 'prosemirror-keymap';
 import { baseKeymap } from 'prosemirror-commands';
-import { ySyncPlugin, yCursorPlugin, yUndoPlugin, undo as yUndo, redo as yRedo } from 'y-prosemirror';
+import { ySyncPlugin, yUndoPlugin, undo as yUndo, redo as yRedo } from 'y-prosemirror';
 import * as Y from 'yjs';
 import { corngrSchema } from './schema';
 import { formatValue } from '../yjs/schema';
@@ -30,9 +30,6 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
 
         // Get or create the shared Yjs fragment
         const yXmlFragment = yDoc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
-
-        // Create awareness for collaborative cursors
-        const awareness = new Map();
 
         // Variable decoration plugin - updates variable displays when values change
         const variablePlugin = new Plugin({
@@ -102,7 +99,6 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
             schema: corngrSchema,
             plugins: [
                 ySyncPlugin(yXmlFragment),
-                yCursorPlugin(awareness as any),
                 yUndoPlugin(),
                 variablePlugin,
                 history(),
