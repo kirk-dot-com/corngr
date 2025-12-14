@@ -182,25 +182,25 @@ export function getBlock(doc: Y.Doc, blockId: string): Y.Map<any> | null {
  * Converts Y.Map block to plain JSON
  */
 export function blockToJSON(block: Y.Map<any>): Block {
-    const data = block.get('data') as Y.Map<any>;
-    const metadata = data.get('metadata') as Y.Map<any>;
+    const data = block.get('data') as Y.Map<any> | undefined;
+    const metadata = data?.get('metadata') as Y.Map<any> | undefined;
 
     return {
-        id: block.get('id'),
-        type: block.get('type'),
+        id: block.get('id') || 'unknown',
+        type: block.get('type') || 'paragraph',
         data: {
-            text: data.get('text'),
-            value: data.get('value'),
+            text: data?.get('text') || '',
+            value: data?.get('value') || null,
             metadata: {
-                slideIndex: metadata.get('slideIndex'),
-                layout: metadata.get('layout'),
-                acl: metadata.get('acl'),
-                isChunk: metadata.get('isChunk'),
-                parentId: metadata.get('parentId')
+                slideIndex: metadata?.get('slideIndex') ?? null,
+                layout: metadata?.get('layout') || 'full-width',
+                acl: metadata?.get('acl') || [],
+                isChunk: metadata?.get('isChunk') || false,
+                parentId: metadata?.get('parentId') || undefined
             }
         },
-        created: block.get('created'),
-        modified: block.get('modified')
+        created: block.get('created') || new Date().toISOString(),
+        modified: block.get('modified') || new Date().toISOString()
     };
 }
 

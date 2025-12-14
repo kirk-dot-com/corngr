@@ -19,6 +19,7 @@ interface Slide {
 export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc }) => {
     const [blocks, setBlocks] = useState<Block[]>([]);
     const [currentSlide, setCurrentSlide] = useState(0);
+    const [updateTrigger, setUpdateTrigger] = useState(0);
 
     // Subscribe to Yjs content changes
     useEffect(() => {
@@ -27,13 +28,16 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc }) => {
         const syncBlocks = () => {
             const allBlocks = getAllBlocks(yDoc);
             setBlocks(allBlocks);
+            setUpdateTrigger(prev => prev + 1); // Force re-render
         };
 
         syncBlocks(); // Initial load
-        content.observe(syncBlocks); // Listen to changes
+
+        // Deep observation - triggers on array changes AND nested changes
+        content.observeDeep(syncBlocks);
 
         return () => {
-            content.unobserve(syncBlocks);
+            content.unobserveDeep(syncBlocks);
         };
     }, [yDoc]);
 
