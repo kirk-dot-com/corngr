@@ -1,0 +1,154 @@
+/* ProseMirror Editor Styles */
+
+.prosemirror-editor-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.prosemirror-editor {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333;
+}
+
+/* ProseMirror core styles */
+.ProseMirror {
+  outline: none;
+  min-height: 400px;
+}
+
+.ProseMirror p {
+  margin: 0 0 12px 0;
+}
+
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3 {
+  font-weight: 600;
+  margin: 24px 0 12px 0;
+  line-height: 1.3;
+}
+
+.ProseMirror h1 {
+  font-size: 2em;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+}
+
+.ProseMirror h3 {
+  font-size: 1.25em;
+}
+
+.ProseMirror strong {
+  font-weight: 600;
+}
+
+.ProseMirror em {
+  font-style: italic;
+}
+
+.ProseMirror code {
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.ProseMirror a {
+  color: #0066cc;
+  text-decoration: none;
+  border-bottom: 1px solid #0066cc;
+}
+
+.ProseMirror a:hover {
+  color: #004499;
+  border-bottom-color: #004499;
+}
+
+/* Variable node styles */
+.corngr-variable {
+  display: inline-block;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-weight: 500;
+  font-family: 'Monaco', 'Courier New', monospace;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.corngr-variable:hover {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.corngr-variable::before {
+  content: '🔗';
+  margin-right: 4px;
+  font-size: 0.8em;
+}
+
+/* Selection styles */
+.ProseMirror-selectednode {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Placeholder */
+.ProseMirror p.is-empty:first-child::before {
+  content: 'Start typing...';
+  float: left;
+  color: #aaa;
+  pointer-events: none;
+  height: 0;
+}
+
+/* Collaborative cursor styles */
+.ProseMirror-yjs-cursor {
+  position: absolute;
+  border-left: 2px solid;
+  border-color: var(--cursor-color, #667eea);
+  pointer-events: none;
+  user-select: none;
+}
+
+.ProseMirror-yjs-cursor::after {
+  content: attr(data-username);
+  position: absolute;
+  top: -1.5em;
+  left: -1px;
+  background: var(--cursor-color, #667eea);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* Focus styles */
+.prosemirror-editor-container:focus-within {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
