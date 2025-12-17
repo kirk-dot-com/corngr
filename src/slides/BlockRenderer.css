@@ -105,3 +105,4 @@
     color: #856404;
     font-family: monospace;
 }
+.slide-block-chunk { position: relative; padding-top: 1rem; border-top: 2px dashed #ddd; margin-top: 1rem; } .slide-block-chunk::before { content: '(continued)'; position: absolute; top: -12px; left: 0; background: white; padding: 0 8px; font-size: 0.8rem; color: #999; font-style: italic; }

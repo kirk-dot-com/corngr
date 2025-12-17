@@ -12,62 +12,71 @@ interface BlockRendererProps {
  */
 export const BlockRenderer: React.FC<BlockRendererProps> = ({ block }) => {
     const { type, data } = block;
+    const isChunk = data.metadata?.isChunk;
 
-    switch (type) {
-        case 'paragraph':
-            return <p className="slide-paragraph">{data.text}</p>;
+    const renderContent = () => {
+        switch (type) {
+            case 'paragraph':
+                return <p className="slide-paragraph">{data.text}</p>;
 
-        case 'heading1':
-            return <h1 className="slide-heading1">{data.text}</h1>;
+            case 'heading1':
+                return <h1 className="slide-heading1">{data.text}</h1>;
 
-        case 'heading2':
-            return <h2 className="slide-heading2">{data.text}</h2>;
+            case 'heading2':
+                return <h2 className="slide-heading2">{data.text}</h2>;
 
-        case 'variable': {
-            const { name, value, format } = data.value || {};
-            const layout = data.metadata?.layout || 'inline';
-            const formatted = formatValue(value, format);
+            case 'variable': {
+                const { name, value, format } = data.value || {};
+                const layout = data.metadata?.layout || 'inline';
+                const formatted = formatValue(value, format);
 
-            if (layout === 'headline') {
+                if (layout === 'headline') {
+                    return (
+                        <div className="slide-variable-headline">
+                            <div className="variable-label">{name}</div>
+                            <div className="variable-value">{formatted}</div>
+                        </div>
+                    );
+                }
+
                 return (
-                    <div className="slide-variable-headline">
-                        <div className="variable-label">{name}</div>
-                        <div className="variable-value">{formatted}</div>
-                    </div>
+                    <span
+                        className="slide-variable-inline"
+                        title={`{{${name}}}`}
+                    >
+                        {formatted}
+                    </span>
                 );
             }
 
-            return (
-                <span
-                    className="slide-variable-inline"
-                    title={`{{${name}}}`}
-                >
-                    {formatted}
-                </span>
-            );
-        }
-
-        case 'image':
-            return (
-                <div className="slide-image">
-                    <img src={data.value?.src || ''} alt={data.value?.alt || ''} />
-                </div>
-            );
-
-        case 'chart':
-            return (
-                <div className="slide-chart">
-                    <div className="chart-placeholder">
-                        📊 Chart: {data.value?.type || 'unknown'}
+            case 'image':
+                return (
+                    <div className="slide-image">
+                        <img src={data.value?.src || ''} alt={data.value?.alt || ''} />
                     </div>
-                </div>
-            );
+                );
 
-        default:
-            return (
-                <div className="slide-block-unknown">
-                    Unknown block type: {type}
-                </div>
-            );
-    }
+            case 'chart':
+                return (
+                    <div className="slide-chart">
+                        <div className="chart-placeholder">
+                            📊 Chart: {data.value?.type || 'unknown'}
+                        </div>
+                    </div>
+                );
+
+            default:
+                return (
+                    <div className="slide-block-unknown">
+                        Unknown block type: {type}
+                    </div>
+                );
+        }
+    };
+
+    return (
+        <div className={`slide-block ${isChunk ? 'slide-block-chunk' : ''}`}>
+            {renderContent()}
+        </div>
+    );
 };

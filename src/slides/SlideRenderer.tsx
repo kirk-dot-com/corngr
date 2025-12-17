@@ -2,15 +2,11 @@ import React, { useEffect, useState } from 'react';
 import * as Y from 'yjs';
 import { getAllBlocks, Block } from '../yjs/schema';
 import { BlockRenderer } from './BlockRenderer';
+import { paginateBlocks, Slide } from './pagination';
 import './SlideRenderer.css';
 
 interface SlideRendererProps {
     yDoc: Y.Doc;
-}
-
-interface Slide {
-    index: number;
-    blocks: Block[];
 }
 
 /**
@@ -41,7 +37,7 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc }) => {
         };
     }, [yDoc]);
 
-    // Paginate blocks into slides
+    // Paginate blocks into slides using new engine
     const slides = paginateBlocks(blocks);
 
     const goToNext = () => {
@@ -61,6 +57,13 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc }) => {
             setCurrentSlide(index);
         }
     };
+
+    // Auto-adjust current slide if it disappears (e.g., content deleted)
+    useEffect(() => {
+        if (currentSlide >= slides.length && slides.length > 0) {
+            setCurrentSlide(slides.length - 1);
+        }
+    }, [slides.length, currentSlide]);
 
     if (slides.length === 0) {
         return (
@@ -82,7 +85,12 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc }) => {
     return (
         <div className="slide-renderer">
             <div className="slide-container">
-                <div className="slide" data-slide-index={currentSlide}>
+                <div className="slide" data-slide-index={currentSlideData.index}>
+                    {/* Debug Info Overlay */}
+                    <div style={{ position: 'absolute', top: 10, left: 10, fontSize: 10, color: '#ccc' }}>
+                        Slide Index: {currentSlideData.index} (Render Index: {currentSlide})
+                    </div>
+
                     {currentSlideData.blocks.map((block) => (
                         <BlockRenderer key={block.id} block={block} />
                     ))}
@@ -99,14 +107,15 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc }) => {
                 </button>
 
                 <div className="slide-indicators">
-                    {slides.map((_, index) => (
+                    {slides.map((slide, i) => (
                         <button
-                            key={index}
-                            className={`indicator ${index === currentSlide ? 'active' : ''}`}
-                            onClick={() => goToSlide(index)}
-                            aria-label={`Go to slide ${index + 1}`}
+                            key={i}
+                            className={`indicator ${i === currentSlide ? 'active' : ''}`}
+                            onClick={() => goToSlide(i)}
+                            aria-label={`Go to slide ${i + 1}`}
+                            title={`Slide ${slide.index}`}
                         >
-                            {index + 1}
+                            {i + 1}
                         </button>
                     ))}
                 </div>
@@ -126,46 +135,3 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc }) => {
         </div>
     );
 };
-
-/**
- * Paginate blocks into slides based on slideIndex metadata
- */
-function paginateBlocks(blocks: Block[]): Slide[] {
-    if (blocks.length === 0) return [];
-
-    const slides: Slide[] = [];
-    let currentSlideBlocks: Block[] = [];
-    let currentSlideIndex = 0;
-
-    blocks.forEach((block) => {
-        const slideIndex = block.data.metadata?.slideIndex;
-
-        // If block has explicit slideIndex, use it
-        if (slideIndex !== null && slideIndex !== undefined) {
-            // Save current slide if it has blocks
-            if (currentSlideBlocks.length > 0) {
-                slides.push({
-                    index: currentSlideIndex,
-                    blocks: currentSlideBlocks
-                });
-            }
-
-            // Start new slide
-            currentSlideIndex = slideIndex;
-            currentSlideBlocks = [block];
-        } else {
-            // Add to current slide
-            currentSlideBlocks.push(block);
-        }
-    });
-
-    // Add final slide
-    if (currentSlideBlocks.length > 0) {
-        slides.push({
-            index: currentSlideIndex,
-            blocks: currentSlideBlocks
-        });
-    }
-
-    return slides;
-}
