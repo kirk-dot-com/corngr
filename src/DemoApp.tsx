@@ -13,27 +13,6 @@ import './DemoApp.css';
 
 const DEMO_DOC_ID = 'corngr-demo-doc';
 
-// ... (USERS constant remains safely here if I don't touch it, but wait, the replacement range is large)
-// Retaining USERS constant manually since I'm not viewing it to copy, 
-// wait, I must be careful with replace_text regarding imports.
-// I will just add the import at the top and the JSX at the bottom.
-// Wait, I can't partial replace imports if I select a large block. 
-// I'll assume the provided ReplacementContent above replaces the top imports.
-// Let me refine the tool call to just replace imports and then just replace the JSX.
-// This is safer.
-
-// Actually, I'll do a focused replace on the top of the file for imports.
-// And another for the toolbar.
-// And another for the render.
-// But the tool says "Follow these rules... single contiguous block... replace_file_content" 
-// or "multi_replace_file_content".
-// I'll use `multi_replace_file_content` to be safe and precise.
-
-// CANCEL THIS TOOL CALL. I will use multi_replace.
-
-
-const DEMO_DOC_ID = 'corngr-demo-doc';
-
 // Mock Users
 const USERS: Record<Role, User> = {
     admin: { id: 'u1', attributes: { role: 'admin', department: 'IT' } },
@@ -55,6 +34,9 @@ export const DemoApp: React.FC = () => {
     // Security State
     const [currentUser, setCurrentUser] = useState<User>(USERS.admin);
 
+    // Performance Testing State
+    const [autoMutate, setAutoMutate] = useState(false);
+
     // Initialize Server Document (Source of Truth)
     useEffect(() => {
         const sDoc = new Y.Doc();
@@ -73,9 +55,6 @@ export const DemoApp: React.FC = () => {
                 if (!meta.get('id')) {
                     meta.set('id', 'demo-doc-001');
                     meta.set('title', 'Corngr Phase 0 Demo');
-                    meta.set('owner', 'demo-user');
-                    meta.set('created', new Date().toISOString());
-                    meta.set('modified', new Date().toISOString());
                 }
 
                 // Slide 1: Title
@@ -148,12 +127,8 @@ export const DemoApp: React.FC = () => {
             console.log(`🔐 Initializing Secure Network for ${currentUser.attributes.role}`);
             const bridge = new MockSecureNetwork(serverDoc, clientDoc, currentUser);
             setSecureNetwork(bridge);
-
-            return () => {
-                // Cleanup if needed
-            };
         }
-    }, [serverDoc, clientDoc]); // Re-init if docs change (only once really)
+    }, [serverDoc, clientDoc]);
 
     // Update Network User when role changes
     useEffect(() => {
@@ -163,6 +138,56 @@ export const DemoApp: React.FC = () => {
         }
     }, [currentUser, secureNetwork]);
 
+    // Auto-Mutate Loop
+    useEffect(() => {
+        if (!autoMutate || !serverDoc) return;
+
+        console.log('⚡ Starting High-Freq Mutation Loop');
+        const interval = setInterval(() => {
+            serverDoc.transact(() => {
+                const content = serverDoc.getArray('content');
+                // Naive: Update first variable we find
+                for (let i = 0; i < content.length; i++) {
+                    const block = content.get(i) as any;
+                    if (block.get('type') === 'variable') {
+                        const data = block.get('data');
+                        const val = data.get('value');
+                        if (val.name === 'revenue') {
+                            val.value = Math.floor(Math.random() * 500000);
+                            data.set('value', val);
+                        }
+                    }
+                }
+            });
+        }, 50); // 50ms interval = 20fps updates
+
+        return () => clearInterval(interval);
+    }, [autoMutate, serverDoc]);
+
+    // 1k Injector
+    const injectMassiveData = () => {
+        if (!serverDoc) return;
+
+        const newBlocks = [];
+        for (let i = 0; i < 1000; i++) {
+            newBlocks.push({
+                id: `perf-block-${i}-${Date.now()}`,
+                type: 'paragraph',
+                data: {
+                    text: `Performance Test Block #${i} - ${Math.random().toString(36)}`,
+                    metadata: { slideIndex: 3 + Math.floor(i / 10) } // Start after slide 3, 10 blocks per slide
+                },
+                created: new Date().toISOString(),
+                modified: new Date().toISOString()
+            });
+        }
+
+        serverDoc.transact(() => {
+            const content = serverDoc.getArray('content');
+            content.insert(content.length, newBlocks as any);
+        });
+        console.log('🚀 Injected 1000 blocks');
+    };
 
     // Track editor view for toolbar
     useEffect(() => {
@@ -177,7 +202,7 @@ export const DemoApp: React.FC = () => {
         }, 100);
 
         return () => clearInterval(interval);
-    }, [clientDoc, view]); // Dependent on clientDoc now!
+    }, [clientDoc, view]);
 
     if (!serverDoc || !clientDoc) {
         return (
@@ -192,6 +217,9 @@ export const DemoApp: React.FC = () => {
 
     return (
         <div className="demo-app">
+            {/* Render Performance Monitor tracking the Client (Rendered) Doc */}
+            <PerformanceMonitor yDoc={clientDoc} />
+
             <header className="demo-header">
                 <div className="header-content">
                     <h1>🌽 Corngr Phase 0</h1>
@@ -231,21 +259,24 @@ export const DemoApp: React.FC = () => {
                         📊 Slides
                     </button>
 
+                    <div style={{ width: '1px', height: '20px', background: '#444', margin: '0 8px' }}></div>
+
                     <button
                         className="view-btn warning"
-                        onClick={() => {
-                            // Create restricted block in SERVER DOC
-                            createBlock(serverDoc, 'heading2', {
-                                text: '🔒 TOP SECRET ADMIN DATA',
-                                metadata: {
-                                    slideIndex: 1,
-                                    acl: ['admin']
-                                }
-                            });
-                        }}
-                        style={{ marginLeft: 'auto', background: '#ff4444', fontSize: '0.8rem' }}
+                        onClick={injectMassiveData}
+                        style={{ fontSize: '0.8rem', background: '#e0b0ff', color: '#333' }}
+                        title="Inject 1000 blocks"
                     >
-                        + Secret Block
+                        🚀 1k Blocks
+                    </button>
+
+                    <button
+                        className={`view-btn warning ${autoMutate ? 'active' : ''}`}
+                        onClick={() => setAutoMutate(!autoMutate)}
+                        style={{ fontSize: '0.8rem', background: autoMutate ? '#0f0' : '#444', color: autoMutate ? '#000' : '#ccc' }}
+                        title="Toggle 50ms Updates"
+                    >
+                        ⚡ Auto-Mutate
                     </button>
                 </div>
             </header>
