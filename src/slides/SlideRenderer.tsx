@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useLayoutEffect } from 'react';
 import * as Y from 'yjs';
 import { getAllBlocks, Block } from '../yjs/schema';
 import { BlockRenderer } from './BlockRenderer';
 import { paginateBlocks, Slide } from './pagination';
 import { User } from '../security/types';
+import { recordRender } from '../components/PerformanceMonitor';
 import './SlideRenderer.css';
 
 interface SlideRendererProps {
@@ -66,6 +67,11 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc, user = null 
             setCurrentSlide(slides.length - 1);
         }
     }, [slides.length, currentSlide]);
+
+    // PERF: Record render timing
+    useLayoutEffect(() => {
+        recordRender();
+    });
 
     if (slides.length === 0) {
         return (

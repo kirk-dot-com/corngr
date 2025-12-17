@@ -8,7 +8,29 @@ import { createCorngrDoc, createBlock, createVariableBlock } from './yjs/schema'
 import { EditorView } from 'prosemirror-view';
 import { User, Role } from './security/types';
 import { MockSecureNetwork } from './security/MockSecureNetwork';
+import { PerformanceMonitor } from './components/PerformanceMonitor';
 import './DemoApp.css';
+
+const DEMO_DOC_ID = 'corngr-demo-doc';
+
+// ... (USERS constant remains safely here if I don't touch it, but wait, the replacement range is large)
+// Retaining USERS constant manually since I'm not viewing it to copy, 
+// wait, I must be careful with replace_text regarding imports.
+// I will just add the import at the top and the JSX at the bottom.
+// Wait, I can't partial replace imports if I select a large block. 
+// I'll assume the provided ReplacementContent above replaces the top imports.
+// Let me refine the tool call to just replace imports and then just replace the JSX.
+// This is safer.
+
+// Actually, I'll do a focused replace on the top of the file for imports.
+// And another for the toolbar.
+// And another for the render.
+// But the tool says "Follow these rules... single contiguous block... replace_file_content" 
+// or "multi_replace_file_content".
+// I'll use `multi_replace_file_content` to be safe and precise.
+
+// CANCEL THIS TOOL CALL. I will use multi_replace.
+
 
 const DEMO_DOC_ID = 'corngr-demo-doc';
 
