@@ -6,9 +6,17 @@ import { SlideRenderer } from './slides/SlideRenderer';
 import { Toolbar } from './prosemirror/Toolbar';
 import { createCorngrDoc, createBlock, createVariableBlock } from './yjs/schema';
 import { EditorView } from 'prosemirror-view';
+import { User, Role } from './security/types';
 import './DemoApp.css';
 
 const DEMO_DOC_ID = 'corngr-demo-doc';
+
+// Mock Users
+const USERS: Record<Role, User> = {
+    admin: { id: 'u1', attributes: { role: 'admin', department: 'IT' } },
+    editor: { id: 'u2', attributes: { role: 'editor', department: 'Sales' } },
+    viewer: { id: 'u3', attributes: { role: 'viewer', department: 'Marketing' } }
+};
 
 export const DemoApp: React.FC = () => {
     const [yDoc, setYDoc] = useState<Y.Doc | null>(null);
@@ -16,6 +24,9 @@ export const DemoApp: React.FC = () => {
     const [view, setView] = useState<'split' | 'editor' | 'slides'>('split');
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const [editorView, setEditorView] = useState<EditorView | null>(null);
+
+    // Security State
+    const [currentUser, setCurrentUser] = useState<User>(USERS.admin);
 
     // Initialize Yjs document and persistence
     useEffect(() => {
@@ -129,6 +140,19 @@ export const DemoApp: React.FC = () => {
                 </div>
 
                 <div className="view-controls">
+                    {/* Role Switcher */}
+                    <div style={{ marginRight: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Role:</span>
+                        <select
+                            value={currentUser.attributes.role}
+                            onChange={(e) => setCurrentUser(USERS[e.target.value as Role])}
+                            style={{ padding: '4px', borderRadius: '4px' }}
+                        >
+                            <option value="admin">👮 Admin</option>
+                            <option value="viewer">👀 Viewer</option>
+                        </select>
+                    </div>
+
                     <button
                         className={`view-btn ${view === 'split' ? 'active' : ''}`}
                         onClick={() => setView('split')}
@@ -146,6 +170,23 @@ export const DemoApp: React.FC = () => {
                         onClick={() => setView('slides')}
                     >
                         📊 Slides
+                    </button>
+
+                    <button
+                        className="view-btn warning"
+                        onClick={() => {
+                            // Create restricted block
+                            createBlock(yDoc, 'heading2', {
+                                text: '🔒 TOP SECRET ADMIN DATA',
+                                metadata: {
+                                    slideIndex: 1,
+                                    acl: ['admin']
+                                }
+                            });
+                        }}
+                        style={{ marginLeft: 'auto', background: '#ff4444', fontSize: '0.8rem' }}
+                    >
+                        + Secret Block
                     </button>
                 </div>
             </header>
@@ -170,7 +211,7 @@ export const DemoApp: React.FC = () => {
                             <h2>Slide View</h2>
                             <span className="tech-badge">React + Yjs</span>
                         </div>
-                        <SlideRenderer yDoc={yDoc} />
+                        <SlideRenderer yDoc={yDoc} user={currentUser} />
                     </div>
                 )}
             </div>
@@ -183,9 +224,7 @@ export const DemoApp: React.FC = () => {
                 <div className="footer-info">
                     <span>Phase 0: Technical Validation</span>
                     <span>•</span>
-                    <span>50/50 Tests Passing</span>
-                    <span>•</span>
-                    <span>Dual-Rendering Validated ✅</span>
+                    <span>Current User: {currentUser.attributes.role}</span>
                 </div>
             </footer>
         </div>

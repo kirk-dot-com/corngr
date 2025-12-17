@@ -1,16 +1,19 @@
 import React from 'react';
 import { Block } from '../yjs/schema';
 import { formatValue } from '../yjs/schema';
+import { PermissionGate } from '../security/PermissionGate';
+import { User } from '../security/types';
 import './BlockRenderer.css';
 
 interface BlockRendererProps {
     block: Block;
+    user?: User | null;
 }
 
 /**
  * Renders a single block in the slide view
  */
-export const BlockRenderer: React.FC<BlockRendererProps> = ({ block }) => {
+export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, user = null }) => {
     const { type, data } = block;
     const isChunk = data.metadata?.isChunk;
 
@@ -75,8 +78,11 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block }) => {
     };
 
     return (
-        <div className={`slide-block ${isChunk ? 'slide-block-chunk' : ''}`}>
-            {renderContent()}
-        </div>
+        <PermissionGate user={user} block={block}>
+            <div className={`slide-block ${isChunk ? 'slide-block-chunk' : ''}`}>
+                {renderContent()}
+            </div>
+        </PermissionGate>
     );
 };
+

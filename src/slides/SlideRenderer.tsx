@@ -3,16 +3,18 @@ import * as Y from 'yjs';
 import { getAllBlocks, Block } from '../yjs/schema';
 import { BlockRenderer } from './BlockRenderer';
 import { paginateBlocks, Slide } from './pagination';
+import { User } from '../security/types';
 import './SlideRenderer.css';
 
 interface SlideRendererProps {
     yDoc: Y.Doc;
+    user?: User | null;
 }
 
 /**
  * Renders Yjs blocks as paginated slides
  */
-export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc }) => {
+export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc, user = null }) => {
     const [blocks, setBlocks] = useState<Block[]>([]);
     const [currentSlide, setCurrentSlide] = useState(0);
     const [updateTrigger, setUpdateTrigger] = useState(0);
@@ -92,7 +94,7 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc }) => {
                     </div>
 
                     {currentSlideData.blocks.map((block) => (
-                        <BlockRenderer key={block.id} block={block} />
+                        <BlockRenderer key={block.id} block={block} user={user} />
                     ))}
                 </div>
             </div>
