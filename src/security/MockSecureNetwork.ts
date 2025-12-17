@@ -48,36 +48,35 @@ export class MockSecureNetwork {
 
             // We use a transaction to make it atomic
             this.clientDoc.transact(() => {
-                const serverBlocks = serverContent.toArray() as Block[];
+                // FIX: Use toJSON() to get plain JS objects. 
+                // Using toArray() returns Y.Map instances bound to serverDoc, which causes 
+                // 1. Types errors (no .data property on Y.Map)
+                // 2. Yjs errors (cannot insert Y.Map from one doc to another)
+                const serverBlocks = serverContent.toJSON() as Block[];
 
                 // 1. Filter blocks based on permissions
+                // Now serverBlocks are plain JSON, so block.data.metadata works!
                 const allowedBlocks = serverBlocks.filter(block =>
                     canViewBlock(this.user, block.data.metadata)
                 );
 
                 // 2. Diff and Update Client Doc
-                // Naive approach: Clear and Replace (Fine for prototype, bad for prod bandwidth)
-                // A better approach would be to diff by ID, but Yjs arrays don't support "move" easily without delete/insert
-                // unless we map them.
-
-                // Optimization: Only update if counts differ or IDs differ to prevent UI flickering
-                const clientBlocks = clientContent.toArray() as Block[];
+                const clientBlocks = clientContent.toJSON() as Block[];
                 const serverIds = allowedBlocks.map(b => b.id).join(',');
                 const clientIds = clientBlocks.map(b => b.id).join(',');
 
                 if (serverIds !== clientIds) {
                     // Full replace for prototype simplicity
                     clientContent.delete(0, clientContent.length);
-                    clientContent.insert(0, allowedBlocks);
-                    console.log(`🔒 SecureSync: Synced ${allowedBlocks.length} blocks to ${this.user.attributes.role} (Filtered from ${serverBlocks.length})`);
-                } else {
-                    // Start deep checking content if we wanted to be perfect, 
-                    // but for "hiding secret blocks" the ID check is usually enough 
-                    // provided the secret block removal changes the ID list.
 
-                    // However, we MUST check if the *content* of allowed blocks changed.
-                    // For Sprint 5 Prototype, we will assume if IDs match, it's mostly in sync,
-                    // or we can force update. 
+                    // Insert plain objects. 
+                    // Note: Yjs will store these as JSON primitives/maps. 
+                    // This works fine for SlideRenderer (which calls toJSON).
+                    // It might break ProseMirror binding if it strictly expects Y.Map instances, 
+                    // but for Phase 0 "Dual Rendering" validation, ensuring Slide View security is priority.
+                    clientContent.insert(0, allowedBlocks);
+
+                    console.log(`🔒 SecureSync: Synced ${allowedBlocks.length} blocks to ${this.user.attributes.role} (Filtered from ${serverBlocks.length})`);
                 }
             });
         } finally {
