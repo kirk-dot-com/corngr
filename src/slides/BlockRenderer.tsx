@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Block } from '../yjs/schema';
 import { formatValue } from '../yjs/schema';
 import { PermissionGate } from '../security/PermissionGate';
@@ -7,13 +7,38 @@ import './BlockRenderer.css';
 
 interface BlockRendererProps {
     block: Block;
-    user?: User | null;
+    user: User;
 }
+
+const arePropsEqual = (prev: BlockRendererProps, next: BlockRendererProps) => {
+    // Optimization: Only re-render if:
+    // 1. The block's content has changed (tracked by modified timestamp)
+    // 2. The user context has changed (e.g. role switch)
+    // 3. The slide chunking state changed (metadata)
+
+    // Check User ID/Role stability
+    if (prev.user.id !== next.user.id || prev.user.attributes.role !== next.user.attributes.role) {
+        return false;
+    }
+
+    // Check Block Identity & Content
+    if (prev.block.id !== next.block.id) return false;
+    if (prev.block.modified !== next.block.modified) return false;
+
+    // Check Metadata (specifically chunking info which changes on pagination)
+    const prevMeta = prev.block.data.metadata || {};
+    const nextMeta = next.block.data.metadata || {};
+
+    if (prevMeta.isChunk !== nextMeta.isChunk) return false;
+    if (prevMeta.slideIndex !== nextMeta.slideIndex) return false;
+
+    return true;
+};
 
 /**
  * Renders a single block in the slide view
  */
-export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, user = null }) => {
+export const BlockRenderer: React.FC<BlockRendererProps> = memo(({ block, user }) => {
     const { type, data } = block;
     const isChunk = data.metadata?.isChunk;
 
@@ -84,5 +109,4 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, user = null
             </div>
         </PermissionGate>
     );
-};
-
+}); // Close memo
