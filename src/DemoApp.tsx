@@ -7,6 +7,7 @@ import { Toolbar } from './prosemirror/Toolbar';
 import { createCorngrDoc, createBlock, createVariableBlock } from './yjs/schema';
 import { EditorView } from 'prosemirror-view';
 import { User, Role } from './security/types';
+import { MockSecureNetwork } from './security/MockSecureNetwork';
 import './DemoApp.css';
 
 const DEMO_DOC_ID = 'corngr-demo-doc';
@@ -19,30 +20,34 @@ const USERS: Record<Role, User> = {
 };
 
 export const DemoApp: React.FC = () => {
-    const [yDoc, setYDoc] = useState<Y.Doc | null>(null);
+    // We now have TWO docs: Server (Source of Truth) and Client (Filtered View)
+    const [serverDoc, setServerDoc] = useState<Y.Doc | null>(null);
+    const [clientDoc, setClientDoc] = useState<Y.Doc | null>(null);
+
     const [persistence, setPersistence] = useState<IndexeddbPersistence | null>(null);
     const [view, setView] = useState<'split' | 'editor' | 'slides'>('split');
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const [editorView, setEditorView] = useState<EditorView | null>(null);
+    const [secureNetwork, setSecureNetwork] = useState<MockSecureNetwork | null>(null);
 
     // Security State
     const [currentUser, setCurrentUser] = useState<User>(USERS.admin);
 
-    // Initialize Yjs document and persistence
+    // Initialize Server Document (Source of Truth)
     useEffect(() => {
-        const doc = new Y.Doc();
-        const provider = new IndexeddbPersistence(DEMO_DOC_ID, doc);
+        const sDoc = new Y.Doc();
+        const provider = new IndexeddbPersistence(DEMO_DOC_ID, sDoc);
 
         provider.on('synced', () => {
-            console.log('📦 Document synced with IndexedDB');
+            console.log('📦 Server Document synced with IndexedDB');
 
             // Initialize with demo content if empty
-            const content = doc.getArray('content');
+            const content = sDoc.getArray('content');
             if (content.length === 0) {
                 console.log('🎬 Creating demo content...');
 
                 // Initialize doc metadata
-                const meta = doc.getMap('meta');
+                const meta = sDoc.getMap('meta');
                 if (!meta.get('id')) {
                     meta.set('id', 'demo-doc-001');
                     meta.set('title', 'Corngr Phase 0 Demo');
@@ -52,43 +57,47 @@ export const DemoApp: React.FC = () => {
                 }
 
                 // Slide 1: Title
-                createBlock(doc, 'heading1', {
+                createBlock(sDoc, 'heading1', {
                     text: 'Corngr Phase 0',
                     metadata: { slideIndex: 0 }
                 });
-                createBlock(doc, 'heading2', {
+                createBlock(sDoc, 'heading2', {
                     text: 'The Post-File Operating System',
                     metadata: { slideIndex: 0 }
                 });
 
                 // Slide 2: The Problem
-                createBlock(doc, 'heading1', {
+                createBlock(sDoc, 'heading1', {
                     text: 'The Problem',
                     metadata: { slideIndex: 1 }
                 });
-                createBlock(doc, 'paragraph', {
+                createBlock(sDoc, 'paragraph', {
                     text: 'Traditional office suites trap data in static files (.docx, .xlsx, .pptx)',
                     metadata: { slideIndex: 1 }
                 });
-                createBlock(doc, 'paragraph', {
+                createBlock(sDoc, 'paragraph', {
                     text: 'Copy-paste creates version conflicts and breaks governance',
                     metadata: { slideIndex: 1 }
                 });
 
+                // SECRET BLOCK
+                createBlock(sDoc, 'heading2', {
+                    text: '🔒 TOP SECRET ADMIN DATA',
+                    metadata: { slideIndex: 1, acl: ['admin'] }
+                });
+
                 // Slide 3: The Solution with Variable
-                createBlock(doc, 'heading1', {
+                createBlock(sDoc, 'heading1', {
                     text: 'The Solution',
                     metadata: { slideIndex: 2 }
                 });
-                createBlock(doc, 'paragraph', {
+                createBlock(sDoc, 'paragraph', {
                     text: 'Unified Data Grid powered by Yjs CRDTs',
                     metadata: { slideIndex: 2 }
                 });
+                createVariableBlock(sDoc, 'revenue', 150000, 'currency');
 
-                // Create a variable to demonstrate transclusion
-                createVariableBlock(doc, 'revenue', 150000, 'currency');
-
-                createBlock(doc, 'paragraph', {
+                createBlock(sDoc, 'paragraph', {
                     text: 'Update once, update everywhere - in milliseconds',
                     metadata: { slideIndex: 2 }
                 });
@@ -97,13 +106,41 @@ export const DemoApp: React.FC = () => {
             }
         });
 
-        setYDoc(doc);
+        setServerDoc(sDoc);
         setPersistence(provider);
+
+        // Client Doc (Ephemeral, usually would come from WebSocket)
+        const cDoc = new Y.Doc();
+        setClientDoc(cDoc);
 
         return () => {
             provider.destroy();
+            sDoc.destroy();
+            cDoc.destroy();
         };
     }, []);
+
+    // Initialize/Update Secure Network Bridge
+    useEffect(() => {
+        if (serverDoc && clientDoc) {
+            console.log(`🔐 Initializing Secure Network for ${currentUser.attributes.role}`);
+            const bridge = new MockSecureNetwork(serverDoc, clientDoc, currentUser);
+            setSecureNetwork(bridge);
+
+            return () => {
+                // Cleanup if needed
+            };
+        }
+    }, [serverDoc, clientDoc]); // Re-init if docs change (only once really)
+
+    // Update Network User when role changes
+    useEffect(() => {
+        if (secureNetwork) {
+            console.log(`🔄 Switching Secure Network Role to ${currentUser.attributes.role}`);
+            secureNetwork.updateUser(currentUser);
+        }
+    }, [currentUser, secureNetwork]);
+
 
     // Track editor view for toolbar
     useEffect(() => {
@@ -118,9 +155,9 @@ export const DemoApp: React.FC = () => {
         }, 100);
 
         return () => clearInterval(interval);
-    }, [yDoc, view]);
+    }, [clientDoc, view]); // Dependent on clientDoc now!
 
-    if (!yDoc) {
+    if (!serverDoc || !clientDoc) {
         return (
             <div className="demo-app loading">
                 <div className="loading-spinner">
@@ -175,8 +212,8 @@ export const DemoApp: React.FC = () => {
                     <button
                         className="view-btn warning"
                         onClick={() => {
-                            // Create restricted block
-                            createBlock(yDoc, 'heading2', {
+                            // Create restricted block in SERVER DOC
+                            createBlock(serverDoc, 'heading2', {
                                 text: '🔒 TOP SECRET ADMIN DATA',
                                 metadata: {
                                     slideIndex: 1,
@@ -198,9 +235,10 @@ export const DemoApp: React.FC = () => {
                             <h2>Document View</h2>
                             <span className="tech-badge">ProseMirror + Yjs</span>
                         </div>
-                        <Toolbar editorView={editorView} yDoc={yDoc} />
+                        {/* EDITOR uses CLIENT DOC (Filtered) */}
+                        <Toolbar editorView={editorView} yDoc={clientDoc} />
                         <div ref={editorContainerRef}>
-                            <ProseMirrorEditor yDoc={yDoc} editorId="main-editor" />
+                            <ProseMirrorEditor yDoc={clientDoc} editorId="main-editor" />
                         </div>
                     </div>
                 )}
@@ -211,7 +249,8 @@ export const DemoApp: React.FC = () => {
                             <h2>Slide View</h2>
                             <span className="tech-badge">React + Yjs</span>
                         </div>
-                        <SlideRenderer yDoc={yDoc} user={currentUser} />
+                        {/* SLIDES use CLIENT DOC (Filtered) */}
+                        <SlideRenderer yDoc={clientDoc} user={currentUser} />
                     </div>
                 )}
             </div>
@@ -224,7 +263,9 @@ export const DemoApp: React.FC = () => {
                 <div className="footer-info">
                     <span>Phase 0: Technical Validation</span>
                     <span>•</span>
-                    <span>Current User: {currentUser.attributes.role}</span>
+                    <span>Secure Filtering Active 🔒</span>
+                    <span>•</span>
+                    <span>User: {currentUser.attributes.role}</span>
                 </div>
             </footer>
         </div>
