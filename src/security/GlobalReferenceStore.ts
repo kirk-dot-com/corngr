@@ -1,5 +1,4 @@
 import { Observable } from 'lib0/observable';
-import { MetadataStore } from '../metadata/MetadataStore';
 
 /**
  * GlobalReferenceStore [SPRINT 3]
@@ -24,12 +23,10 @@ export interface ExternalReference {
 
 export class GlobalReferenceStore extends Observable<any> {
     private references: Map<string, ExternalReference> = new Map();
-    private localStore: MetadataStore;
 
-    constructor(_localStore: MetadataStore) {
+    constructor() {
         super();
-        this.localStore = _localStore;
-        console.log('📡 GlobalReferenceStore initialized with MetadataStore lineage tracking');
+        console.log('📡 GlobalReferenceStore initialized');
     }
 
     /**

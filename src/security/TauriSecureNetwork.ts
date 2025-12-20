@@ -4,7 +4,7 @@ import { User } from './types';
 import { getAllBlocks } from '../yjs/schema';
 import { MetadataStore } from '../metadata/MetadataStore';
 import { TauriSyncProvider } from './TauriSyncProvider';
-import { GlobalReferenceStore, ExternalReference } from './GlobalReferenceStore';
+import { GlobalReferenceStore } from './GlobalReferenceStore';
 
 // Import the REAL Tauri invoke function to connect to Rust backend
 import { invoke } from '@tauri-apps/api/core';
@@ -29,7 +29,7 @@ export class TauriSecureNetwork {
         this.clientDoc = clientDoc;
         this.user = user;
         this.metadataStore = new MetadataStore();
-        this.referenceStore = new GlobalReferenceStore(this.metadataStore);
+        this.referenceStore = new GlobalReferenceStore();
 
         // Phase 3: Collaborative Sync Provider
         this.syncProvider = new TauriSyncProvider(this.clientDoc);
