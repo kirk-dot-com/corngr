@@ -3,6 +3,7 @@ import * as Y from 'yjs';
 import { User } from './types';
 import { getAllBlocks } from '../yjs/schema';
 import { MetadataStore } from '../metadata/MetadataStore';
+import { TauriSyncProvider } from './TauriSyncProvider';
 
 // Import the REAL Tauri invoke function to connect to Rust backend
 import { invoke } from '@tauri-apps/api/core';
@@ -17,14 +18,18 @@ import { invoke } from '@tauri-apps/api/core';
  * - MetadataStore handles security metadata (classification, ACL, provenance)
  */
 export class TauriSecureNetwork {
-    private clientDoc: Y.Doc;
     private user: User;
     private metadataStore: MetadataStore;
+    private syncProvider: TauriSyncProvider;
 
     constructor(clientDoc: Y.Doc, user: User) {
         this.clientDoc = clientDoc;
         this.user = user;
         this.metadataStore = new MetadataStore();
+
+        // Phase 3: Collaborative Sync Provider
+        this.syncProvider = new TauriSyncProvider(this.clientDoc);
+
         this.sync();
     }
 
@@ -150,6 +155,10 @@ export class TauriSecureNetwork {
      */
     public getMetadataStore(): MetadataStore {
         return this.metadataStore;
+    }
+
+    public getSyncProvider(): TauriSyncProvider {
+        return this.syncProvider;
     }
 
     public async reset() {

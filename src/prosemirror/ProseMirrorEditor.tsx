@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { EditorState, Plugin } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
+import { Awareness } from 'y-protocols/awareness';
 import { history } from 'prosemirror-history';
 import { keymap } from 'prosemirror-keymap';
 import { baseKeymap } from 'prosemirror-commands';
@@ -17,6 +18,7 @@ interface ProseMirrorEditorProps {
     yDoc: Y.Doc;
     user: User | null;
     metadataStore: MetadataStore | null;
+    awareness?: Awareness | null;
     onBlockSelect?: (blockId: string | null) => void;
     editorId?: string;
 }
@@ -28,6 +30,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
     yDoc,
     user,
     metadataStore,
+    awareness,
     onBlockSelect,
     editorId = 'editor'
 }) => {

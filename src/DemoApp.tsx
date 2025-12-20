@@ -45,6 +45,14 @@ export const DemoApp: React.FC = () => {
         // 2. Initialize Bridge to Rust Backend
         console.log(`🔐 Initializing Secure Network for ${currentUser.attributes.role}`);
         const bridge = new TauriSecureNetwork(cDoc, currentUser);
+
+        // Phase 3: Set initial awareness state
+        const awareness = bridge.getSyncProvider().awareness;
+        awareness.setLocalStateField('user', {
+            name: `${currentUser.attributes.role} (You)`,
+            color: '#667eea'
+        });
+
         setSecureNetwork(bridge);
 
         return () => {
@@ -212,6 +220,12 @@ export const DemoApp: React.FC = () => {
                         📊 Slides
                     </button>
 
+                    {/* Collaboration Indicator */}
+                    <div className="active-users-indicator" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px', background: 'rgba(102, 126, 234, 0.1)', borderRadius: '20px', margin: '0 8px' }}>
+                        <div className="status-dot online"></div>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Active: 1</span>
+                    </div>
+
                     <button
                         className={`view-btn ${showMetadataPanel ? 'active' : ''}`}
                         onClick={() => setShowMetadataPanel(!showMetadataPanel)}
@@ -278,6 +292,7 @@ export const DemoApp: React.FC = () => {
                                 yDoc={clientDoc}
                                 user={currentUser}
                                 metadataStore={secureNetwork?.getMetadataStore() || null}
+                                awareness={secureNetwork?.getSyncProvider().awareness || null}
                                 onBlockSelect={setSelectedBlockId}
                                 editorId="main-editor"
                             />

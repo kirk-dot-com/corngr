@@ -202,3 +202,34 @@
       #333333 20px) !important;
   border-color: #444;
 }
+/* Collaborative Cursors */
+.yjs-cursor {
+  position: relative;
+  border-left: 2px solid #667eea;
+  border-right: none;
+  margin-left: -2px;
+  pointer-events: none;
+}
+
+.yjs-cursor > div {
+  position: absolute;
+  top: -1.2em;
+  left: -2px;
+  font-size: 10px;
+  background-color: #667eea;
+  color: white;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  line-height: normal;
+  user-select: none;
+  opacity: 1;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  z-index: 10;
+}
+
+.yjs-remote-selection {
+  background-color: rgba(102, 126, 234, 0.2);
+}
