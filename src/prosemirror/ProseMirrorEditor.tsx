@@ -4,7 +4,7 @@ import { EditorView } from 'prosemirror-view';
 import { history } from 'prosemirror-history';
 import { keymap } from 'prosemirror-keymap';
 import { baseKeymap } from 'prosemirror-commands';
-import { ySyncPlugin, yUndoPlugin, undo as yUndo, redo as yRedo } from 'y-prosemirror';
+import { ySyncPlugin, yCursorPlugin, yUndoPlugin, undo as yUndo, redo as yRedo } from 'y-prosemirror';
 import * as Y from 'yjs';
 import { corngrSchema } from './schema';
 import { formatValue } from '../yjs/schema';
