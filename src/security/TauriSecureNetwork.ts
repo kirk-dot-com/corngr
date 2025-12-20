@@ -31,7 +31,43 @@ export class TauriSecureNetwork {
         // Phase 3: Collaborative Sync Provider
         this.syncProvider = new TauriSyncProvider(this.clientDoc);
 
+        this.initMetadataSync();
         this.sync();
+    }
+
+    /**
+     * Phase 3: Real-time Metadata Sync via Yjs Awareness
+     */
+    private initMetadataSync() {
+        const awareness = this.syncProvider.awareness;
+
+        // 1. Listen for LOCAL metadata changes and broadcast via Awareness
+        this.metadataStore.on('update', (updates: Array<{ blockId: string, metadata: any }>) => {
+            const currentMetadata = awareness.getLocalState()?.metadata || {};
+
+            updates.forEach(({ blockId, metadata }) => {
+                currentMetadata[blockId] = metadata;
+            });
+
+            awareness.setLocalStateField('metadata', currentMetadata);
+            console.log(`📡 [Phase 3] Broadcasted metadata update for ${updates.length} blocks via Awareness`);
+        });
+
+        // 2. Listen for REMOTE metadata changes and apply to local Store
+        awareness.on('change', () => {
+            const states = awareness.getStates();
+            states.forEach((state, _clientId) => {
+                if (state.metadata) {
+                    Object.entries(state.metadata).forEach(([blockId, metadata]) => {
+                        const existing = this.metadataStore.get(blockId);
+                        if (JSON.stringify(existing) !== JSON.stringify(metadata)) {
+                            // Directly update internal map to avoid loops
+                            (this.metadataStore as any).metadata.set(blockId, metadata);
+                        }
+                    });
+                }
+            });
+        });
     }
 
     public async sync() {

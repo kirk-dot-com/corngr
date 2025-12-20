@@ -36,6 +36,9 @@ export const DemoApp: React.FC = () => {
     // Performance Testing State
     const [autoMutate, setAutoMutate] = useState(false);
 
+    // Collaboration State
+    const [activeUserCount, setActiveUserCount] = useState(1);
+
     // Initialize Document & Network
     useEffect(() => {
         // 1. Create fresh Client Doc
@@ -65,8 +68,30 @@ export const DemoApp: React.FC = () => {
         if (secureNetwork) {
             console.log(`🔄 Switching Secure Network Role to ${currentUser.attributes.role}`);
             secureNetwork.updateUser(currentUser);
+
+            // Phase 3: Update local awareness identity
+            const awareness = secureNetwork.getSyncProvider().awareness;
+            awareness.setLocalStateField('user', {
+                name: `${currentUser.attributes.role} (You)`,
+                color: currentUser.attributes.role === 'admin' ? '#ff4b2b' : '#667eea'
+            });
         }
     }, [currentUser, secureNetwork]);
+
+    // Awareness Listener for Header & Cursors
+    useEffect(() => {
+        if (!secureNetwork) return;
+
+        const awareness = secureNetwork.getSyncProvider().awareness;
+        const handleAwarenessChange = () => {
+            setActiveUserCount(awareness.getStates().size);
+        };
+
+        awareness.on('change', handleAwarenessChange);
+        return () => {
+            awareness.off('change', handleAwarenessChange);
+        };
+    }, [secureNetwork]);
 
     // Auto-Save: Listen for changes and push to Rust
     useEffect(() => {

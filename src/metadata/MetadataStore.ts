@@ -1,20 +1,16 @@
 import { BlockMetadata } from '../yjs/schema';
+import { Observable } from 'lib0/observable';
 
 /**
  * Shadow Metadata Store for Phase 2
  * 
  * Maintains a 1:1 mapping between block IDs and their security metadata.
- * This keeps sensitive metadata out of the ProseMirror DOM while ensuring
- * it's preserved through save/load cycles.
- * 
- * Architecture: Dual-Layer (Option B)
- * - ProseMirror: Content only
- * - MetadataStore: Security metadata (classification, ACL, provenance)
  */
-export class MetadataStore {
+export class MetadataStore extends Observable<any> {
     private metadata: Map<string, BlockMetadata>;
 
     constructor() {
+        super();
         this.metadata = new Map();
     }
 
@@ -23,6 +19,7 @@ export class MetadataStore {
      */
     set(blockId: string, metadata: BlockMetadata): void {
         this.metadata.set(blockId, metadata);
+        this.emit('update', [{ blockId, metadata }]);
     }
 
     /**
