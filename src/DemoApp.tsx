@@ -174,12 +174,13 @@ export const DemoApp: React.FC = () => {
                         <select
                             value={currentUser.attributes.role}
                             onChange={async (e) => {
+                                const newRole = e.target.value as Role;
                                 // Force save before switching to prevent data loss
                                 if (secureNetwork) {
                                     console.log('🔄 Saving before role switch...');
                                     await secureNetwork.save();
                                 }
-                                setCurrentUser(USERS[e.target.value as Role]);
+                                setCurrentUser(USERS[newRole]);
                             }}
                             style={{ padding: '4px', borderRadius: '4px' }}
                         >
