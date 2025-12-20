@@ -288,6 +288,8 @@ export function blockToJSON(block: Y.Map<any>): Block {
 /**
  * Gets all blocks as JSON array from the Prosemirror Fragment
  * This bridges the Y.XmlFragment (Editor) to the Block[] (Slides/Persistence)
+ * 
+ * Phase 2: Now preserves stable block IDs from ProseMirror nodes
  */
 export function getAllBlocks(doc: Y.Doc): Block[] {
     // Phase 1 Fix: Source of Truth is now the Prosemirror Fragment
@@ -299,19 +301,17 @@ export function getAllBlocks(doc: Y.Doc): Block[] {
         return [];
     }
 
-    let i = 0;
     // Iterate over top-level nodes (paragraphs, headings)
-    // Note: Yjs Types iteration is a bit manual
     for (const node of fragment.toArray()) {
         if (node instanceof Y.XmlElement) {
             const nodeName = node.nodeName;
             const attrs = node.getAttributes();
 
+            // Phase 2: Extract stable block ID or generate one
+            const blockId = attrs.blockId || generateUUID();
+
             // Extract text content
-            // Prosemirror stores text in children Y.XmlText or nested nodes
             let text = '';
-            // Simple text extraction for MVP
-            // Deep traversal would be better but Y.XmlText.toString() might work
             text = node.toString();
 
             let blockType: BlockType = 'paragraph';
@@ -330,13 +330,8 @@ export function getAllBlocks(doc: Y.Doc): Block[] {
                 blockType = 'variable';
             }
 
-            // Note: Prosemirror might not store our custom 'metadata' in attributes directly
-            // unless we added it to schema. Since we didn't add 'slideIndex' to PM schema, 
-            // it's effectively lost/ephemeral in the editor for now unless we hack it.
-            // For MVP, we auto-paginate, so slideIndex=null is fine.
-
             blocks.push({
-                id: `block-${i++}`, // Ephemeral ID since PM doesn't enforce IDs on all nodes
+                id: blockId, // Phase 2: Stable ID!
                 type: blockType,
                 // @ts-ignore - Rust Block struct needs both 'type' and 'type_' fields
                 type_: blockType,
@@ -379,8 +374,9 @@ export function addPermission(
 
 /**
  * Simple UUID generator (v4)
+ * Exported for use in Phase 2 (stable block IDs)
  */
-function generateUUID(): string {
+export function generateUUID(): string {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
         const r = (Math.random() * 16) | 0;
         const v = c === 'x' ? r : (r & 0x3) | 0x8;
