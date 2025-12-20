@@ -36,6 +36,21 @@ pub struct Metadata {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CapabilityRequest {
+    pub origin_url: String,
+    pub doc_id: String,
+    pub block_id: String,
+    pub user: User,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CapabilityToken {
+    pub token_id: String,
+    pub expires_at: String,
+    pub signature: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct VariableValue {
     pub name: String,
     pub value: serde_json::Value,
