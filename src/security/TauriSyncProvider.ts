@@ -23,9 +23,11 @@ export class TauriSyncProvider extends Observable<any> {
         this.doc = doc;
         this.awareness = awareness;
 
+        const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__;
+
         // 1. Listen for local Yjs updates and send to Tauri
         this.doc.on('update', (update: Uint8Array, origin: any) => {
-            if (origin !== this) {
+            if (origin !== this && isTauri) {
                 // Send update to Rust backend
                 emit('yjs-update', Array.from(update)).catch(err => {
                     console.error('Failed to emit yjs-update:', err);
@@ -35,6 +37,8 @@ export class TauriSyncProvider extends Observable<any> {
 
         // 2. Listen for local awareness changes and send to Tauri
         this.awareness.on('update', ({ added, updated, removed }: any) => {
+            if (!isTauri) return;
+
             const changedClients = added.concat(updated).concat(removed);
             const awarenessUpdate = encodeAwarenessUpdate(this.awareness, changedClients);
 
@@ -43,7 +47,11 @@ export class TauriSyncProvider extends Observable<any> {
             });
         });
 
-        this.init();
+        if (isTauri) {
+            this.init();
+        } else {
+            console.warn('TauriSyncProvider: Not running in Tauri environment. Synchronization disabled.');
+        }
     }
 
     private async init() {
