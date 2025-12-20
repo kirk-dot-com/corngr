@@ -17,6 +17,7 @@ interface ProseMirrorEditorProps {
     yDoc: Y.Doc;
     user: User | null;
     metadataStore: MetadataStore | null;
+    onBlockSelect?: (blockId: string | null) => void;
     editorId?: string;
 }
 
@@ -27,6 +28,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
     yDoc,
     user,
     metadataStore,
+    onBlockSelect,
     editorId = 'editor'
 }) => {
     const editorRef = useRef<HTMLDivElement>(null);
@@ -44,7 +46,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                 init() {
                     return null;
                 },
-                apply(tr) {
+                apply(_tr) {
                     return null;
                 }
             },

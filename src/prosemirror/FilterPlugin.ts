@@ -1,4 +1,5 @@
-import { Plugin, Decoration, DecorationSet } from 'prosemirror-state';
+import { Plugin } from 'prosemirror-state';
+import { Decoration, DecorationSet } from 'prosemirror-view';
 import { MetadataStore } from '../metadata/MetadataStore';
 import { User } from '../security/types';
 import { checkClientAccess } from '../security/checkClientAccess';
@@ -19,13 +20,13 @@ export function createFilterPlugin(
             init() {
                 return DecorationSet.empty;
             },
-            apply(tr, oldState, oldEditorState, newEditorState) {
+            apply(tr, _oldState, _oldEditorState, newEditorState) {
                 // We re-calculate decorations if the document changes
                 // OR if we're forced to (e.g. on role switch, though PM state usually handles that via plugin props)
                 if (tr.docChanged) {
                     return createDecorations(newEditorState.doc, metadataStore, user);
                 }
-                return oldState.map(tr.mapping, tr.doc);
+                return _oldState.map(tr.mapping, tr.doc);
             }
         },
         props: {
