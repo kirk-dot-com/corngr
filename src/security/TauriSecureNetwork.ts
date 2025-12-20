@@ -2,6 +2,7 @@
 import * as Y from 'yjs';
 import { User } from './types';
 import { getAllBlocks } from '../yjs/schema';
+import { MetadataStore } from '../metadata/MetadataStore';
 
 // Import the REAL Tauri invoke function to connect to Rust backend
 import { invoke } from '@tauri-apps/api/core';
@@ -10,14 +11,20 @@ import { invoke } from '@tauri-apps/api/core';
 /**
  * Connects the Frontend (Yjs) to the Local-First Backend (Tauri/Rust)
  * Replaces the 'MockSecureNetwork' from Phase 0.
+ * 
+ * Phase 2: Dual-Layer Architecture
+ * - ProseMirror handles content
+ * - MetadataStore handles security metadata (classification, ACL, provenance)
  */
 export class TauriSecureNetwork {
     private clientDoc: Y.Doc;
     private user: User;
+    private metadataStore: MetadataStore;
 
     constructor(clientDoc: Y.Doc, user: User) {
         this.clientDoc = clientDoc;
         this.user = user;
+        this.metadataStore = new MetadataStore();
         this.sync();
     }
 
@@ -38,7 +45,11 @@ export class TauriSecureNetwork {
                 console.log(`   ${i + 1}. [${b.type}] "${b.data?.text?.substring(0, 30) || 'variable'}" | Class: ${classification} | ACL: ${JSON.stringify(acl)}`);
             });
 
-            // 2. Update Client View (Prosemirror Fragment)
+            // 2. Phase 2: Split content and metadata (Dual-Layer Architecture)
+            console.log('🔐 [Phase 2] Extracting metadata to shadow store...');
+            this.metadataStore.loadFromBackend(blocks as any[]);
+
+            // 3. Update Client View (ProseMirror Fragment) - Content Only
             this.clientDoc.transact(() => {
                 const fragment = this.clientDoc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
                 fragment.delete(0, fragment.length);
@@ -47,16 +58,18 @@ export class TauriSecureNetwork {
                     let nodeName = 'paragraph';
                     let attrs: any = {};
 
+                    // Phase 2: Preserve stable block ID
+                    attrs.blockId = block.id;
+
                     if (block.type === 'heading1') {
                         nodeName = 'heading';
-                        attrs = { level: 1 };
+                        attrs.level = 1;
                     } else if (block.type === 'heading2') {
                         nodeName = 'heading';
-                        attrs = { level: 2 };
+                        attrs.level = 2;
                     } else if (block.type === 'variable') {
                         nodeName = 'variable';
                         if (block.data?.value) {
-                            attrs.blockId = block.id;
                             attrs.name = block.data.value.name;
                             attrs.value = block.data.value.value;
                             attrs.format = block.data.value.format || 'text';
@@ -81,6 +94,7 @@ export class TauriSecureNetwork {
             });
 
             console.log('✅ SYNC COMPLETE: Loaded', (blocks as any[]).length, 'filtered blocks into editor');
+            console.log(`🔐 MetadataStore now contains ${this.metadataStore.size()} entries`);
             console.log('═══════════════════════════════════════════\n');
         } catch (e) {
             console.error('❌ Failed to sync with Tauri backend', e);
