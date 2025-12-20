@@ -22,21 +22,28 @@ export class TauriSecureNetwork {
     }
 
     public async sync() {
-        console.log('🔄 Requesting Secure Doc from Rust...');
+        console.log('═══════════════════════════════════════════');
+        console.log('🔄 SYNC: Requesting blocks from Rust backend');
+        console.log('   User:', this.user.id, '|', this.user.attributes.role, '| Clearance:', this.user.attributes.clearanceLevel);
 
         try {
             // 1. Request Filtered Data from Rust (The "Server")
-            // Rust performs the ABAC check and returns only blocks this user can see.
             const blocks = await invoke('load_secure_document', { user: this.user });
 
+            console.log('📦 RUST RETURNED:', (blocks as any[]).length, 'blocks');
+            console.log('   Block details:');
+            (blocks as any[]).forEach((b: any, i: number) => {
+                const classification = b.data?.metadata?.classification || 'none';
+                const acl = b.data?.metadata?.acl || [];
+                console.log(`   ${i + 1}. [${b.type}] "${b.data?.text?.substring(0, 30) || 'variable'}" | Class: ${classification} | ACL: ${JSON.stringify(acl)}`);
+            });
+
             // 2. Update Client View (Prosemirror Fragment)
-            // Phase 1 Fix: Populate the Prosemirror XML Fragment so the Editor sees the data
             this.clientDoc.transact(() => {
                 const fragment = this.clientDoc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
                 fragment.delete(0, fragment.length);
 
                 const nodes = (blocks as any[]).map(block => {
-                    // Map Block -> PM Node
                     let nodeName = 'paragraph';
                     let attrs: any = {};
 
@@ -48,15 +55,20 @@ export class TauriSecureNetwork {
                         attrs = { level: 2 };
                     } else if (block.type === 'variable') {
                         nodeName = 'variable';
-                        // Map variable data if present
+                        if (block.data?.value) {
+                            attrs.blockId = block.id;
+                            attrs.name = block.data.value.name;
+                            attrs.value = block.data.value.value;
+                            attrs.format = block.data.value.format || 'text';
+                        }
                     }
 
                     const node = new Y.XmlElement(nodeName);
                     for (const [k, v] of Object.entries(attrs)) {
-                        node.setAttribute(k, v);
+                        node.setAttribute(k, String(v));
                     }
 
-                    if (block.data.text) {
+                    if (block.data?.text) {
                         const text = new Y.XmlText(block.data.text);
                         node.insert(0, [text]);
                     }
@@ -68,7 +80,8 @@ export class TauriSecureNetwork {
                 }
             });
 
-            console.log('✅ Client View updated via Secure Bridge');
+            console.log('✅ SYNC COMPLETE: Loaded', (blocks as any[]).length, 'filtered blocks into editor');
+            console.log('═══════════════════════════════════════════\n');
         } catch (e) {
             console.error('❌ Failed to sync with Tauri backend', e);
         }
