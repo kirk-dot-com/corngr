@@ -22,7 +22,8 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc, user = null 
 
     // Subscribe to Yjs content changes
     useEffect(() => {
-        const content = yDoc.getArray('content');
+        // Phase 1 Fix: Listen to the Source of Truth (Prosemirror Fragment)
+        const fragment = yDoc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
 
         const syncBlocks = () => {
             const allBlocks = getAllBlocks(yDoc);
@@ -32,11 +33,11 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc, user = null 
 
         syncBlocks(); // Initial load
 
-        // Deep observation - triggers on array changes AND nested changes
-        content.observeDeep(syncBlocks);
+        // Deep observation - triggers on node changes (text updates, split nodes, etc)
+        fragment.observeDeep(syncBlocks);
 
         return () => {
-            content.unobserveDeep(syncBlocks);
+            fragment.unobserveDeep(syncBlocks);
         };
     }, [yDoc]);
 
