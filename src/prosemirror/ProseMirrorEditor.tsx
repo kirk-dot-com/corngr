@@ -131,6 +131,39 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
             attributes: {
                 class: 'corngr-editor',
                 'data-editor-id': editorId
+            },
+            nodeViews: {
+                'inline-reference': (node, _view, _getPos) => {
+                    const dom = document.createElement('span');
+                    dom.className = 'corngr-inline-reference-mount';
+
+                    // We need the network to resolve references
+                    // This is a bit tricky as network is in DemoApp
+                    // But we can assume the component tree has access or pass it via props
+                    // FOR NOW: We'll look for it in the window or use a global (Phase 3 strategy)
+                    const network = (window as any).tauriNetwork;
+
+                    if (network) {
+                        import('../components/TransclusionRenderer').then(({ TransclusionRenderer }) => {
+                            import('react-dom/client').then(({ createRoot }) => {
+                                const root = createRoot(dom);
+                                root.render(
+                                    <TransclusionRenderer
+                                        network={network}
+                                        refId={node.attrs.refId}
+                                        fallbackText={node.attrs.fallbackText}
+                                    />
+                                );
+                            });
+                        });
+                    }
+
+                    return {
+                        dom,
+                        stopEvent: () => true,
+                        ignoreMutation: () => true
+                    };
+                }
             }
         });
 

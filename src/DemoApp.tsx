@@ -9,6 +9,7 @@ import { User, Role } from './security/types';
 import { TauriSecureNetwork } from './security/TauriSecureNetwork';
 import { PerformanceMonitor } from './components/PerformanceMonitor';
 import { MarketplaceSidebar, MarketplaceBlock } from './components/MarketplaceSidebar';
+import { GovernanceDashboard } from './components/governance/GovernanceDashboard';
 import { generateUUID, BlockMetadata } from './yjs/schema';
 import './DemoApp.css';
 
@@ -25,7 +26,7 @@ export const DemoApp: React.FC = () => {
     // Syncs with Rust Backend via TauriSecureNetwork.
     const [clientDoc, setClientDoc] = useState<Y.Doc | null>(null);
 
-    const [view, setView] = useState<'split' | 'editor' | 'slides'>('split');
+    const [view, setView] = useState<'split' | 'editor' | 'slides' | 'governance'>('split');
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const [editorView, setEditorView] = useState<EditorView | null>(null);
     const [secureNetwork, setSecureNetwork] = useState<TauriSecureNetwork | null>(null);
@@ -62,6 +63,9 @@ export const DemoApp: React.FC = () => {
         });
 
         setSecureNetwork(bridge);
+
+        // Phase 3: Expose network for NodeViews and Renderers
+        (window as any).tauriNetwork = bridge;
 
         return () => {
             cDoc.destroy();
@@ -211,6 +215,35 @@ export const DemoApp: React.FC = () => {
         setShowMarketplace(false);
     };
 
+    // [Sprint 3] Global Transclusion Test
+    const insertGlobalTransclusion = () => {
+        if (!clientDoc || !secureNetwork) return;
+
+        const refId = 'ext-ref-' + Math.random().toString(36).substring(7);
+
+        // 1. Register a mock external reference in the store
+        // In a real scenario, this would come from a picker or clipboard
+        secureNetwork.getReferenceStore().addReference({
+            id: refId,
+            targetDocId: 'doc-alpha-99',
+            targetBlockId: 'b3', // Confidential Block in mock data
+            originUrl: 'https://security.corngr.com/vault/finance-2024.crng',
+            lastVerified: new Date().toISOString(),
+            status: 'active'
+        });
+
+        // 2. Insert the reference into the editor
+        const fragment = clientDoc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
+        clientDoc.transact(() => {
+            const node = new Y.XmlElement('inline-reference');
+            node.setAttribute('refId', refId);
+            node.setAttribute('fallbackText', 'Resolving Finance Data...');
+            fragment.push([node]);
+        });
+
+        console.log(`🌐 [Sprint 3] Inserted Global Transclusion: ${refId}`);
+    };
+
     // Track editor view for toolbar
     useEffect(() => {
         if (!editorContainerRef.current) return;
@@ -284,6 +317,16 @@ export const DemoApp: React.FC = () => {
                         <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#9d88ff' }}>Active: {activeUserCount}</span>
                     </div>
 
+                    <button className={`view-btn ${view === 'governance' ? 'active' : ''}`} onClick={() => setView('governance')}>🛡️ Governance</button>
+
+                    <button
+                        className="view-btn"
+                        onClick={insertGlobalTransclusion}
+                        style={{ border: '1px dashed #667eea', color: '#667eea' }}
+                    >
+                        🌐 +Transclude
+                    </button>
+
                     <button
                         className={`view-btn ${showMetadataPanel ? 'active' : ''}`}
                         onClick={() => setShowMetadataPanel(!showMetadataPanel)}
@@ -329,6 +372,12 @@ export const DemoApp: React.FC = () => {
                             <span className="tech-badge">React + Yjs</span>
                         </div>
                         <SlideRenderer yDoc={clientDoc} user={currentUser} />
+                    </div>
+                )}
+
+                {view === 'governance' && secureNetwork && (
+                    <div className="governance-panel" style={{ flexGrow: 1 }}>
+                        <GovernanceDashboard network={secureNetwork} yDoc={clientDoc} />
                     </div>
                 )}
 

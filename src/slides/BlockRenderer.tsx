@@ -130,6 +130,19 @@ export const BlockRenderer: React.FC<BlockRendererProps> = memo(({ block, user, 
                     </div>
                 );
 
+            case 'inline-reference': {
+                const network = (window as any).tauriNetwork;
+                if (!network || !data.inlineRef) return null;
+                const { TransclusionRenderer } = require('../components/TransclusionRenderer');
+                return (
+                    <TransclusionRenderer
+                        network={network}
+                        refId={data.inlineRef.referencedBlockId}
+                        fallbackText={data.inlineRef.fallbackText}
+                    />
+                );
+            }
+
             default:
                 return (
                     <div className="slide-block-unknown">

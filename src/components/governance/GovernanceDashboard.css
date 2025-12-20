@@ -1,0 +1,242 @@
+/* Governance Dashboard [Sprint 3] */
+
+.governance-dashboard {
+    background: var(--bg-main, #0a0a0f);
+    color: #e0e0e0;
+    padding: 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    overflow-y: auto;
+}
+
+.gov-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 24px;
+}
+
+.gov-title h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.8rem;
+    margin: 0;
+    background: linear-gradient(135deg, #fff 0%, #a8a8af 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.gov-title p {
+    margin: 4px 0 0;
+    opacity: 0.6;
+    font-size: 0.9rem;
+}
+
+.gov-search input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 10px 16px;
+    color: white;
+    width: 300px;
+    transition: all 0.3s ease;
+}
+
+.gov-search input:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #667eea;
+    outline: none;
+    box-shadow: 0 0 15px rgba(102, 126, 234, 0.2);
+}
+
+/* Stats Section */
+.gov-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.stat-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    opacity: 0.5;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 8px 0;
+    font-family: 'Outfit', sans-serif;
+}
+
+.stat-progress {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.progress-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s ease-out;
+}
+
+.stat-public .progress-bar {
+    background: #4caf50;
+}
+
+.stat-internal .progress-bar {
+    background: #2196f3;
+}
+
+.stat-confidential .progress-bar {
+    background: #ff9800;
+}
+
+.stat-restricted .progress-bar {
+    background: #f44336;
+}
+
+/* Table Section */
+.gov-table-container {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    overflow: hidden;
+    flex-grow: 1;
+}
+
+.gov-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.gov-table th {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 16px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.7;
+}
+
+.gov-table td {
+    padding: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    vertical-align: top;
+}
+
+.cell-id code {
+    background: rgba(102, 126, 234, 0.1);
+    color: #9d88ff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.type-badge {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    text-transform: capitalize;
+}
+
+.cls-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.cls-public {
+    background: rgba(76, 175, 80, 0.1);
+    color: #81c784;
+}
+
+.cls-internal {
+    background: rgba(33, 150, 243, 0.1);
+    color: #64b5f6;
+}
+
+.cls-confidential {
+    background: rgba(255, 152, 0, 0.1);
+    color: #ffb74d;
+}
+
+.cls-restricted {
+    background: rgba(244, 67, 54, 0.1);
+    color: #e57373;
+}
+
+.lineage-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.lineage-author {
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.lineage-origin {
+    font-size: 0.75rem;
+    opacity: 0.6;
+}
+
+.lineage-timestamp {
+    font-size: 0.7rem;
+    opacity: 0.4;
+}
+
+.lineage-none {
+    font-style: italic;
+    opacity: 0.3;
+}
+
+/* Footer */
+.gov-footer {
+    display: flex;
+    gap: 12px;
+}
+
+.gov-action-btn {
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.gov-action-btn:hover {
+    background: #764ba2;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(118, 75, 162, 0.3);
+}
+
+.gov-action-btn.secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gov-action-btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+}

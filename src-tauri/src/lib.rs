@@ -10,9 +10,13 @@ use uuid::Uuid;
 pub struct Provenance {
     #[serde(rename = "sourceId")]
     pub source_id: String,
+    #[serde(rename = "sourceDocId")]
+    pub source_doc_id: Option<String>,
     #[serde(rename = "authorId")]
     pub author_id: String,
     pub timestamp: String,
+    #[serde(rename = "originUrl")]
+    pub origin_url: Option<String>,
     pub signature: Option<String>,
 }
 
@@ -25,6 +29,10 @@ pub struct Metadata {
     pub classification: Option<String>, // public, internal, confidential
     pub provenance: Option<Provenance>,
     pub locked: Option<bool>, // Phase 2: Edit protection
+    #[serde(rename = "originDocId")]
+    pub origin_doc_id: Option<String>,
+    #[serde(rename = "originUrl")]
+    pub origin_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -145,6 +153,45 @@ fn check_block_permission(user: User, block_id: String, action: String) -> bool 
         return check_access(&user, block, &action);
     }
     false // Block not found, default to deny
+}
+
+/**
+ * [Sprint 3] Fetch External Block
+ * Authoritative cross-origin request handler.
+ * Validates permissions against the remote document's logic.
+ */
+#[tauri::command]
+fn fetch_external_block(
+    user: User,
+    origin_url: String,
+    doc_id: String,
+    block_id: String,
+) -> Result<Block, String> {
+    println!(
+        "🌐 [Sprint 3] Remote Fetch Request: User {} -> Origin {} | Doc {} | Block {}",
+        user.id, origin_url, doc_id, block_id
+    );
+
+    // 1. Simulate finding the remote document
+    // In a real system, we'd fetch from another .crng file or a remote server
+    let blocks = get_mock_blocks();
+
+    if let Some(mut block) = blocks.into_iter().find(|b| b.id == block_id) {
+        // 2. Perform Authoritative ABAC Check
+        if check_access(&user, &block, "read") {
+            // Enrich with origin metadata to ensure receiver knows it's external
+            block.data.metadata.origin_doc_id = Some(doc_id);
+            block.data.metadata.origin_url = Some(origin_url);
+
+            println!("✅ Remote Access Granted: {}", block_id);
+            return Ok(block);
+        } else {
+            println!("🔒 Remote Access Denied for User {}", user.id);
+            return Err("Permission Denied: Origin ABAC rejected request".into());
+        }
+    }
+
+    Err("Block not found in remote document".into())
 }
 
 /**
@@ -421,7 +468,8 @@ pub fn run() {
             load_secure_document,
             save_secure_document,
             check_block_permission,
-            reset_secure_document
+            reset_secure_document,
+            fetch_external_block
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

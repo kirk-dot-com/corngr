@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { TauriSecureNetwork } from '../security/TauriSecureNetwork';
-import { ExternalReference } from '../security/GlobalReferenceStore';
 import { formatValue } from '../yjs/schema';
+import { TauriSecureNetwork } from '../security/TauriSecureNetwork';
 import './TransclusionRenderer.css';
 
 interface TransclusionRendererProps {
