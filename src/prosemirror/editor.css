@@ -1,26 +1,23 @@
-/* ProseMirror Editor Styles */
+/* ProseMirror Editor Styles - Phase 3 Global Refresh */
 
 .prosemirror-editor-container {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  background: transparent;
+  border: none;
   overflow: hidden;
 }
 
 .prosemirror-editor {
   flex: 1;
-  padding: 24px;
+  padding: 32px;
   overflow-y: auto;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Inter', -apple-system, sans-serif;
   font-size: 16px;
-  line-height: 1.6;
-  color: #333;
+  line-height: 1.7;
+  color: #e0e0e0;
 }
 
 /* ProseMirror core styles */
@@ -30,54 +27,63 @@
 }
 
 .ProseMirror p {
-  margin: 0 0 12px 0;
+  margin: 0 0 16px 0;
 }
 
 .ProseMirror h1,
 .ProseMirror h2,
 .ProseMirror h3 {
-  font-weight: 600;
-  margin: 24px 0 12px 0;
-  line-height: 1.3;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  margin: 32px 0 16px 0;
+  line-height: 1.2;
+  color: #fff;
 }
 
 .ProseMirror h1 {
-  font-size: 2em;
+  font-size: 2.25em;
+  letter-spacing: -1px;
 }
 
 .ProseMirror h2 {
-  font-size: 1.5em;
+  font-size: 1.75em;
+  letter-spacing: -0.5px;
 }
 
 .ProseMirror h3 {
-  font-size: 1.25em;
+  font-size: 1.4em;
 }
 
 .ProseMirror strong {
-  font-weight: 600;
+  font-weight: 700;
+  color: #fff;
 }
 
 .ProseMirror em {
   font-style: italic;
+  opacity: 0.9;
 }
 
 .ProseMirror code {
-  background: #f5f5f5;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: 'Monaco', 'Courier New', monospace;
-  font-size: 0.9em;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.85em;
+  color: #667eea;
 }
 
 .ProseMirror a {
-  color: #0066cc;
+  color: #667eea;
   text-decoration: none;
-  border-bottom: 1px solid #0066cc;
+  border-bottom: 1px solid rgba(102, 126, 234, 0.3);
+  transition: all 0.2s;
 }
 
 .ProseMirror a:hover {
-  color: #004499;
-  border-bottom-color: #004499;
+  color: #8899ff;
+  border-bottom-color: #8899ff;
+  background: rgba(102, 126, 234, 0.1);
 }
 
 /* Variable node styles */
@@ -85,151 +91,139 @@
   display: inline-block;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.9em;
-  font-weight: 500;
-  font-family: 'Monaco', 'Courier New', monospace;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 0.85em;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
   cursor: pointer;
   user-select: none;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .corngr-variable:hover {
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+  filter: brightness(1.1);
 }
 
 .corngr-variable::before {
-  content: '🔗';
-  margin-right: 4px;
+  content: '🏷️';
+  margin-right: 6px;
   font-size: 0.8em;
 }
 
 /* Selection styles */
 .ProseMirror-selectednode {
   outline: 2px solid #667eea;
-  outline-offset: 2px;
+  outline-offset: 4px;
+  background: rgba(102, 126, 234, 0.1) !important;
   border-radius: 4px;
 }
 
 /* Placeholder */
 .ProseMirror p.is-empty:first-child::before {
-  content: 'Start typing...';
+  content: 'Start drafting your secure document...';
   float: left;
-  color: #aaa;
+  color: #555;
   pointer-events: none;
   height: 0;
+  font-style: italic;
 }
 
-/* Collaborative cursor styles */
-.ProseMirror-yjs-cursor {
-  position: absolute;
-  border-left: 2px solid;
-  border-color: var(--cursor-color, #667eea);
+/* Collaborative Cursors */
+.yjs-cursor {
+  position: relative;
+  border-left: 2px solid #667eea;
+  margin-left: -2px;
   pointer-events: none;
-  user-select: none;
 }
 
-.ProseMirror-yjs-cursor::after {
-  content: attr(data-username);
+.yjs-cursor>div {
   position: absolute;
-  top: -1.5em;
-  left: -1px;
-  background: var(--cursor-color, #667eea);
+  top: -1.3em;
+  left: -2px;
+  font-size: 11px;
+  background: #667eea;
   color: white;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
   white-space: nowrap;
-  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  animation: fadeIn 0.2s ease-out;
 }
 
-/* Focus styles */
-.prosemirror-editor-container:focus-within {
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.yjs-remote-selection {
+  background-color: rgba(102, 126, 234, 0.15);
+  border-radius: 2px;
 }
 
 /* ============================================
-   Phase 2.3: Security Redaction Styles
+   Security Redaction Styles (Phase 3 Refresh)
    ============================================ */
 
 .redacted-node {
   position: relative;
   background: repeating-linear-gradient(45deg,
-      #f5f5f5,
-      #f5f5f5 10px,
-      #eeeeee 10px,
-      #eeeeee 20px) !important;
+      rgba(255, 255, 255, 0.03),
+      rgba(255, 255, 255, 0.03) 10px,
+      rgba(255, 255, 255, 0.05) 10px,
+      rgba(255, 255, 255, 0.05) 20px) !important;
   color: transparent !important;
-  border-radius: 8px;
-  border: 1px dashed #cccccc;
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
   pointer-events: none;
   user-select: none;
-  min-height: 2em;
-  margin-bottom: 12px;
+  min-height: 2.5em;
+  margin-bottom: 20px;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.4s ease;
 }
 
 .redacted-node::before {
-  content: '🔒 RESTRICTED CONTENT';
+  content: '🔒 RESTRICTED BY ABAC';
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  color: #999;
-  font-size: 0.8em;
-  font-weight: 700;
-  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 3px;
   white-space: nowrap;
-  pointer-events: auto;
 }
 
 .redacted-node.ProseMirror-selectednode {
   outline: 2px solid #f44336;
+  background: rgba(244, 67, 54, 0.05) !important;
 }
 
-/* Dark mode overrides for redacted nodes (if applicable) */
-[data-theme='dark'] .redacted-node {
-  background: repeating-linear-gradient(45deg,
-      #2a2a2a,
-      #2a2a2a 10px,
-      #333333 10px,
-      #333333 20px) !important;
-  border-color: #444;
-}
-/* Collaborative Cursors */
-.yjs-cursor {
-  position: relative;
-  border-left: 2px solid #667eea;
-  border-right: none;
-  margin-left: -2px;
-  pointer-events: none;
+/* Custom Scrollbar */
+.prosemirror-editor::-webkit-scrollbar {
+  width: 6px;
 }
 
-.yjs-cursor > div {
-  position: absolute;
-  top: -1.2em;
-  left: -2px;
-  font-size: 10px;
-  background-color: #667eea;
-  color: white;
-  padding: 1px 6px;
-  border-radius: 4px;
-  white-space: nowrap;
-  font-family: 'Inter', sans-serif;
-  font-weight: 600;
-  line-height: normal;
-  user-select: none;
-  opacity: 1;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-  z-index: 10;
+.prosemirror-editor::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.yjs-remote-selection {
-  background-color: rgba(102, 126, 234, 0.2);
+.prosemirror-editor::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
 }
