@@ -338,6 +338,8 @@ export function getAllBlocks(doc: Y.Doc): Block[] {
             blocks.push({
                 id: `block-${i++}`, // Ephemeral ID since PM doesn't enforce IDs on all nodes
                 type: blockType,
+                // @ts-ignore - Rust Block struct needs both 'type' and 'type_' fields
+                type_: blockType,
                 data: {
                     text: text,
                     value: null,

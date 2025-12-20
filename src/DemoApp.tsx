@@ -9,11 +9,11 @@ import { TauriSecureNetwork } from './security/TauriSecureNetwork';
 import { PerformanceMonitor } from './components/PerformanceMonitor';
 import './DemoApp.css';
 
-// Mock Users
+// Mock Users with Clearance Levels for ABAC testing
 const USERS: Record<Role, User> = {
-    admin: { id: 'u1', attributes: { role: 'admin', department: 'IT' } },
-    editor: { id: 'u2', attributes: { role: 'editor', department: 'Sales' } },
-    viewer: { id: 'u3', attributes: { role: 'viewer', department: 'Marketing' } }
+    admin: { id: 'u1', attributes: { role: 'admin', department: 'IT', clearanceLevel: 5 } },
+    editor: { id: 'u2', attributes: { role: 'editor', department: 'Sales', clearanceLevel: 2 } },
+    viewer: { id: 'u3', attributes: { role: 'viewer', department: 'Marketing', clearanceLevel: 0 } }
 };
 
 export const DemoApp: React.FC = () => {

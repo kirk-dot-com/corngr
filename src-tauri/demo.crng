@@ -1,0 +1,56 @@
+[
+  {
+    "id": "block-0",
+    "type_": "heading1",
+    "type": "heading1",
+    "data": {
+      "text": "<heading level=\"1\"><heading level=\"1\"><heading level=\"1\"><heading level=\"1\"><heading level=\"1\"><heading level=\"1\"><heading level=\"1\"><heading level=\"1\">Public Revenue Report</heading></heading></heading></heading></heading></heading></heading></heading>",
+      "value": null,
+      "metadata": {
+        "slideIndex": null,
+        "layout": "full-width",
+        "acl": null,
+        "classification": null,
+        "provenance": null
+      }
+    },
+    "created": "2025-12-20T07:11:40.615Z",
+    "modified": "2025-12-20T07:11:40.615Z"
+  },
+  {
+    "id": "block-1",
+    "type_": "paragraph",
+    "type": "paragraph",
+    "data": {
+      "text": "<paragraph><paragraph>Hello World <paragraph><paragraph><paragraph><paragraph><paragraph><paragraph>This is internal data visible to all employees.</paragraph></paragraph></paragraph></paragraph></paragraph></paragraph></paragraph></paragraph>",
+      "value": null,
+      "metadata": {
+        "slideIndex": null,
+        "layout": "full-width",
+        "acl": null,
+        "classification": null,
+        "provenance": null
+      }
+    },
+    "created": "2025-12-20T07:11:40.615Z",
+    "modified": "2025-12-20T07:11:40.615Z"
+  },
+  {
+    "id": "block-2",
+    "type_": "paragraph",
+    "type": "paragraph",
+    "data": {
+      "text": "<paragraph><paragraph><paragraph><paragraph><paragraph><paragraph><paragraph><paragraph>RESTRICTED: M&A TARGETS</paragraph></paragraph></paragraph></paragraph></paragraph></paragraph></paragraph></paragraph>",
+      "value": null,
+      "metadata": {
+        "slideIndex": null,
+        "layout": "full-width",
+        "acl": null,
+        "classification": null,
+        "provenance": null
+      }
+    },
+    "created": "2025-12-20T07:11:40.615Z",
+    "modified": "2025-12-20T07:11:40.615Z"
+  }
+]

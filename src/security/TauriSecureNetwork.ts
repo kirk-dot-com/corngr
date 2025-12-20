@@ -3,18 +3,9 @@ import * as Y from 'yjs';
 import { User } from './types';
 import { getAllBlocks } from '../yjs/schema';
 
-// In a real app, this would be imported from @tauri-apps/api
-// import { invoke } from '@tauri-apps/api/core';
+// Import the REAL Tauri invoke function to connect to Rust backend
+import { invoke } from '@tauri-apps/api/core';
 
-// Mock invoke for environments without Tauri
-const invoke = async <T>(cmd: string, args: any): Promise<T> => {
-    console.log(`🦀 Tauri Invoke: ${cmd}`, args);
-    if (cmd === 'check_block_permission') return true as unknown as T;
-    if (cmd === 'save_secure_document') return true as unknown as T;
-    if (cmd === 'reset_secure_document') return true as unknown as T;
-    // Default for load_secure_document
-    return [] as unknown as T;
-};
 
 /**
  * Connects the Frontend (Yjs) to the Local-First Backend (Tauri/Rust)
