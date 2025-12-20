@@ -107,7 +107,19 @@ export class TauriSecureNetwork {
         // Phase 1 Fix: Get blocks from the Prosemirror Fragment (Source of Truth)
         const blocks = getAllBlocks(this.clientDoc);
 
-        const success = await invoke('save_secure_document', { blocks, user: this.user });
+        // Phase 2: Enrich blocks with metadata from shadow store
+        const enrichedBlocks = blocks.map(b => ({
+            ...b,
+            data: {
+                ...b.data,
+                // Merge metadata from shadow store (or keep existing if not in store)
+                metadata: this.metadataStore.get(b.id) || b.data.metadata
+            }
+        }));
+
+        console.log(`🔐 [Phase 2] Enriched ${enrichedBlocks.length} blocks with metadata from shadow store`);
+
+        const success = await invoke('save_secure_document', { blocks: enrichedBlocks, user: this.user });
 
         if (success) {
             console.log('✅ Save confirmed by backend.');
@@ -131,6 +143,15 @@ export class TauriSecureNetwork {
         this.user = newUser;
         this.sync();
     }
+
+    /**
+     * Phase 2: Public access to MetadataStore for UI components
+     * (BlockRenderer, MetadataPanel, FilterPlugin)
+     */
+    public getMetadataStore(): MetadataStore {
+        return this.metadataStore;
+    }
+
     public async reset() {
         console.log('🗑️ Resetting Secure Document to Default...', { user: this.user });
         const success = await invoke('reset_secure_document', { user: this.user });
