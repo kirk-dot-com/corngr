@@ -8,10 +8,34 @@ import { Observable } from 'lib0/observable';
  */
 export class MetadataStore extends Observable<any> {
     private metadata: Map<string, BlockMetadata>;
+    private capabilityTokens: Map<string, any>; // [Sprint 4] Ephemeral Handshake Tokens
 
     constructor() {
         super();
         this.metadata = new Map();
+        this.capabilityTokens = new Map();
+    }
+
+    /**
+     * Store an ephemeral capability token [Sprint 4]
+     */
+    setToken(refId: string, token: any): void {
+        this.capabilityTokens.set(refId, token);
+    }
+
+    /**
+     * Retrieve an ephemeral capability token [Sprint 4]
+     */
+    getToken(refId: string): any | null {
+        return this.capabilityTokens.get(refId) || null;
+    }
+
+    /**
+     * Clear all ephemeral tokens (e.g., on role switch) [Sprint 4]
+     */
+    clearTokens(): void {
+        this.capabilityTokens.clear();
+        console.log('🛡️ [Sprint 4] Ephemeral capability tokens cleared.');
     }
 
     /**

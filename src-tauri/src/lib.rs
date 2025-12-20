@@ -195,6 +195,44 @@ fn fetch_external_block(
 }
 
 /**
+ * [Sprint 4] Request Capability Token
+ * Pre-flight authorization for high-speed transclusion.
+ * Returns an ephemeral token that can be swapped for block data.
+ */
+#[tauri::command]
+fn request_capability_token(req: CapabilityRequest) -> Result<CapabilityToken, String> {
+    println!(
+        "🔑 [Sprint 4] Capability Handshake: User {} requesting pre-flight for {} in {}",
+        req.user.id, req.block_id, req.doc_id
+    );
+
+    // 1. Load the target block to verify access
+    let blocks = get_mock_blocks();
+    let block = blocks.into_iter().find(|b| b.id == req.block_id);
+
+    if let Some(b) = block {
+        // 2. Perform ABAC check
+        if check_access(&req.user, &b, "read") {
+            // 3. Generate Ephemeral Token (Mock signing for Phase 3)
+            let token = CapabilityToken {
+                token_id: format!("cap-{}", Uuid::new_v4()),
+                expires_at: (chrono::Utc::now() + chrono::Duration::seconds(300)).to_rfc3339(),
+                signature: "SIMULATED_ED25519_SIG".into(),
+            };
+
+            println!("✅ Handshake Successful: Token Issued ({})", token.token_id);
+            return Ok(token);
+        }
+    }
+
+    println!(
+        "🔒 Handshake Denied: User {} has no clearance for {}",
+        req.user.id, req.block_id
+    );
+    Err("Handshake Failed: Access Denied".into())
+}
+
+/**
  * [EIM] Audit Logger
  * Phase 2.4: Records security-sensitive metadata changes.
  * In a production system, this would write to a secure audit DB or immutable ledger.
@@ -469,7 +507,8 @@ pub fn run() {
             save_secure_document,
             check_block_permission,
             reset_secure_document,
-            fetch_external_block
+            fetch_external_block,
+            request_capability_token
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

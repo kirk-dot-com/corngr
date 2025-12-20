@@ -22,6 +22,25 @@ export const TransclusionRenderer: React.FC<TransclusionRendererProps> = ({
 }) => {
     const [content, setContent] = useState<any>(null);
     const [status, setStatus] = useState<'loading' | 'success' | 'denied' | 'error'>('loading');
+    const containerRef = React.useRef<HTMLSpanElement>(null);
+
+    // [Sprint 4] Proximity-based Prefetching
+    useEffect(() => {
+        if (!containerRef.current || !network) return;
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    console.log(`🎯 [Sprint 4] Proximity Trigger: Prefetching for ${refId}`);
+                    network.requestCapabilityToken(refId);
+                    observer.disconnect(); // Only prefetch once per mount
+                }
+            });
+        }, { rootMargin: '200px' }); // Load when within 200px of viewport
+
+        observer.observe(containerRef.current);
+        return () => observer.disconnect();
+    }, [refId, network]);
 
     useEffect(() => {
         let mounted = true;
@@ -55,19 +74,19 @@ export const TransclusionRenderer: React.FC<TransclusionRendererProps> = ({
     }, [network, refId]);
 
     if (status === 'loading') {
-        return <span className="transclusion loading">{fallbackText}</span>;
+        return <span ref={containerRef} className="transclusion loading">{fallbackText}</span>;
     }
 
     if (status === 'denied') {
         return (
-            <span className="transclusion denied" title="Access Denied by Origin ABAC Engine">
+            <span ref={containerRef} className="transclusion denied" title="Access Denied by Origin ABAC Engine">
                 🔒 Access Restricted
             </span>
         );
     }
 
     if (status === 'error' || !content) {
-        return <span className="transclusion error">⚠️ Broken Reference</span>;
+        return <span ref={containerRef} className="transclusion error">⚠️ Broken Reference</span>;
     }
 
     // Render based on the resolved block type
@@ -76,7 +95,7 @@ export const TransclusionRenderer: React.FC<TransclusionRendererProps> = ({
     const formatted = type === 'variable' ? formatValue(value, data.value?.format) : value;
 
     return (
-        <span className="transclusion active" title={`Source: ${content.id}`}>
+        <span ref={containerRef} className="transclusion active" title={`Source: ${content.id}`}>
             {formatted}
         </span>
     );
