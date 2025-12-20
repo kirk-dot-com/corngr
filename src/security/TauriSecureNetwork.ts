@@ -114,11 +114,16 @@ export class TauriSecureNetwork {
         this.sync();
     }
     public async reset() {
-        console.log('🗑️ Resetting Secure Document to Default...');
+        console.log('🗑️ Resetting Secure Document to Default...', { user: this.user });
         const success = await invoke('reset_secure_document', { user: this.user });
+        console.log('🗑️ Reset result:', success);
         if (success) {
-            console.log('✅ Reset confirmed by backend.');
+            console.log('✅ Reset confirmed by backend. Reloading mock data...');
             await this.sync(); // Reload mock data
+            alert('✅ Data reset to Mock Security Test Data');
+        } else {
+            console.error('❌ Reset failed - you may not have admin permissions');
+            alert('❌ Reset failed - Admin role required');
         }
     }
 }
