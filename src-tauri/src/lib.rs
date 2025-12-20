@@ -166,10 +166,11 @@ fn fetch_external_block(
     origin_url: String,
     doc_id: String,
     block_id: String,
+    token: Option<String>, // [Sprint 4] Optional capability token
 ) -> Result<Block, String> {
     println!(
-        "🌐 [Sprint 3] Remote Fetch Request: User {} -> Origin {} | Doc {} | Block {}",
-        user.id, origin_url, doc_id, block_id
+        "🌐 [Sprint 4] Remote Fetch Request: User {} -> Origin {} | Doc {} | Block {} | Token: {:?}",
+        user.id, origin_url, doc_id, block_id, token
     );
 
     // 1. Simulate finding the remote document
@@ -484,19 +485,15 @@ pub fn run() {
             use tauri::Manager;
             let handle = app.handle().clone();
 
-            // 1. Handle Yjs Updates (Broadcast to all other clients)
-            app.listen_global("yjs-update", move |event| {
-                if let Some(payload) = event.payload() {
-                    let _ = handle.emit_all("yjs-update-remote", payload);
-                }
+            // 1. Handle Yjs Updates (Broadcast to all clients)
+            app.listen("yjs-update", move |event| {
+                let _ = handle.emit("yjs-update-remote", event.payload());
             });
 
             let handle_awareness = app.handle().clone();
-            // 2. Handle Awareness Updates (Broadcast to all other clients)
-            app.listen_global("awareness-update", move |event| {
-                if let Some(payload) = event.payload() {
-                    let _ = handle_awareness.emit_all("awareness-update-remote", payload);
-                }
+            // 2. Handle Awareness Updates (Broadcast to all clients)
+            app.listen("awareness-update", move |event| {
+                let _ = handle_awareness.emit("awareness-update-remote", event.payload());
             });
 
             Ok(())
