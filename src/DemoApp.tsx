@@ -173,7 +173,14 @@ export const DemoApp: React.FC = () => {
                         <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Role:</span>
                         <select
                             value={currentUser.attributes.role}
-                            onChange={(e) => setCurrentUser(USERS[e.target.value as Role])}
+                            onChange={async (e) => {
+                                // Force save before switching to prevent data loss
+                                if (secureNetwork) {
+                                    console.log('🔄 Saving before role switch...');
+                                    await secureNetwork.save();
+                                }
+                                setCurrentUser(USERS[e.target.value as Role]);
+                            }}
                             style={{ padding: '4px', borderRadius: '4px' }}
                         >
                             <option value="admin">👮 Admin</option>
@@ -228,6 +235,18 @@ export const DemoApp: React.FC = () => {
                         title="Force Save"
                     >
                         💾 Save
+                    </button>
+                    <button
+                        className="view-btn warning"
+                        onClick={() => {
+                            if (confirm('Are you sure? This will DELETE all local data and restore the Mock Security Test Data.')) {
+                                secureNetwork?.reset();
+                            }
+                        }}
+                        style={{ fontSize: '0.8rem', background: '#f55', color: 'white' }}
+                        title="Reset to Mock Data"
+                    >
+                        🗑️ Reset
                     </button>
                 </div>
             </header>

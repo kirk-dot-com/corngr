@@ -11,6 +11,7 @@ const invoke = async <T>(cmd: string, args: any): Promise<T> => {
     console.log(`🦀 Tauri Invoke: ${cmd}`, args);
     if (cmd === 'check_block_permission') return true as unknown as T;
     if (cmd === 'save_secure_document') return true as unknown as T;
+    if (cmd === 'reset_secure_document') return true as unknown as T;
     // Default for load_secure_document
     return [] as unknown as T;
 };
@@ -111,5 +112,13 @@ export class TauriSecureNetwork {
     public updateUser(newUser: User) {
         this.user = newUser;
         this.sync();
+    }
+    public async reset() {
+        console.log('🗑️ Resetting Secure Document to Default...');
+        const success = await invoke('reset_secure_document', { user: this.user });
+        if (success) {
+            console.log('✅ Reset confirmed by backend.');
+            await this.sync(); // Reload mock data
+        }
     }
 }

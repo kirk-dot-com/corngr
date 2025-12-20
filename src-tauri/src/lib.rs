@@ -215,6 +215,25 @@ fn save_secure_document(blocks: Vec<Block>, user: User) -> bool {
     return true;
 }
 
+/**
+ * [EIM] Reset Document
+ * Deletes the persistence file to restore Mock Data.
+ */
+#[tauri::command]
+fn reset_secure_document(user: User) -> bool {
+    // Only Admin can reset
+    if user.attributes.role != "admin" {
+        return false;
+    }
+
+    let file_path = "demo.crng";
+    if std::path::Path::new(file_path).exists() {
+        let _ = std::fs::remove_file(file_path);
+        println!("🗑️  Reset: Deleted persistence file.");
+    }
+    true
+}
+
 // Mock Data Generator
 fn get_mock_blocks() -> Vec<Block> {
     vec![
@@ -314,7 +333,8 @@ pub fn run() {
             greet,
             load_secure_document,
             save_secure_document,
-            check_block_permission
+            check_block_permission,
+            reset_secure_document
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
