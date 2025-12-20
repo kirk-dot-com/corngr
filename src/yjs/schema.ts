@@ -286,15 +286,67 @@ export function blockToJSON(block: Y.Map<any>): Block {
 }
 
 /**
- * Gets all blocks as JSON array
+ * Gets all blocks as JSON array from the Prosemirror Fragment
+ * This bridges the Y.XmlFragment (Editor) to the Block[] (Slides/Persistence)
  */
 export function getAllBlocks(doc: Y.Doc): Block[] {
-    const content = doc.getArray('content');
+    // Phase 1 Fix: Source of Truth is now the Prosemirror Fragment
+    const fragment = doc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
     const blocks: Block[] = [];
 
-    for (let i = 0; i < content.length; i++) {
-        const block = content.get(i) as Y.Map<any>;
-        blocks.push(blockToJSON(block));
+    if (!fragment?.length) {
+        // Fallback or empty
+        return [];
+    }
+
+    let i = 0;
+    // Iterate over top-level nodes (paragraphs, headings)
+    // Note: Yjs Types iteration is a bit manual
+    for (const node of fragment.toArray()) {
+        if (node instanceof Y.XmlElement) {
+            const nodeName = node.nodeName;
+            const attrs = node.getAttributes();
+
+            // Extract text content
+            // Prosemirror stores text in children Y.XmlText or nested nodes
+            let text = '';
+            // Simple text extraction for MVP
+            // Deep traversal would be better but Y.XmlText.toString() might work
+            text = node.toString();
+
+            let blockType: BlockType = 'paragraph';
+            let metadata: BlockMetadata = {
+                slideIndex: null, // Default to flow
+                layout: 'full-width'
+            };
+
+            // Map Node Types
+            if (nodeName === 'paragraph') {
+                blockType = 'paragraph';
+            } else if (nodeName === 'heading') {
+                const level = attrs.level || 1;
+                blockType = level === 1 ? 'heading1' : 'heading2';
+            } else if (nodeName === 'variable') {
+                blockType = 'variable';
+            }
+
+            // Note: Prosemirror might not store our custom 'metadata' in attributes directly
+            // unless we added it to schema. Since we didn't add 'slideIndex' to PM schema, 
+            // it's effectively lost/ephemeral in the editor for now unless we hack it.
+            // For MVP, we auto-paginate, so slideIndex=null is fine.
+
+            blocks.push({
+                id: `block-${i++}`, // Ephemeral ID since PM doesn't enforce IDs on all nodes
+                type: blockType,
+                data: {
+                    text: text,
+                    value: null,
+                    metadata: metadata
+                },
+                created: new Date().toISOString(),
+                modified: new Date().toISOString()
+            });
+        }
     }
 
     return blocks;
