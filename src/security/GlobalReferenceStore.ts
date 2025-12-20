@@ -38,6 +38,13 @@ export class GlobalReferenceStore extends Observable<any> {
     }
 
     /**
+     * Get all references for documented prefetching [Sprint 4]
+     */
+    public listAll(): ExternalReference[] {
+        return Array.from(this.references.values());
+    }
+
+    /**
      * Get all references for a specific block
      */
     public getReferences(): ExternalReference[] {

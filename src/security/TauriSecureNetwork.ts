@@ -174,22 +174,63 @@ export class TauriSecureNetwork {
     }
 
     /**
+     * Phase 4: Request Capability Token [SPRINT 4]
+     * Pre-flight handshake to optimize transclusion resolution.
+     */
+    public async requestCapabilityToken(refId: string): Promise<any> {
+        const ref = this.referenceStore.getReference(refId);
+        if (!ref) return null;
+
+        console.log(`🔑 [Sprint 4] Initiating Handshake: ${refId}`);
+        try {
+            const token = await invoke('request_capability_token', {
+                req: {
+                    origin_url: ref.originUrl,
+                    doc_id: ref.targetDocId,
+                    block_id: ref.targetBlockId,
+                    user: this.user
+                }
+            });
+
+            this.metadataStore.setToken(refId, token);
+            console.log(`✅ [Sprint 4] Capability Token acquired for ${refId}`);
+            return token;
+        } catch (e) {
+            console.warn(`🔒 [Sprint 4] Handshake failed for ${refId}:`, e);
+            return null;
+        }
+    }
+
+    /**
+     * Proactively prefetch capability tokens for all references
+     */
+    public async initCapabilityPrefetch() {
+        const refs = this.referenceStore.listAll();
+        console.log(`⚡ [Sprint 4] Proactively prefetching ${refs.length} capability tokens...`);
+        for (const ref of refs) {
+            this.requestCapabilityToken(ref.id);
+        }
+    }
+
+    /**
      * Phase 3: Global Transclusion resolution [SPRINT 3]
      * Resolves an external block by its pointer, forcing a fresh ABAC check.
+     * UPDATED Phase 4: Uses pre-fetched capability tokens if available.
      */
     public async resolveExternalReference(refId: string): Promise<any> {
         const ref = this.referenceStore.getReference(refId);
         if (!ref) return null;
 
-        console.log(`📡 [Sprint 3] Resolving Global Reference: ${ref.targetDocId}:${ref.targetBlockId}`);
+        const token = this.metadataStore.getToken(refId);
+        console.log(`📡 [Sprint 4] Resolving Reference: ${refId} (Token: ${token ? 'AVAILABLE' : 'MISSING'})`);
 
         try {
-            // Force re-validation against the origin's Rust engine
             const block = await invoke('fetch_external_block', {
                 user: this.user,
                 origin_url: ref.originUrl,
                 doc_id: ref.targetDocId,
-                block_id: ref.targetBlockId
+                block_id: ref.targetBlockId,
+                token: token?.token_id
             });
 
             this.referenceStore.updateStatus(refId, 'active');
