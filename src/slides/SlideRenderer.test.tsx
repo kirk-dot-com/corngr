@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, waitFor, screen } from '@testing-library/react';
 import * as Y from 'yjs';
 import { SlideRenderer } from './SlideRenderer';
-import { createCorngrDoc, createBlock, createVariableBlock } from '../yjs/schema';
+import {
+    createCorngrDoc,
+    createBlock,
+    createVariableBlock,
+    updateBlockValue
+} from '../yjs/schema';
 
 // Mock window.prompt
 global.prompt = vi.fn();
@@ -36,7 +41,7 @@ describe('Slide Renderer - Sprint 3 Success Criteria', () => {
             createBlock(doc, 'heading1', { text: 'Welcome' });
             createBlock(doc, 'paragraph', { text: 'This is a test slide' });
 
-            const { container } = render(<SlideRenderer yDoc={doc} />);
+            render(<SlideRenderer yDoc={doc} />);
 
             await waitFor(() => {
                 expect(screen.getByText('Welcome')).toBeTruthy();
@@ -70,7 +75,7 @@ describe('Slide Renderer - Sprint 3 Success Criteria', () => {
         });
 
         it('should render headline layout variables', async () => {
-            const blockId = createVariableBlock(doc, 'total', 5000, 'currency');
+            createVariableBlock(doc, 'total', 5000, 'currency');
 
             // Set layout to headline
             const content = doc.getArray('content');
@@ -186,7 +191,7 @@ describe('Slide Renderer - Sprint 3 Success Criteria', () => {
         });
 
         it('should update when blocks are modified', async () => {
-            createBlock(doc, 'paragraph', { text: 'Initial' });
+            const blockId = createBlock(doc, 'paragraph', { text: 'Initial' });
 
             render(<SlideRenderer yDoc={doc} />);
 
@@ -195,10 +200,7 @@ describe('Slide Renderer - Sprint 3 Success Criteria', () => {
             });
 
             // Modify block
-            const content = doc.getArray('content');
-            const block = content.get(0) as Y.Map<any>;
-            const data = block.get('data') as Y.Map<any>;
-            data.set('text', 'Modified');
+            updateBlockValue(doc, blockId, 'Modified');
 
             await waitFor(() => {
                 expect(screen.getByText('Modified')).toBeTruthy();
@@ -220,12 +222,7 @@ describe('Slide Renderer - Sprint 3 Success Criteria', () => {
             // Update value
             const startTime = performance.now();
 
-            const content = doc.getArray('content');
-            const block = content.get(0) as Y.Map<any>;
-            const data = block.get('data') as Y.Map<any>;
-            const value = data.get('value');
-            value.value = 2000;
-            data.set('value', value);
+            updateBlockValue(doc, blockId, { name: 'revenue', value: 2000, format: 'currency' });
 
             // Should update quickly
             await waitFor(() => {
@@ -268,7 +265,12 @@ describe('Slide Renderer - Sprint 3 Success Criteria', () => {
             const unknownBlock = new Y.Map();
             unknownBlock.set('id', 'unknown-1');
             unknownBlock.set('type', 'unknown-type');
-            unknownBlock.set('data', new Y.Map());
+
+            const data = new Y.Map();
+            data.set('text', '');
+            data.set('metadata', new Y.Map());
+            unknownBlock.set('data', data);
+
             unknownBlock.set('created', new Date().toISOString());
             unknownBlock.set('modified', new Date().toISOString());
             content.push([unknownBlock]);

@@ -215,7 +215,15 @@ export function updateBlockValue(doc: Y.Doc, blockId: string, newValue: any, mod
         const block = content.get(i) as Y.Map<any>;
         if (block.get('id') === blockId) {
             const data = block.get('data') as Y.Map<any>;
-            data.set('value', newValue);
+            const type = block.get('type') as BlockType;
+
+            // [EIM] Unified Update Logic
+            if (type === 'paragraph' || type === 'heading1' || type === 'heading2') {
+                data.set('text', typeof newValue === 'string' ? newValue : JSON.stringify(newValue));
+            } else {
+                data.set('value', newValue);
+            }
+
             block.set('modified', new Date().toISOString());
 
             // [EIM] Update Provenance if modifier provided
