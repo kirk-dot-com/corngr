@@ -7,7 +7,7 @@ describe('checkClientAccess', () => {
     const adminUser: User = {
         id: 'admin-123',
         attributes: {
-            role: 'Admin',
+            role: 'admin',
             clearanceLevel: 3
         }
     };
@@ -15,7 +15,7 @@ describe('checkClientAccess', () => {
     const editorUser: User = {
         id: 'editor-456',
         attributes: {
-            role: 'Editor',
+            role: 'editor',
             clearanceLevel: 2
         }
     };
@@ -23,7 +23,7 @@ describe('checkClientAccess', () => {
     const viewerUser: User = {
         id: 'viewer-789',
         attributes: {
-            role: 'Viewer',
+            role: 'viewer',
             clearanceLevel: 1
         }
     };
@@ -83,7 +83,7 @@ describe('checkClientAccess', () => {
         it('should allow access if user role is in ACL', () => {
             const metadata: BlockMetadata = {
                 classification: 'confidential',
-                acl: ['Editor', 'Admin']
+                acl: ['editor', 'admin']
             };
 
             expect(checkClientAccess(editorUser, metadata)).toBe(true);
@@ -116,7 +116,7 @@ describe('checkClientAccess', () => {
         it('should require both clearance AND ACL membership', () => {
             const metadata: BlockMetadata = {
                 classification: 'confidential', // Requires clearance >= 2
-                acl: ['Editor'] // Requires Editor role
+                acl: ['editor'] // Requires editor role
             };
 
             // Viewer: has role but not clearance
@@ -164,7 +164,7 @@ describe('checkClientAccess', () => {
             const userNoClearance: User = {
                 id: 'user-000',
                 attributes: {
-                    role: 'Guest'
+                    role: 'viewer'
                     // no clearanceLevel
                 }
             };
@@ -182,7 +182,7 @@ describe('checkClientEditAccess', () => {
     const adminUser: User = {
         id: 'admin-123',
         attributes: {
-            role: 'Admin',
+            role: 'admin',
             clearanceLevel: 3
         }
     };
@@ -190,7 +190,7 @@ describe('checkClientEditAccess', () => {
     const editorUser: User = {
         id: 'editor-456',
         attributes: {
-            role: 'Editor',
+            role: 'editor',
             clearanceLevel: 2
         }
     };
