@@ -105,4 +105,157 @@
     color: #856404;
     font-family: monospace;
 }
-.slide-block-chunk { position: relative; padding-top: 1rem; border-top: 2px dashed #ddd; margin-top: 1rem; } .slide-block-chunk::before { content: '(continued)'; position: absolute; top: -12px; left: 0; background: white; padding: 0 8px; font-size: 0.8rem; color: #999; font-style: italic; }
+
+.slide-block-chunk {
+    position: relative;
+    padding-top: 1rem;
+    border-top: 2px dashed #ddd;
+    margin-top: 1rem;
+}
+
+.slide-block-chunk::before {
+    content: '(continued)';
+    position: absolute;
+    top: -12px;
+    left: 0;
+    background: white;
+    padding: 0 8px;
+    font-size: 0.8rem;
+    color: #999;
+    font-style: italic;
+}
+
+/* ============================================
+   Phase 2: Security Metadata Styling
+   ============================================ */
+
+/* Classification Badges */
+.slide-block {
+    position: relative;
+}
+
+.classification-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.classification-public {
+    background: #4caf50;
+    color: white;
+}
+
+.classification-internal {
+    background: #2196f3;
+    color: white;
+}
+
+.classification-confidential {
+    background: #ff9800;
+    color: white;
+}
+
+.classification-restricted {
+    background: #f44336;
+    color: white;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 2px 4px rgba(244, 67, 54, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 2px 12px rgba(244, 67, 54, 0.8);
+    }
+}
+
+/* Lock Indicator */
+.lock-indicator {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    font-size: 14px;
+    opacity: 0.7;
+    z-index: 10;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+/* Redacted Blocks */
+.redacted-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 40px;
+    margin: 20px 0;
+    background: repeating-linear-gradient(45deg,
+            #2a2a2a,
+            #2a2a2a 10px,
+            #333 10px,
+            #333 20px);
+    border-radius: 12px;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+    position: relative;
+    overflow: hidden;
+}
+
+.redacted-block::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center,
+            transparent 0%,
+            rgba(0, 0, 0, 0.3) 100%);
+}
+
+.redacted-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    animation: shake 3s ease-in-out infinite;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+}
+
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: rotate(0deg);
+    }
+
+    25% {
+        transform: rotate(-5deg);
+    }
+
+    75% {
+        transform: rotate(5deg);
+    }
+}
+
+.redacted-text {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.redacted-classification {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #666;
+    letter-spacing: 2px;
+}

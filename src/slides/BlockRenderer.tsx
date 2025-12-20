@@ -161,4 +161,4 @@ export const BlockRenderer: React.FC<BlockRendererProps> = memo(({ block, user, 
             </div>
         </PermissionGate>
     );
-}); // Close memo
+}, arePropsEqual); // Phase 2: Custom comparison for metadata changes
