@@ -3,6 +3,7 @@ import * as Y from 'yjs';
 import { ProseMirrorEditor } from './prosemirror/ProseMirrorEditor';
 import { SlideRenderer } from './slides/SlideRenderer';
 import { Toolbar } from './prosemirror/Toolbar';
+import { MetadataPanel } from './components/MetadataPanel';
 import { EditorView } from 'prosemirror-view';
 import { User, Role } from './security/types';
 import { TauriSecureNetwork } from './security/TauriSecureNetwork';
@@ -29,6 +30,8 @@ export const DemoApp: React.FC = () => {
 
     // Security State
     const [currentUser, setCurrentUser] = useState<User>(USERS.admin);
+    const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+    const [showMetadataPanel, setShowMetadataPanel] = useState(false);
 
     // Performance Testing State
     const [autoMutate, setAutoMutate] = useState(false);
@@ -209,6 +212,14 @@ export const DemoApp: React.FC = () => {
                         📊 Slides
                     </button>
 
+                    <button
+                        className={`view-btn ${showMetadataPanel ? 'active' : ''}`}
+                        onClick={() => setShowMetadataPanel(!showMetadataPanel)}
+                        style={{ marginLeft: '12px', background: showMetadataPanel ? '#764ba2' : '#222' }}
+                    >
+                        🏷️ Metadata
+                    </button>
+
                     <div style={{ width: '1px', height: '20px', background: '#444', margin: '0 8px' }}></div>
 
                     <button
@@ -262,7 +273,13 @@ export const DemoApp: React.FC = () => {
                         {/* EDITOR uses CLIENT DOC */}
                         <Toolbar editorView={editorView} yDoc={clientDoc} />
                         <div ref={editorContainerRef}>
-                            <ProseMirrorEditor yDoc={clientDoc} editorId="main-editor" />
+                            <ProseMirrorEditor
+                                yDoc={clientDoc}
+                                user={currentUser}
+                                metadataStore={secureNetwork?.getMetadataStore() || null}
+                                onBlockSelect={setSelectedBlockId}
+                                editorId="main-editor"
+                            />
                         </div>
                     </div>
                 )}
@@ -276,6 +293,16 @@ export const DemoApp: React.FC = () => {
                         {/* SLIDES use CLIENT DOC */}
                         <SlideRenderer yDoc={clientDoc} user={currentUser} />
                     </div>
+                )}
+
+                {showMetadataPanel && secureNetwork && (
+                    <MetadataPanel
+                        selectedBlockId={selectedBlockId}
+                        metadataStore={secureNetwork.getMetadataStore()}
+                        user={currentUser}
+                        onClose={() => setShowMetadataPanel(false)}
+                        onSave={() => secureNetwork.save()}
+                    />
                 )}
             </div>
 

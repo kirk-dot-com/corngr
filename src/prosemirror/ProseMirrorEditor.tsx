@@ -132,12 +132,41 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
 
         viewRef.current = view;
 
+        // Phase 2.3: Selection tracking for MetadataPanel
+        if (onBlockSelect) {
+            const handleSelection = () => {
+                const { selection } = view.state;
+                if (selection.empty) {
+                    onBlockSelect(null);
+                    return;
+                }
+
+                const node = view.state.doc.nodeAt(selection.from);
+                if (node && node.attrs.blockId) {
+                    onBlockSelect(node.attrs.blockId);
+                } else {
+                    onBlockSelect(null);
+                }
+            };
+
+            // Re-check selection on mouseup within the editor
+            view.setProps({
+                handleDOMEvents: {
+                    ...view.props.handleDOMEvents,
+                    mouseup: () => {
+                        handleSelection();
+                        return false;
+                    }
+                }
+            });
+        }
+
         // Cleanup
         return () => {
             view.destroy();
             viewRef.current = null;
         };
-    }, [yDoc, editorId, user, metadataStore]);
+    }, [yDoc, editorId, user, metadataStore, onBlockSelect]);
 
     return (
         <div className="prosemirror-editor-container">

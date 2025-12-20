@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 // ==========================================
 // [EIM] Schema Definitions (Mirroring TS)
@@ -23,6 +24,7 @@ pub struct Metadata {
     pub acl: Option<Vec<String>>, // Specific user/role IDs allowed to see this
     pub classification: Option<String>, // public, internal, confidential
     pub provenance: Option<Provenance>,
+    pub locked: Option<bool>, // Phase 2: Edit protection
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -146,6 +148,22 @@ fn check_block_permission(user: User, block_id: String, action: String) -> bool 
 }
 
 /**
+ * [EIM] Audit Logger
+ * Phase 2.4: Records security-sensitive metadata changes.
+ * In a production system, this would write to a secure audit DB or immutable ledger.
+ */
+fn audit_log(user_id: &str, action: &str, resource_id: &str, detail: &str) {
+    println!(
+        "🛡️  AUDIT [{}]: User {} performed {} on {}. Detail: {}",
+        chrono::Utc::now().to_rfc3339(),
+        user_id,
+        action,
+        resource_id,
+        detail
+    );
+}
+
+/**
  * [EIM] Load Secure Document
  * Reads from "demo.crng" (simulated DB) and filters based on User Context.
  */
@@ -181,7 +199,7 @@ fn load_secure_document(user: User) -> Vec<Block> {
 
 /**
  * [EIM] Save Document to File System
- * Writes the full state to disk.
+ * Writes the full state to disk after strictly validating security metadata.
  */
 #[tauri::command]
 fn save_secure_document(blocks: Vec<Block>, user: User) -> bool {
@@ -191,9 +209,57 @@ fn save_secure_document(blocks: Vec<Block>, user: User) -> bool {
         return false;
     }
 
-    // 2. Write to Disk
-    // In a real app we would merge changes. Here we overwrite.
+    // 2. Load existing state for "Pre-computation" (Checking locks)
     let file_path = "demo.crng";
+    let existing_blocks: Vec<Block> = if std::path::Path::new(file_path).exists() {
+        std::fs::read_to_string(file_path)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok())
+            .unwrap_or_else(Vec::new)
+    } else {
+        Vec::new()
+    };
+
+    // 3. Strict Validation & Integrity Checks
+    for block in &blocks {
+        // A. UUID Format Validation
+        if Uuid::parse_str(&block.id).is_err() {
+            // Allow mock IDs from genesis (e.g., "b1", "b2") but log warning
+            if !block.id.starts_with('b') || block.id.len() > 3 {
+                println!(
+                    "❌ Integrity Error: Block {} has invalid UUID format.",
+                    block.id
+                );
+                return false;
+            }
+        }
+
+        // B. Lock Enforcement
+        if let Some(existing) = existing_blocks.iter().find(|eb| eb.id == block.id) {
+            if existing.data.metadata.locked.unwrap_or(false) && user.attributes.role != "admin" {
+                println!(
+                    "❌ Access Denied: Block {} is locked. Only Admins can modify.",
+                    block.id
+                );
+                return false;
+            }
+
+            // C. Audit Metadata Changes
+            if existing.data.metadata.classification != block.data.metadata.classification {
+                audit_log(
+                    &user.id,
+                    "CHANGE_CLASSIFICATION",
+                    &block.id,
+                    &format!(
+                        "From {:?} to {:?}",
+                        existing.data.metadata.classification, block.data.metadata.classification
+                    ),
+                );
+            }
+        }
+    }
+
+    // 4. Write to Disk
     match serde_json::to_string_pretty(&blocks) {
         Ok(json_content) => {
             if let Err(e) = std::fs::write(file_path, json_content) {
