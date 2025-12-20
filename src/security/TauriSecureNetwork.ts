@@ -4,6 +4,7 @@ import { User } from './types';
 import { getAllBlocks } from '../yjs/schema';
 import { MetadataStore } from '../metadata/MetadataStore';
 import { TauriSyncProvider } from './TauriSyncProvider';
+import { GlobalReferenceStore, ExternalReference } from './GlobalReferenceStore';
 
 // Import the REAL Tauri invoke function to connect to Rust backend
 import { invoke } from '@tauri-apps/api/core';
@@ -22,11 +23,13 @@ export class TauriSecureNetwork {
     private user: User;
     private metadataStore: MetadataStore;
     private syncProvider: TauriSyncProvider;
+    private referenceStore: GlobalReferenceStore;
 
     constructor(clientDoc: Y.Doc, user: User) {
         this.clientDoc = clientDoc;
         this.user = user;
         this.metadataStore = new MetadataStore();
+        this.referenceStore = new GlobalReferenceStore(this.metadataStore);
 
         // Phase 3: Collaborative Sync Provider
         this.syncProvider = new TauriSyncProvider(this.clientDoc);
@@ -171,6 +174,34 @@ export class TauriSecureNetwork {
     }
 
     /**
+     * Phase 3: Global Transclusion resolution [SPRINT 3]
+     * Resolves an external block by its pointer, forcing a fresh ABAC check.
+     */
+    public async resolveExternalReference(refId: string): Promise<any> {
+        const ref = this.referenceStore.getReference(refId);
+        if (!ref) return null;
+
+        console.log(`📡 [Sprint 3] Resolving Global Reference: ${ref.targetDocId}:${ref.targetBlockId}`);
+
+        try {
+            // Force re-validation against the origin's Rust engine
+            const block = await invoke('fetch_external_block', {
+                user: this.user,
+                origin_url: ref.originUrl,
+                doc_id: ref.targetDocId,
+                block_id: ref.targetBlockId
+            });
+
+            this.referenceStore.updateStatus(refId, 'active');
+            return block;
+        } catch (e) {
+            console.error(`❌ Global Reference Resolution Failed: ${refId}`, e);
+            this.referenceStore.updateStatus(refId, 'denied');
+            return null;
+        }
+    }
+
+    /**
      * Checks permission for a specific block/action against the Rust ABAC engine.
      */
     public async checkPermission(blockId: string, action: string): Promise<boolean> {
@@ -196,6 +227,10 @@ export class TauriSecureNetwork {
 
     public getSyncProvider(): TauriSyncProvider {
         return this.syncProvider;
+    }
+
+    public getReferenceStore(): GlobalReferenceStore {
+        return this.referenceStore;
     }
 
     public async reset() {

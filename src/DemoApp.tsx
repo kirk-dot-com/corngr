@@ -198,7 +198,7 @@ export const DemoApp: React.FC = () => {
             // y-prosemirror expects attributes to be synced via Y.XmlElement attributes
             newNode.setAttribute('blockId', blockId);
             if (mBlock.type === 'heading1') {
-                newNode.setAttribute('level', 1); // attrs in schema.ts
+                newNode.setAttribute('level', '1'); // attrs in schema.ts
             }
 
             const textNode = new Y.XmlText(mBlock.data.text);
