@@ -14,7 +14,6 @@ interface SlideRendererProps {
 
 const DEFAULT_USER: User = {
     id: 'default-admin',
-    name: 'Default Admin',
     attributes: { role: 'admin' }
 };
 
@@ -27,8 +26,8 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc, user = DEFAU
 
     // Subscribe to Yjs content changes
     useEffect(() => {
-        // Phase 1 Fix: Listen to the Source of Truth (Prosemirror Fragment)
         const fragment = yDoc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
+        const content = yDoc.getArray('content');
 
         const syncBlocks = () => {
             const allBlocks = getAllBlocks(yDoc);
@@ -37,11 +36,13 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc, user = DEFAU
 
         syncBlocks(); // Initial load
 
-        // Deep observation - triggers on node changes (text updates, split nodes, etc)
+        // Observe both sources
         fragment.observeDeep(syncBlocks);
+        content.observeDeep(syncBlocks);
 
         return () => {
             fragment.unobserveDeep(syncBlocks);
+            content.unobserveDeep(syncBlocks);
         };
     }, [yDoc]);
 
