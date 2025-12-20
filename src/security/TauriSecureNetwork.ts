@@ -1,6 +1,8 @@
 
 import * as Y from 'yjs';
 import { User } from './types';
+import { getAllBlocks } from '../yjs/schema';
+
 // In a real app, this would be imported from @tauri-apps/api
 // import { invoke } from '@tauri-apps/api/core';
 
@@ -27,90 +29,87 @@ export class TauriSecureNetwork {
         this.sync();
     }
 
-import { getAllBlocks } from '../yjs/schema';
-
-// ... (existing imports)
-
     public async sync() {
-    console.log('🔄 Requesting Secure Doc from Rust...');
+        console.log('🔄 Requesting Secure Doc from Rust...');
 
-    try {
-        // 1. Request Filtered Data from Rust (The "Server")
-        const blocks = await invoke('load_secure_document', { user: this.user });
+        try {
+            // 1. Request Filtered Data from Rust (The "Server")
+            // Rust performs the ABAC check and returns only blocks this user can see.
+            const blocks = await invoke('load_secure_document', { user: this.user });
 
-        // 2. Update Client View (Prosemirror Fragment)
-        // Phase 1 Fix: Populate the Prosemirror XML Fragment so the Editor sees the data
-        this.clientDoc.transact(() => {
-            const fragment = this.clientDoc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
-            fragment.delete(0, fragment.length);
+            // 2. Update Client View (Prosemirror Fragment)
+            // Phase 1 Fix: Populate the Prosemirror XML Fragment so the Editor sees the data
+            this.clientDoc.transact(() => {
+                const fragment = this.clientDoc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
+                fragment.delete(0, fragment.length);
 
-            const nodes = (blocks as any[]).map(block => {
-                // Map Block -> PM Node
-                let nodeName = 'paragraph';
-                let attrs: any = {};
+                const nodes = (blocks as any[]).map(block => {
+                    // Map Block -> PM Node
+                    let nodeName = 'paragraph';
+                    let attrs: any = {};
 
-                if (block.type === 'heading1') {
-                    nodeName = 'heading';
-                    attrs = { level: 1 };
-                } else if (block.type === 'heading2') {
-                    nodeName = 'heading';
-                    attrs = { level: 2 };
-                } else if (block.type === 'variable') {
-                    nodeName = 'variable';
-                    // Map variable data if present
+                    if (block.type === 'heading1') {
+                        nodeName = 'heading';
+                        attrs = { level: 1 };
+                    } else if (block.type === 'heading2') {
+                        nodeName = 'heading';
+                        attrs = { level: 2 };
+                    } else if (block.type === 'variable') {
+                        nodeName = 'variable';
+                        // Map variable data if present
+                    }
+
+                    const node = new Y.XmlElement(nodeName);
+                    for (const [k, v] of Object.entries(attrs)) {
+                        node.setAttribute(k, v);
+                    }
+
+                    if (block.data.text) {
+                        const text = new Y.XmlText(block.data.text);
+                        node.insert(0, [text]);
+                    }
+                    return node;
+                });
+
+                if (nodes.length > 0) {
+                    fragment.insert(0, nodes);
                 }
-
-                const node = new Y.XmlElement(nodeName);
-                for (const [k, v] of Object.entries(attrs)) {
-                    node.setAttribute(k, v);
-                }
-
-                if (block.data.text) {
-                    const text = new Y.XmlText(block.data.text);
-                    node.insert(0, [text]);
-                }
-                return node;
             });
 
-            if (nodes.length > 0) {
-                fragment.insert(0, nodes);
-            }
-        });
-
-        console.log('✅ Client View updated via Secure Bridge');
-    } catch (e) {
-        console.error('❌ Failed to sync with Tauri backend', e);
+            console.log('✅ Client View updated via Secure Bridge');
+        } catch (e) {
+            console.error('❌ Failed to sync with Tauri backend', e);
+        }
     }
-}
 
     public async save() {
-    console.log('💾 Saving to File System (Rust)...');
+        console.log('💾 Saving to File System (Rust)...');
 
-    // Phase 1 Fix: Get blocks from the Prosemirror Fragment (Source of Truth)
-    const blocks = getAllBlocks(this.clientDoc);
+        // Phase 1 Fix: Get blocks from the Prosemirror Fragment (Source of Truth)
+        const blocks = getAllBlocks(this.clientDoc);
 
-    const success = await invoke('save_secure_document', { blocks, user: this.user });
+        const success = await invoke('save_secure_document', { blocks, user: this.user });
 
-    if (success) {
-        console.log('✅ Save confirmed by backend.');
-    } else {
-        console.error('❌ Save rejected by backend (Permission denied).');
+        if (success) {
+            console.log('✅ Save confirmed by backend.');
+        } else {
+            console.error('❌ Save rejected by backend (Permission denied).');
+        }
     }
-}
 
     /**
      * Checks permission for a specific block/action against the Rust ABAC engine.
      */
-    public async checkPermission(blockId: string, action: string): Promise < boolean > {
-    return await invoke('check_block_permission', {
-        user: this.user,
-        block_id: blockId,
-        action
-    });
-}
+    public async checkPermission(blockId: string, action: string): Promise<boolean> {
+        return await invoke('check_block_permission', {
+            user: this.user,
+            block_id: blockId,
+            action
+        });
+    }
 
     public updateUser(newUser: User) {
-    this.user = newUser;
-    this.sync();
-}
+        this.user = newUser;
+        this.sync();
+    }
 }
