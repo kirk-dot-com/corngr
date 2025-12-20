@@ -7,7 +7,7 @@ import './BlockRenderer.css';
 
 interface BlockRendererProps {
     block: Block;
-    user: User;
+    user: User | null;
 }
 
 const arePropsEqual = (prev: BlockRendererProps, next: BlockRendererProps) => {
@@ -17,6 +17,10 @@ const arePropsEqual = (prev: BlockRendererProps, next: BlockRendererProps) => {
     // 3. The slide chunking state changed (metadata)
 
     // Check User ID/Role stability
+    // Handle null cases
+    if (!prev.user && !next.user) return true; // Both null, stable
+    if (!prev.user || !next.user) return false; // One toggled, re-render
+
     if (prev.user.id !== next.user.id || prev.user.attributes.role !== next.user.attributes.role) {
         return false;
     }
