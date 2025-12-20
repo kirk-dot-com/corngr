@@ -124,7 +124,15 @@ export const MarketplaceSidebar: React.FC<MarketplaceSidebarProps> = ({ onImport
                                 </div>
                             </div>
                             <div className="card-action">
-                                <button className="import-btn">Deploy</button>
+                                <button
+                                    className="import-btn"
+                                    onClick={(e) => {
+                                        e.stopPropagation(); // Prevent card-level trigger
+                                        onImportBlock(block);
+                                    }}
+                                >
+                                    Deploy
+                                </button>
                             </div>
                         </div>
                     ))}
