@@ -249,6 +249,7 @@ export const DemoApp: React.FC = () => {
                         💾 Save
                     </button>
                     <button
+                        id="reset-btn"
                         className="view-btn warning"
                         onClick={() => {
                             if (confirm('Are you sure? This will DELETE all local data and restore the Mock Security Test Data.')) {
