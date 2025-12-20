@@ -482,17 +482,17 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            use tauri::Manager;
+            use tauri::{Emitter, Listener};
             let handle = app.handle().clone();
 
             // 1. Handle Yjs Updates (Broadcast to all clients)
-            app.listen("yjs-update", move |event| {
+            app.listen("yjs-update", move |event: tauri::Event| {
                 let _ = handle.emit("yjs-update-remote", event.payload());
             });
 
             let handle_awareness = app.handle().clone();
             // 2. Handle Awareness Updates (Broadcast to all clients)
-            app.listen("awareness-update", move |event| {
+            app.listen("awareness-update", move |event: tauri::Event| {
                 let _ = handle_awareness.emit("awareness-update-remote", event.payload());
             });
 
