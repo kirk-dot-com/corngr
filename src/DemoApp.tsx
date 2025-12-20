@@ -1,17 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Y from 'yjs';
-import { IndexeddbPersistence } from 'y-indexeddb';
 import { ProseMirrorEditor } from './prosemirror/ProseMirrorEditor';
 import { SlideRenderer } from './slides/SlideRenderer';
 import { Toolbar } from './prosemirror/Toolbar';
-import { createCorngrDoc, createBlock, createVariableBlock } from './yjs/schema';
 import { EditorView } from 'prosemirror-view';
 import { User, Role } from './security/types';
-import { MockSecureNetwork } from './security/MockSecureNetwork';
+import { TauriSecureNetwork } from './security/TauriSecureNetwork';
 import { PerformanceMonitor } from './components/PerformanceMonitor';
 import './DemoApp.css';
-
-const DEMO_DOC_ID = 'corngr-demo-doc';
 
 // Mock Users
 const USERS: Record<Role, User> = {
@@ -21,15 +17,15 @@ const USERS: Record<Role, User> = {
 };
 
 export const DemoApp: React.FC = () => {
-    // We now have TWO docs: Server (Source of Truth) and Client (Filtered View)
-    const [serverDoc, setServerDoc] = useState<Y.Doc | null>(null);
+    // Phase 1 Architecture:
+    // Client Doc is the Single Source of Truth for the UI.
+    // Syncs with Rust Backend via TauriSecureNetwork.
     const [clientDoc, setClientDoc] = useState<Y.Doc | null>(null);
 
-    const [persistence, setPersistence] = useState<IndexeddbPersistence | null>(null);
     const [view, setView] = useState<'split' | 'editor' | 'slides'>('split');
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const [editorView, setEditorView] = useState<EditorView | null>(null);
-    const [secureNetwork, setSecureNetwork] = useState<MockSecureNetwork | null>(null);
+    const [secureNetwork, setSecureNetwork] = useState<TauriSecureNetwork | null>(null);
 
     // Security State
     const [currentUser, setCurrentUser] = useState<User>(USERS.admin);
@@ -37,98 +33,21 @@ export const DemoApp: React.FC = () => {
     // Performance Testing State
     const [autoMutate, setAutoMutate] = useState(false);
 
-    // Initialize Server Document (Source of Truth)
+    // Initialize Document & Network
     useEffect(() => {
-        const sDoc = new Y.Doc();
-        const provider = new IndexeddbPersistence(DEMO_DOC_ID, sDoc);
-
-        provider.on('synced', () => {
-            console.log('📦 Server Document synced with IndexedDB');
-
-            // Initialize with demo content if empty
-            const content = sDoc.getArray('content');
-            if (content.length === 0) {
-                console.log('🎬 Creating demo content...');
-
-                // Initialize doc metadata
-                const meta = sDoc.getMap('meta');
-                if (!meta.get('id')) {
-                    meta.set('id', 'demo-doc-001');
-                    meta.set('title', 'Corngr Phase 0 Demo');
-                }
-
-                // Slide 1: Title
-                createBlock(sDoc, 'heading1', {
-                    text: 'Corngr Phase 0',
-                    metadata: { slideIndex: 0 }
-                });
-                createBlock(sDoc, 'heading2', {
-                    text: 'The Post-File Operating System',
-                    metadata: { slideIndex: 0 }
-                });
-
-                // Slide 2: The Problem
-                createBlock(sDoc, 'heading1', {
-                    text: 'The Problem',
-                    metadata: { slideIndex: 1 }
-                });
-                createBlock(sDoc, 'paragraph', {
-                    text: 'Traditional office suites trap data in static files (.docx, .xlsx, .pptx)',
-                    metadata: { slideIndex: 1 }
-                });
-                createBlock(sDoc, 'paragraph', {
-                    text: 'Copy-paste creates version conflicts and breaks governance',
-                    metadata: { slideIndex: 1 }
-                });
-
-                // SECRET BLOCK
-                createBlock(sDoc, 'heading2', {
-                    text: '🔒 TOP SECRET ADMIN DATA',
-                    metadata: { slideIndex: 1, acl: ['admin'] }
-                });
-
-                // Slide 3: The Solution with Variable
-                createBlock(sDoc, 'heading1', {
-                    text: 'The Solution',
-                    metadata: { slideIndex: 2 }
-                });
-                createBlock(sDoc, 'paragraph', {
-                    text: 'Unified Data Grid powered by Yjs CRDTs',
-                    metadata: { slideIndex: 2 }
-                });
-                createVariableBlock(sDoc, 'revenue', 150000, 'currency');
-
-                createBlock(sDoc, 'paragraph', {
-                    text: 'Update once, update everywhere - in milliseconds',
-                    metadata: { slideIndex: 2 }
-                });
-
-                console.log('✅ Demo content created');
-            }
-        });
-
-        setServerDoc(sDoc);
-        setPersistence(provider);
-
-        // Client Doc (Ephemeral, usually would come from WebSocket)
+        // 1. Create fresh Client Doc
         const cDoc = new Y.Doc();
         setClientDoc(cDoc);
 
+        // 2. Initialize Bridge to Rust Backend
+        console.log(`🔐 Initializing Secure Network for ${currentUser.attributes.role}`);
+        const bridge = new TauriSecureNetwork(cDoc, currentUser);
+        setSecureNetwork(bridge);
+
         return () => {
-            provider.destroy();
-            sDoc.destroy();
             cDoc.destroy();
         };
     }, []);
-
-    // Initialize/Update Secure Network Bridge
-    useEffect(() => {
-        if (serverDoc && clientDoc) {
-            console.log(`🔐 Initializing Secure Network for ${currentUser.attributes.role}`);
-            const bridge = new MockSecureNetwork(serverDoc, clientDoc, currentUser);
-            setSecureNetwork(bridge);
-        }
-    }, [serverDoc, clientDoc]);
 
     // Update Network User when role changes
     useEffect(() => {
@@ -138,14 +57,36 @@ export const DemoApp: React.FC = () => {
         }
     }, [currentUser, secureNetwork]);
 
+    // Auto-Save: Listen for changes and push to Rust
+    useEffect(() => {
+        if (!clientDoc || !secureNetwork) return;
+
+        let debounceInfo: any = null;
+
+        const updateHandler = () => {
+            // Debounce save
+            if (debounceInfo) clearTimeout(debounceInfo);
+            debounceInfo = setTimeout(() => {
+                secureNetwork.save();
+            }, 1000); // Auto-save after 1s of inactivity
+        };
+
+        clientDoc.on('update', updateHandler);
+
+        return () => {
+            clientDoc.off('update', updateHandler);
+            if (debounceInfo) clearTimeout(debounceInfo);
+        };
+    }, [clientDoc, secureNetwork]);
+
     // Auto-Mutate Loop
     useEffect(() => {
-        if (!autoMutate || !serverDoc) return;
+        if (!autoMutate || !clientDoc) return;
 
         console.log('⚡ Starting High-Freq Mutation Loop');
         const interval = setInterval(() => {
-            serverDoc.transact(() => {
-                const content = serverDoc.getArray('content');
+            clientDoc.transact(() => {
+                const content = clientDoc.getArray('content');
                 // Naive: Update first variable we find
                 for (let i = 0; i < content.length; i++) {
                     const block = content.get(i) as any;
@@ -159,34 +100,34 @@ export const DemoApp: React.FC = () => {
                     }
                 }
             });
-        }, 50); // 50ms interval = 20fps updates
+        }, 50); // 50ms interval
 
         return () => clearInterval(interval);
-    }, [autoMutate, serverDoc]);
+    }, [autoMutate, clientDoc]);
 
     // 1k Injector
     const injectMassiveData = () => {
-        if (!serverDoc) return;
+        if (!clientDoc) return;
 
-        const newBlocks = [];
+        const newBlocks: any[] = [];
         for (let i = 0; i < 1000; i++) {
             newBlocks.push({
                 id: `perf-block-${i}-${Date.now()}`,
                 type: 'paragraph',
                 data: {
                     text: `Performance Test Block #${i} - ${Math.random().toString(36)}`,
-                    metadata: { slideIndex: 3 + Math.floor(i / 10) } // Start after slide 3, 10 blocks per slide
+                    metadata: { slideIndex: 3 + Math.floor(i / 10) }
                 },
                 created: new Date().toISOString(),
                 modified: new Date().toISOString()
             });
         }
 
-        serverDoc.transact(() => {
-            const content = serverDoc.getArray('content');
+        clientDoc.transact(() => {
+            const content = clientDoc.getArray('content');
             content.insert(content.length, newBlocks as any);
         });
-        console.log('🚀 Injected 1000 blocks');
+        console.log('🚀 Injected 1000 blocks into Client Doc');
     };
 
     // Track editor view for toolbar
@@ -204,12 +145,12 @@ export const DemoApp: React.FC = () => {
         return () => clearInterval(interval);
     }, [clientDoc, view]);
 
-    if (!serverDoc || !clientDoc) {
+    if (!clientDoc) {
         return (
             <div className="demo-app loading">
                 <div className="loading-spinner">
                     <h1>Loading Corngr...</h1>
-                    <p>Initializing unified data grid</p>
+                    <p>Connecting to Rust Secure Backend</p>
                 </div>
             </div>
         );
@@ -222,8 +163,8 @@ export const DemoApp: React.FC = () => {
 
             <header className="demo-header">
                 <div className="header-content">
-                    <h1>🌽 Corngr Phase 0</h1>
-                    <p className="tagline">Post-File Operating System Demo</p>
+                    <h1>🌽 Corngr Phase 1: MVP</h1>
+                    <p className="tagline">Local-First Secure Engine (Rust + Tauri)</p>
                 </div>
 
                 <div className="view-controls">
@@ -236,6 +177,7 @@ export const DemoApp: React.FC = () => {
                             style={{ padding: '4px', borderRadius: '4px' }}
                         >
                             <option value="admin">👮 Admin</option>
+                            <option value="editor">✏️ Editor</option>
                             <option value="viewer">👀 Viewer</option>
                         </select>
                     </div>
@@ -278,6 +220,15 @@ export const DemoApp: React.FC = () => {
                     >
                         ⚡ Auto-Mutate
                     </button>
+
+                    <button
+                        className="view-btn"
+                        onClick={() => secureNetwork?.save()}
+                        style={{ fontSize: '0.8rem', background: '#222' }}
+                        title="Force Save"
+                    >
+                        💾 Save
+                    </button>
                 </div>
             </header>
 
@@ -288,7 +239,7 @@ export const DemoApp: React.FC = () => {
                             <h2>Document View</h2>
                             <span className="tech-badge">ProseMirror + Yjs</span>
                         </div>
-                        {/* EDITOR uses CLIENT DOC (Filtered) */}
+                        {/* EDITOR uses CLIENT DOC */}
                         <Toolbar editorView={editorView} yDoc={clientDoc} />
                         <div ref={editorContainerRef}>
                             <ProseMirrorEditor yDoc={clientDoc} editorId="main-editor" />
@@ -302,7 +253,7 @@ export const DemoApp: React.FC = () => {
                             <h2>Slide View</h2>
                             <span className="tech-badge">React + Yjs</span>
                         </div>
-                        {/* SLIDES use CLIENT DOC (Filtered) */}
+                        {/* SLIDES use CLIENT DOC */}
                         <SlideRenderer yDoc={clientDoc} user={currentUser} />
                     </div>
                 )}
@@ -311,12 +262,12 @@ export const DemoApp: React.FC = () => {
             <footer className="demo-footer">
                 <div className="status-indicator">
                     <span className="status-dot"></span>
-                    <span>Live Sync Active</span>
+                    <span>Tauri File System Active</span>
                 </div>
                 <div className="footer-info">
-                    <span>Phase 0: Technical Validation</span>
+                    <span>Phase 1: Core Product</span>
                     <span>•</span>
-                    <span>Secure Filtering Active 🔒</span>
+                    <span>Rust ABAC Security 🔒</span>
                     <span>•</span>
                     <span>User: {currentUser.attributes.role}</span>
                 </div>
