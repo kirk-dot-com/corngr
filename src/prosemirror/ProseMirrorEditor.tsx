@@ -8,10 +8,15 @@ import { ySyncPlugin, yUndoPlugin, undo as yUndo, redo as yRedo } from 'y-prosem
 import * as Y from 'yjs';
 import { corngrSchema } from './schema';
 import { formatValue } from '../yjs/schema';
+import { MetadataStore } from '../metadata/MetadataStore';
+import { User } from '../security/types';
+import { createFilterPlugin } from './FilterPlugin';
 import './editor.css';
 
 interface ProseMirrorEditorProps {
     yDoc: Y.Doc;
+    user: User | null;
+    metadataStore: MetadataStore | null;
     editorId?: string;
 }
 
@@ -20,6 +25,8 @@ interface ProseMirrorEditorProps {
  */
 export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
     yDoc,
+    user,
+    metadataStore,
     editorId = 'editor'
 }) => {
     const editorRef = useRef<HTMLDivElement>(null);
@@ -101,6 +108,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                 ySyncPlugin(yXmlFragment),
                 yUndoPlugin(),
                 variablePlugin,
+                ...(metadataStore && user ? [createFilterPlugin(metadataStore, user)] : []),
                 history(),
                 keymap({
                     'Mod-z': yUndo,
@@ -127,7 +135,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
             view.destroy();
             viewRef.current = null;
         };
-    }, [yDoc, editorId]);
+    }, [yDoc, editorId, user, metadataStore]);
 
     return (
         <div className="prosemirror-editor-container">
