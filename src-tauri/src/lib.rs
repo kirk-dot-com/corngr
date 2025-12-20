@@ -7,7 +7,9 @@ use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Provenance {
+    #[serde(rename = "sourceId")]
     pub source_id: String,
+    #[serde(rename = "authorId")]
     pub author_id: String,
     pub timestamp: String,
     pub signature: Option<String>,
@@ -15,6 +17,7 @@ pub struct Provenance {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Metadata {
+    #[serde(rename = "slideIndex")]
     pub slide_index: Option<i32>,
     pub layout: Option<String>,
     pub acl: Option<Vec<String>>, // Specific user/role IDs allowed to see this
@@ -50,9 +53,23 @@ pub struct Block {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct User {
     pub id: String,
-    pub role: String, // admin, editor, viewer
+    // Frontend sends 'attributes' object, but here we flatten or map carefully.
+    // In our shared 'types.ts', User has 'attributes: { role, department }'
+    // But in our rust command we expect 'User' object.
+    // Let's adjust to match the TS interface exactly or use a flattened approach?
+    // TS: interface User { id: string; attributes: { role: Role; ... } }
+    // Rust: We defined flattened fields. This is causing mismatch too!
+    // We need to match the TS structure or write a custom deserializer.
+    // Easier fix: Update TS to send flat object? No, better Update Rust to match nested structure.
+    pub attributes: UserAttributes,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UserAttributes {
+    pub role: String,
     pub department: Option<String>,
-    pub clearance_level: i32,
+    #[serde(rename = "clearanceLevel")]
+    pub clearance_level: Option<i32>,
 }
 
 // ==========================================
@@ -60,14 +77,16 @@ pub struct User {
 // ==========================================
 
 fn check_access(user: &User, block: &Block, action: &str) -> bool {
+    let attrs = &user.attributes;
+
     // 1. Admin Override
-    if user.role == "admin" {
+    if attrs.role == "admin" {
         return true;
     }
 
     // 2. Action Capabilities (Role-Based High Level)
     if action == "write" {
-        if user.role != "editor" && user.role != "admin" {
+        if attrs.role != "editor" && attrs.role != "admin" {
             return false;
         }
     }
@@ -76,18 +95,19 @@ fn check_access(user: &User, block: &Block, action: &str) -> bool {
 
     // 3. ACL Check (Role-Based Resource Level)
     if let Some(acl) = &meta.acl {
-        if !acl.is_empty() && !acl.contains(&user.role) && !acl.contains(&user.id) {
+        if !acl.is_empty() && !acl.contains(&attrs.role) && !acl.contains(&user.id) {
             return false;
         }
     }
 
     // 4. Classification Check (Attribute-Based)
     if let Some(classification) = &meta.classification {
+        let clearance = attrs.clearance_level.unwrap_or(0);
         match classification.as_str() {
             "public" => true,
             "internal" => true, // Assuming all logged-in users are internal
-            "confidential" => user.clearance_level >= 2,
-            "restricted" => user.clearance_level >= 3,
+            "confidential" => clearance >= 2,
+            "restricted" => clearance >= 3,
             _ => false,
         }
     } else {
@@ -112,15 +132,15 @@ fn check_block_permission(user: User, block_id: String, action: String) -> bool 
     let file_path = "demo.crng";
     let blocks: Vec<Block> = if std::path::Path::new(file_path).exists() {
         std::fs::read_to_string(file_path)
-           .ok()
-           .and_then(|c| serde_json::from_str(&c).ok())
-           .unwrap_or_else(get_mock_blocks)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok())
+            .unwrap_or_else(get_mock_blocks)
     } else {
         get_mock_blocks()
     };
 
     if let Some(block) = blocks.iter().find(|b| b.id == block_id) {
-         return check_access(&user, block, &action);
+        return check_access(&user, block, &action);
     }
     false // Block not found, default to deny
 }
@@ -151,7 +171,9 @@ fn load_secure_document(user: User) -> Vec<Block> {
 
     println!(
         "🔒 SecureLoad: User {} ({}) requested doc. Returned {} blocks from disk.",
-        user.id, user.role, filtered_blocks.len()
+        user.id,
+        user.attributes.role,
+        filtered_blocks.len()
     );
 
     filtered_blocks
@@ -164,7 +186,7 @@ fn load_secure_document(user: User) -> Vec<Block> {
 #[tauri::command]
 fn save_secure_document(blocks: Vec<Block>, user: User) -> bool {
     // 1. Security Check: Only admins/editors can save
-    if user.role != "admin" && user.role != "editor" {
+    if user.attributes.role != "admin" && user.attributes.role != "editor" {
         println!("❌ Access Denied: User {} cannot save.", user.id);
         return false;
     }
@@ -178,14 +200,18 @@ fn save_secure_document(blocks: Vec<Block>, user: User) -> bool {
                 println!("❌ FileSystem Error: {}", e);
                 return false;
             }
-        },
+        }
         Err(e) => {
             println!("❌ Serialization Error: {}", e);
             return false;
         }
     }
-    
-    println!("💾 FileSystem: Saved {} blocks to {}.", blocks.len(), file_path);
+
+    println!(
+        "💾 FileSystem: Saved {} blocks to {}.",
+        blocks.len(),
+        file_path
+    );
     return true;
 }
 
@@ -280,12 +306,16 @@ fn get_mock_blocks() -> Vec<Block> {
     ]
 }
 
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, load_secure_document, save_secure_document, check_block_permission])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            load_secure_document,
+            save_secure_document,
+            check_block_permission
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -298,12 +328,14 @@ mod tests {
     fn test_admin_access() {
         let admin = User {
             id: "admin1".to_string(),
-            role: "admin".to_string(),
-            department: None,
-            clearance_level: 5,
+            attributes: UserAttributes {
+                role: "admin".to_string(),
+                department: None,
+                clearance_level: Some(5),
+            },
         };
         let blocks = get_mock_blocks();
-        
+
         // Admin should see everything
         for block in blocks {
             assert!(
@@ -318,61 +350,90 @@ mod tests {
     fn test_viewer_access_public() {
         let viewer = User {
             id: "u3".to_string(),
-            role: "viewer".to_string(),
-            department: None,
-            clearance_level: 0,
+            attributes: UserAttributes {
+                role: "viewer".to_string(),
+                department: None,
+                clearance_level: Some(0),
+            },
         };
         let blocks = get_mock_blocks();
-        
+
         // Block 1 is Public
-        assert!(check_access(&viewer, &blocks[0], "read"), "Viewer should see public block");
-        
+        assert!(
+            check_access(&viewer, &blocks[0], "read"),
+            "Viewer should see public block"
+        );
+
         // Block 2 is Internal (Viewer is internal)
-        assert!(check_access(&viewer, &blocks[1], "read"), "Viewer should see internal block");
-        
+        assert!(
+            check_access(&viewer, &blocks[1], "read"),
+            "Viewer should see internal block"
+        );
+
         // Block 3 is Confidential (Requires Level 2)
-        assert!(!check_access(&viewer, &blocks[2], "read"), "Viewer should NOT see confidential block");
+        assert!(
+            !check_access(&viewer, &blocks[2], "read"),
+            "Viewer should NOT see confidential block"
+        );
 
         // Block 4 is Restricted (Requires Level 3 + Admin Role)
-        assert!(!check_access(&viewer, &blocks[3], "read"), "Viewer should NOT see restricted block");
+        assert!(
+            !check_access(&viewer, &blocks[3], "read"),
+            "Viewer should NOT see restricted block"
+        );
     }
 
     #[test]
     fn test_manager_access_confidential() {
         let manager = User {
             id: "m1".to_string(),
-            role: "editor".to_string(),
-            department: None,
-            clearance_level: 2, // Sufficient for Confidential
+            attributes: UserAttributes {
+                role: "editor".to_string(),
+                department: None,
+                clearance_level: Some(2), // Sufficient for Confidential
+            },
         };
         let blocks = get_mock_blocks();
 
         // Should see Confidential
-        assert!(check_access(&manager, &blocks[2], "read"), "Manager L2 should see confidential block");
-        
+        assert!(
+            check_access(&manager, &blocks[2], "read"),
+            "Manager L2 should see confidential block"
+        );
+
         // Should NOT see Restricted (Level 3 or specific ACL)
         // Block 4 has ACL ["admin"]
-        assert!(!check_access(&manager, &blocks[3], "read"), "Manager L2 should NOT see Admin Only block");
+        assert!(
+            !check_access(&manager, &blocks[3], "read"),
+            "Manager L2 should NOT see Admin Only block"
+        );
     }
 
     #[test]
     fn test_write_permission() {
         let viewer = User {
             id: "u3".to_string(),
-            role: "viewer".to_string(),
-            department: None,
-            clearance_level: 0,
+            attributes: UserAttributes {
+                role: "viewer".to_string(),
+                department: None,
+                clearance_level: Some(0),
+            },
         };
         let editor = User {
             id: "u2".to_string(),
-            role: "editor".to_string(),
-            department: None,
-            clearance_level: 1,
+            attributes: UserAttributes {
+                role: "editor".to_string(),
+                department: None,
+                clearance_level: Some(1),
+            },
         };
 
         let block = &get_mock_blocks()[0]; // Public block
 
-        assert!(!check_access(&viewer, block, "write"), "Viewer cannot write");
+        assert!(
+            !check_access(&viewer, block, "write"),
+            "Viewer cannot write"
+        );
         assert!(check_access(&editor, block, "write"), "Editor can write");
     }
 }
