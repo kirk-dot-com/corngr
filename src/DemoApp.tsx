@@ -10,6 +10,7 @@ import { TauriSecureNetwork } from './security/TauriSecureNetwork';
 import { PerformanceMonitor } from './components/PerformanceMonitor';
 import { MarketplaceSidebar, MarketplaceBlock } from './components/MarketplaceSidebar';
 import { GovernanceDashboard } from './components/governance/GovernanceDashboard';
+import { runPerformanceStressTest } from './security/PerformanceStressTest';
 import { generateUUID, BlockMetadata } from './yjs/schema';
 import './DemoApp.css';
 
@@ -244,6 +245,23 @@ export const DemoApp: React.FC = () => {
         console.log(`🌐 [Sprint 3] Inserted Global Transclusion: ${refId}`);
     };
 
+    // [Sprint 4] Run Stress Test
+    const handleStressTest = async () => {
+        if (!secureNetwork) return;
+
+        // 1. Insert some transclusions if none exist
+        const refs = secureNetwork.getReferenceStore().listAll();
+        if (refs.length === 0) {
+            console.log('🔄 Seeding transclusions for test...');
+            insertGlobalTransclusion();
+            insertGlobalTransclusion();
+        }
+
+        // 2. Run Test
+        const results = await runPerformanceStressTest(secureNetwork, currentUser);
+        alert(`📊 Stress Test Complete!\nAvg Latency: ${results.transclusionLatency.reduce((a, b) => a + b, 0) / (results.transclusionLatency.length || 1).toFixed(2)}ms\nRedaction Speed: ${results.redactionLatency.toFixed(2)}ms`);
+    };
+
     // Track editor view for toolbar
     useEffect(() => {
         if (!editorContainerRef.current) return;
@@ -338,7 +356,8 @@ export const DemoApp: React.FC = () => {
                     <div style={{ width: '1px', height: '20px', background: '#444', margin: '0 8px' }}></div>
 
                     <button className="view-btn warning" onClick={injectMassiveData} style={{ fontSize: '0.8rem', background: '#e0b0ff', color: '#333' }}>🚀 1k Blocks</button>
-                    <button className={`view-btn warning ${autoMutate ? 'active' : ''}`} onClick={() => setAutoMutate(!autoMutate)} style={{ fontSize: '0.8rem', background: autoMutate ? '#0f0' : '#444', color: autoMutate ? '#000' : '#ccc' }}>⚡ Auto-Mutate</button>
+                    <button className="view-btn warning" onClick={() => setAutoMutate(!autoMutate)} style={{ fontSize: '0.8rem', background: autoMutate ? '#0f0' : '#444', color: autoMutate ? '#000' : '#ccc' }}>⚡ Auto-Mutate</button>
+                    <button className="view-btn" onClick={handleStressTest} style={{ fontSize: '0.8rem', background: '#3b82f6', color: 'white' }}>🧪 Stress Test</button>
                     <button className="view-btn" onClick={() => secureNetwork?.save()} style={{ fontSize: '0.8rem', background: '#222' }}>💾 Save</button>
                     <button className="view-btn warning" onClick={() => { if (confirm('Reset?')) secureNetwork?.reset(); }} style={{ fontSize: '0.8rem', background: '#f55', color: 'white' }}>🗑️ Reset</button>
                 </div>
