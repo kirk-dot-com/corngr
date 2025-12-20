@@ -54,7 +54,7 @@ export function checkClientAccess(
     // This check is primarily for write access, not read
     // For rendering purposes, we allow viewing locked content
     // if other checks pass
-    if (locked && user.attributes.role !== 'Admin') {
+    if (locked && user.attributes.role !== 'admin') {
         // Note: This doesn't block read access, just indicates
         // the block is locked for editing. UI can show a lock icon.
         // For now, we allow read access even if locked.
@@ -80,7 +80,7 @@ export function checkClientEditAccess(
     }
 
     // Locked blocks require admin role
-    if (metadata.locked && user.attributes.role !== 'Admin') {
+    if (metadata.locked && user.attributes.role !== 'admin') {
         return false;
     }
 

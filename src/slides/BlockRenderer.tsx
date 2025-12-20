@@ -1,25 +1,26 @@
 import React, { memo } from 'react';
-import { Block } from '../yjs/schema';
+import { Block, BlockMetadata } from '../yjs/schema';
 import { formatValue } from '../yjs/schema';
 import { PermissionGate } from '../security/PermissionGate';
+import { checkClientAccess } from '../security/checkClientAccess';
 import { User } from '../security/types';
 import './BlockRenderer.css';
 
 interface BlockRendererProps {
     block: Block;
     user: User | null;
+    metadata?: BlockMetadata; // Phase 2: From MetadataStore
 }
 
 const arePropsEqual = (prev: BlockRendererProps, next: BlockRendererProps) => {
     // Optimization: Only re-render if:
     // 1. The block's content has changed (tracked by modified timestamp)
     // 2. The user context has changed (e.g. role switch)
-    // 3. The slide chunking state changed (metadata)
+    // 3. The metadata has changed (classification, ACL, etc.)
 
     // Check User ID/Role stability
-    // Handle null cases
-    if (!prev.user && !next.user) return true; // Both null, stable
-    if (!prev.user || !next.user) return false; // One toggled, re-render
+    if (!prev.user && !next.user) return true;
+    if (!prev.user || !next.user) return false;
 
     if (prev.user.id !== next.user.id || prev.user.attributes.role !== next.user.attributes.role) {
         return false;
@@ -29,10 +30,12 @@ const arePropsEqual = (prev: BlockRendererProps, next: BlockRendererProps) => {
     if (prev.block.id !== next.block.id) return false;
     if (prev.block.modified !== next.block.modified) return false;
 
-    // Check Metadata (specifically chunking info which changes on pagination)
-    const prevMeta = prev.block.data.metadata || {};
-    const nextMeta = next.block.data.metadata || {};
+    // Phase 2: Check metadata changes
+    const prevMeta = prev.metadata || prev.block.data.metadata || {};
+    const nextMeta = next.metadata || next.block.data.metadata || {};
 
+    if (prevMeta.classification !== nextMeta.classification) return false;
+    if (prevMeta.locked !== nextMeta.locked) return false;
     if (prevMeta.isChunk !== nextMeta.isChunk) return false;
     if (prevMeta.slideIndex !== nextMeta.slideIndex) return false;
 
@@ -40,11 +43,41 @@ const arePropsEqual = (prev: BlockRendererProps, next: BlockRendererProps) => {
 };
 
 /**
- * Renders a single block in the slide view
+ * Classification Badge Component
+ * Phase 2: Displays security classification level
  */
-export const BlockRenderer: React.FC<BlockRendererProps> = memo(({ block, user }) => {
+const ClassificationBadge: React.FC<{ level: string }> = ({ level }) => (
+    <span className={`classification-badge classification-${level.toLowerCase()}`}>
+        {level.toUpperCase()}
+    </span>
+);
+
+/**
+ * Renders a single block in the slide view
+ * Phase 2: Now supports metadata display and redaction
+ */
+export const BlockRenderer: React.FC<BlockRendererProps> = memo(({ block, user, metadata }) => {
     const { type, data } = block;
-    const isChunk = data.metadata?.isChunk;
+    const effectiveMetadata = metadata || data.metadata;
+    const isChunk = effectiveMetadata?.isChunk;
+
+    // Phase 2: Check if user has access to view this block
+    const hasAccess = checkClientAccess(user, effectiveMetadata);
+
+    // Phase 2: Render redacted block if no access
+    if (!hasAccess) {
+        return (
+            <div className="redacted-block">
+                <div className="redacted-icon">🔒</div>
+                <div className="redacted-text">Restricted Content</div>
+                {effectiveMetadata?.classification && (
+                    <div className="redacted-classification">
+                        {effectiveMetadata.classification.toUpperCase()} LEVEL REQUIRED
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     const renderContent = () => {
         switch (type) {
@@ -108,7 +141,22 @@ export const BlockRenderer: React.FC<BlockRendererProps> = memo(({ block, user }
 
     return (
         <PermissionGate user={user} block={block}>
-            <div className={`slide-block ${isChunk ? 'slide-block-chunk' : ''}`}>
+            <div
+                className={`slide-block ${isChunk ? 'slide-block-chunk' : ''}`}
+                data-classification={effectiveMetadata?.classification}
+            >
+                {/* Phase 2: Classification Badge */}
+                {effectiveMetadata?.classification && (
+                    <ClassificationBadge level={effectiveMetadata.classification} />
+                )}
+
+                {/* Phase 2: Lock Indicator */}
+                {effectiveMetadata?.locked && (
+                    <span className="lock-indicator" title="This block is locked for editing">
+                        🔒
+                    </span>
+                )}
+
                 {renderContent()}
             </div>
         </PermissionGate>
