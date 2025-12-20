@@ -18,6 +18,7 @@ import { invoke } from '@tauri-apps/api/core';
  * - MetadataStore handles security metadata (classification, ACL, provenance)
  */
 export class TauriSecureNetwork {
+    private clientDoc: Y.Doc;
     private user: User;
     private metadataStore: MetadataStore;
     private syncProvider: TauriSyncProvider;

@@ -221,9 +221,11 @@ export const DemoApp: React.FC = () => {
                     </button>
 
                     {/* Collaboration Indicator */}
-                    <div className="active-users-indicator" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px', background: 'rgba(102, 126, 234, 0.1)', borderRadius: '20px', margin: '0 8px' }}>
+                    <div className="active-users-indicator" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px', background: 'rgba(102, 126, 234, 0.1)', border: '1px solid rgba(102, 126, 234, 0.2)', borderRadius: '20px', margin: '0 8px', height: '32px' }}>
                         <div className="status-dot online"></div>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Active: 1</span>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#9d88ff' }}>
+                            Active: {activeUserCount}
+                        </span>
                     </div>
 
                     <button
