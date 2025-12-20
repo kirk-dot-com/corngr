@@ -49,15 +49,21 @@ export function checkClientAccess(
         }
     }
 
-    // 3. Locked Check (Edit Protection)
-    // Locked blocks require admin role (read-only for others)
-    // This check is primarily for write access, not read
-    // For rendering purposes, we allow viewing locked content
-    // if other checks pass
-    if (locked && user.attributes.role !== 'admin') {
-        // Note: This doesn't block read access, just indicates
-        // the block is locked for editing. UI can show a lock icon.
-        // For now, we allow read access even if locked.
+    // 3. Cross-Origin Check [Sprint 3]
+    // If block is from an external document, apply origin-based policies
+    if (metadata.originDocId && metadata.originDocId !== 'local') {
+        const isExternal = true;
+
+        // Strict Policy: Non-admins cannot read Restricted external content
+        // unless they have a high clearance level.
+        if (isExternal && classification === 'restricted' && user.attributes.role !== 'admin') {
+            if (clearance < 3) return false;
+        }
+
+        // Potential for future origin-specific whitelisting here
+        // if (metadata.originUrl && !user.attributes.allowedOrigins?.includes(metadata.originUrl)) {
+        //     return false;
+        // }
     }
 
     return true; // All checks passed

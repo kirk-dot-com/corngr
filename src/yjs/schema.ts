@@ -28,8 +28,10 @@ export interface PermissionRule {
  */
 export interface Provenance {
     sourceId: string; // ID of the original block/cell
+    sourceDocId?: string; // [Sprint 3] Origin Document ID
     authorId: string; // User who last modified the source
     timestamp: string; // When the source was last modified
+    originUrl?: string; // [Sprint 3] Origin URL/Path
     signature?: string; // Opt: Content hash for immutable verification
     history?: { // Short history of last 3 hops
         blockId: string;
@@ -61,6 +63,10 @@ export interface BlockMetadata {
     provenance?: Provenance;
     classification?: 'public' | 'internal' | 'confidential' | 'restricted';
     locked?: boolean; // If true, requires special permission to edit
+
+    // [Sprint 3] Cross-Origin Governance
+    originDocId?: string;
+    originUrl?: string;
 }
 
 /**
