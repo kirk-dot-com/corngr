@@ -395,6 +395,27 @@ fn get_mock_blocks() -> Vec<Block> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            use tauri::Manager;
+            let handle = app.handle().clone();
+
+            // 1. Handle Yjs Updates (Broadcast to all other clients)
+            app.listen_global("yjs-update", move |event| {
+                if let Some(payload) = event.payload() {
+                    let _ = handle.emit_all("yjs-update-remote", payload);
+                }
+            });
+
+            let handle_awareness = app.handle().clone();
+            // 2. Handle Awareness Updates (Broadcast to all other clients)
+            app.listen_global("awareness-update", move |event| {
+                if let Some(payload) = event.payload() {
+                    let _ = handle_awareness.emit_all("awareness-update-remote", payload);
+                }
+            });
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             greet,
             load_secure_document,
