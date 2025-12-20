@@ -5,10 +5,12 @@ import { User } from './types';
 // import { invoke } from '@tauri-apps/api/core';
 
 // Mock invoke for environments without Tauri
-const invoke = async (cmd: string, args: any) => {
+const invoke = async <T>(cmd: string, args: any): Promise<T> => {
     console.log(`🦀 Tauri Invoke: ${cmd}`, args);
-    // In a real scenario, this returns data from Rust
-    return [];
+    if (cmd === 'check_block_permission') return true as unknown as T;
+    if (cmd === 'save_secure_document') return true as unknown as T;
+    // Default for load_secure_document
+    return [] as unknown as T;
 };
 
 /**
@@ -60,6 +62,17 @@ export class TauriSecureNetwork {
         } else {
             console.error('❌ Save rejected by backend (Permission denied).');
         }
+    }
+
+    /**
+     * Checks permission for a specific block/action against the Rust ABAC engine.
+     */
+    public async checkPermission(blockId: string, action: string): Promise<boolean> {
+        return await invoke('check_block_permission', {
+            user: this.user,
+            block_id: blockId,
+            action
+        });
     }
 
     public updateUser(newUser: User) {

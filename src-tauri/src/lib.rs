@@ -59,22 +59,29 @@ pub struct User {
 // [EIM] Security Logic (ABAC)
 // ==========================================
 
-fn can_view_block(user: &User, block: &Block) -> bool {
+fn check_access(user: &User, block: &Block, action: &str) -> bool {
     // 1. Admin Override
     if user.role == "admin" {
         return true;
     }
 
+    // 2. Action Capabilities (Role-Based High Level)
+    if action == "write" {
+        if user.role != "editor" && user.role != "admin" {
+            return false;
+        }
+    }
+
     let meta = &block.data.metadata;
 
-    // 2. ACL Check (Role-Based)
+    // 3. ACL Check (Role-Based Resource Level)
     if let Some(acl) = &meta.acl {
         if !acl.is_empty() && !acl.contains(&user.role) && !acl.contains(&user.id) {
             return false;
         }
     }
 
-    // 3. Classification Check (Attribute-Based)
+    // 4. Classification Check (Attribute-Based)
     if let Some(classification) = &meta.classification {
         match classification.as_str() {
             "public" => true,
@@ -98,25 +105,53 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[tauri::command]
+fn check_block_permission(user: User, block_id: String, action: String) -> bool {
+    // Load current state from disk to check permissions against latest logic
+    // Efficiency Note: In prod, we'd query a DB, not read generic JSON file
+    let file_path = "demo.crng";
+    let blocks: Vec<Block> = if std::path::Path::new(file_path).exists() {
+        std::fs::read_to_string(file_path)
+           .ok()
+           .and_then(|c| serde_json::from_str(&c).ok())
+           .unwrap_or_else(get_mock_blocks)
+    } else {
+        get_mock_blocks()
+    };
+
+    if let Some(block) = blocks.iter().find(|b| b.id == block_id) {
+         return check_access(&user, block, &action);
+    }
+    false // Block not found, default to deny
+}
+
 /**
  * [EIM] Load Secure Document
- * Simulates loading from disk and filtering based on User Context.
- * In a real app, this would read from SQLite/.crng file.
+ * Reads from "demo.crng" (simulated DB) and filters based on User Context.
  */
 #[tauri::command]
 fn load_secure_document(user: User) -> Vec<Block> {
-    // 1. Mock Database Load (The "Server Truth")
-    let raw_blocks = get_mock_blocks();
+    // 1. Load from Disk (The "Server Truth")
+    let file_path = "demo.crng";
+    let raw_blocks: Vec<Block> = if std::path::Path::new(file_path).exists() {
+        match std::fs::read_to_string(file_path) {
+            Ok(content) => serde_json::from_str(&content).unwrap_or_else(|_| get_mock_blocks()),
+            Err(_) => get_mock_blocks(),
+        }
+    } else {
+        println!("⚠️ No DB found, loading mock genesis block.");
+        get_mock_blocks()
+    };
 
     // 2. [EIM] Security Filtering (The "x-ray" filter)
     let filtered_blocks: Vec<Block> = raw_blocks
         .into_iter()
-        .filter(|b| can_view_block(&user, b))
+        .filter(|b| check_access(&user, b, "read"))
         .collect();
 
     println!(
-        "🔒 SecureLoad: User {} ({}) requested doc. Returned {}/{} blocks.",
-        user.id, user.role, filtered_blocks.len(), 4
+        "🔒 SecureLoad: User {} ({}) requested doc. Returned {} blocks from disk.",
+        user.id, user.role, filtered_blocks.len()
     );
 
     filtered_blocks
@@ -124,8 +159,7 @@ fn load_secure_document(user: User) -> Vec<Block> {
 
 /**
  * [EIM] Save Document to File System
- * Writes the full state to disk (simulated).
- * In production this writes to a .crng file.
+ * Writes the full state to disk.
  */
 #[tauri::command]
 fn save_secure_document(blocks: Vec<Block>, user: User) -> bool {
@@ -135,10 +169,23 @@ fn save_secure_document(blocks: Vec<Block>, user: User) -> bool {
         return false;
     }
 
-    // 2. Write to Disk (Simulated)
-    // std::fs::write("demo.crng", serde_json::to_string(&blocks).unwrap()).unwrap();
+    // 2. Write to Disk
+    // In a real app we would merge changes. Here we overwrite.
+    let file_path = "demo.crng";
+    match serde_json::to_string_pretty(&blocks) {
+        Ok(json_content) => {
+            if let Err(e) = std::fs::write(file_path, json_content) {
+                println!("❌ FileSystem Error: {}", e);
+                return false;
+            }
+        },
+        Err(e) => {
+            println!("❌ Serialization Error: {}", e);
+            return false;
+        }
+    }
     
-    println!("💾 FileSystem: Saved {} blocks to disk.", blocks.len());
+    println!("💾 FileSystem: Saved {} blocks to {}.", blocks.len(), file_path);
     return true;
 }
 
@@ -237,7 +284,7 @@ fn get_mock_blocks() -> Vec<Block> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, load_secure_document, save_secure_document])
+        .invoke_handler(tauri::generate_handler![greet, load_secure_document, save_secure_document, check_block_permission])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
