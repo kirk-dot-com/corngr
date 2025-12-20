@@ -2,7 +2,7 @@ import React, { useEffect, useState, useLayoutEffect } from 'react';
 import * as Y from 'yjs';
 import { getAllBlocks, Block } from '../yjs/schema';
 import { BlockRenderer } from './BlockRenderer';
-import { paginateBlocks, Slide } from './pagination';
+import { paginateBlocks } from './pagination';
 import { User } from '../security/types';
 import { recordRender } from '../components/PerformanceMonitor';
 import './SlideRenderer.css';
@@ -12,13 +12,18 @@ interface SlideRendererProps {
     user?: User | null;
 }
 
+const DEFAULT_USER: User = {
+    id: 'default-admin',
+    name: 'Default Admin',
+    attributes: { role: 'admin' }
+};
+
 /**
  * Renders Yjs blocks as paginated slides
  */
-export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc, user = null }) => {
+export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc, user = DEFAULT_USER }) => {
     const [blocks, setBlocks] = useState<Block[]>([]);
     const [currentSlide, setCurrentSlide] = useState(0);
-    const [updateTrigger, setUpdateTrigger] = useState(0);
 
     // Subscribe to Yjs content changes
     useEffect(() => {
@@ -28,7 +33,6 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc, user = null 
         const syncBlocks = () => {
             const allBlocks = getAllBlocks(yDoc);
             setBlocks(allBlocks);
-            setUpdateTrigger(prev => prev + 1); // Force re-render
         };
 
         syncBlocks(); // Initial load
