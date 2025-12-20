@@ -195,7 +195,7 @@ export const DemoApp: React.FC = () => {
             const nodeName = mBlock.type === 'heading1' ? 'heading' : 'paragraph';
             const newNode = new Y.XmlElement(nodeName);
             newNode.setAttribute('blockId', blockId);
-            if (mBlock.type === 'heading1') newNode.setAttribute('level', 1);
+            if (mBlock.type === 'heading1') newNode.setAttribute('level', '1');
 
             const textNode = new Y.XmlText(mBlock.data.text);
             newNode.insert(0, [textNode]);
@@ -235,24 +235,21 @@ export const DemoApp: React.FC = () => {
 
     return (
         <div className="demo-app">
-            {/* Render Performance Monitor tracking the Client (Rendered) Doc */}
             <PerformanceMonitor yDoc={clientDoc} />
 
             <header className="demo-header">
                 <div className="header-content">
-                    <h1>🌽 Corngr Phase 1: MVP</h1>
-                    <p className="tagline">Local-First Secure Engine (Rust + Tauri)</p>
+                    <h1>🌽 Corngr Phase 3</h1>
+                    <p className="tagline">Ecosystem & Marketplace Integration</p>
                 </div>
 
                 <div className="view-controls">
-                    {/* Role Switcher */}
                     <div style={{ marginRight: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Role:</span>
                         <select
                             value={currentUser.attributes.role}
                             onChange={async (e) => {
                                 const newRole = e.target.value as Role;
-                                // Force save before switching to prevent data loss
                                 if (secureNetwork) {
                                     console.log('🔄 Saving before role switch...');
                                     await secureNetwork.save();
@@ -267,24 +264,9 @@ export const DemoApp: React.FC = () => {
                         </select>
                     </div>
 
-                    <button
-                        className={`view-btn ${view === 'split' ? 'active' : ''}`}
-                        onClick={() => setView('split')}
-                    >
-                        ⚡ Dual View
-                    </button>
-                    <button
-                        className={`view-btn ${view === 'editor' ? 'active' : ''}`}
-                        onClick={() => setView('editor')}
-                    >
-                        📝 Document
-                    </button>
-                    <button
-                        className={`view-btn ${view === 'slides' ? 'active' : ''}`}
-                        onClick={() => setView('slides')}
-                    >
-                        📊 Slides
-                    </button>
+                    <button className={`view-btn ${view === 'split' ? 'active' : ''}`} onClick={() => setView('split')}>⚡ Dual View</button>
+                    <button className={`view-btn ${view === 'editor' ? 'active' : ''}`} onClick={() => setView('editor')}>📝 Document</button>
+                    <button className={`view-btn ${view === 'slides' ? 'active' : ''}`} onClick={() => setView('slides')}>📊 Slides</button>
 
                     <button
                         className={`view-btn ${showMarketplace ? 'active' : ''}`}
@@ -293,12 +275,9 @@ export const DemoApp: React.FC = () => {
                         🛒 Marketplace
                     </button>
 
-                    {/* Collaboration Indicator */}
                     <div className="active-users-indicator" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px', background: 'rgba(102, 126, 234, 0.1)', border: '1px solid rgba(102, 126, 234, 0.2)', borderRadius: '20px', margin: '0 8px', height: '32px' }}>
                         <div className="status-dot online"></div>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#9d88ff' }}>
-                            Active: {activeUserCount}
-                        </span>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#9d88ff' }}>Active: {activeUserCount}</span>
                     </div>
 
                     <button
@@ -311,45 +290,10 @@ export const DemoApp: React.FC = () => {
 
                     <div style={{ width: '1px', height: '20px', background: '#444', margin: '0 8px' }}></div>
 
-                    <button
-                        className="view-btn warning"
-                        onClick={injectMassiveData}
-                        style={{ fontSize: '0.8rem', background: '#e0b0ff', color: '#333' }}
-                        title="Inject 1000 blocks"
-                    >
-                        🚀 1k Blocks
-                    </button>
-
-                    <button
-                        className={`view-btn warning ${autoMutate ? 'active' : ''}`}
-                        onClick={() => setAutoMutate(!autoMutate)}
-                        style={{ fontSize: '0.8rem', background: autoMutate ? '#0f0' : '#444', color: autoMutate ? '#000' : '#ccc' }}
-                        title="Toggle 50ms Updates"
-                    >
-                        ⚡ Auto-Mutate
-                    </button>
-
-                    <button
-                        className="view-btn"
-                        onClick={() => secureNetwork?.save()}
-                        style={{ fontSize: '0.8rem', background: '#222' }}
-                        title="Force Save"
-                    >
-                        💾 Save
-                    </button>
-                    <button
-                        id="reset-btn"
-                        className="view-btn warning"
-                        onClick={() => {
-                            if (confirm('Are you sure? This will DELETE all local data and restore the Mock Security Test Data.')) {
-                                secureNetwork?.reset();
-                            }
-                        }}
-                        style={{ fontSize: '0.8rem', background: '#f55', color: 'white' }}
-                        title="Reset to Mock Data"
-                    >
-                        🗑️ Reset
-                    </button>
+                    <button className="view-btn warning" onClick={injectMassiveData} style={{ fontSize: '0.8rem', background: '#e0b0ff', color: '#333' }}>🚀 1k Blocks</button>
+                    <button className={`view-btn warning ${autoMutate ? 'active' : ''}`} onClick={() => setAutoMutate(!autoMutate)} style={{ fontSize: '0.8rem', background: autoMutate ? '#0f0' : '#444', color: autoMutate ? '#000' : '#ccc' }}>⚡ Auto-Mutate</button>
+                    <button className="view-btn" onClick={() => secureNetwork?.save()} style={{ fontSize: '0.8rem', background: '#222' }}>💾 Save</button>
+                    <button className="view-btn warning" onClick={() => { if (confirm('Reset?')) secureNetwork?.reset(); }} style={{ fontSize: '0.8rem', background: '#f55', color: 'white' }}>🗑️ Reset</button>
                 </div>
             </header>
 
@@ -360,7 +304,6 @@ export const DemoApp: React.FC = () => {
                             <h2>Document View</h2>
                             <span className="tech-badge">ProseMirror + Yjs</span>
                         </div>
-                        {/* EDITOR uses CLIENT DOC */}
                         <Toolbar editorView={editorView} yDoc={clientDoc} />
                         <div ref={editorContainerRef}>
                             <ProseMirrorEditor
@@ -381,7 +324,6 @@ export const DemoApp: React.FC = () => {
                             <h2>Slide View</h2>
                             <span className="tech-badge">React + Yjs</span>
                         </div>
-                        {/* SLIDES use CLIENT DOC */}
                         <SlideRenderer yDoc={clientDoc} user={currentUser} />
                     </div>
                 )}
@@ -397,15 +339,22 @@ export const DemoApp: React.FC = () => {
                 )}
             </div>
 
+            {showMarketplace && (
+                <MarketplaceSidebar
+                    onImportBlock={handleImportBlock}
+                    onClose={() => setShowMarketplace(false)}
+                />
+            )}
+
             <footer className="demo-footer">
                 <div className="status-indicator">
                     <span className="status-dot"></span>
                     <span>Tauri File System Active</span>
                 </div>
                 <div className="footer-info">
-                    <span>Phase 1: Core Product</span>
+                    <span>Phase 3: Ecosystem</span>
                     <span>•</span>
-                    <span>Rust ABAC Security 🔒</span>
+                    <span>Provenance Verified ⛓️</span>
                     <span>•</span>
                     <span>User: {currentUser.attributes.role}</span>
                 </div>
