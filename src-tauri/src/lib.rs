@@ -237,7 +237,7 @@ fn get_mock_blocks() -> Vec<Block> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, load_secure_document])
+        .invoke_handler(tauri::generate_handler![greet, load_secure_document, save_secure_document])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
