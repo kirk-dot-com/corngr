@@ -4,6 +4,7 @@ import {
     createCorngrDoc,
     createBlock,
     createVariableBlock,
+    createInlineReference, // Added
     updateBlockValue,
     getBlock,
     getAllBlocks,
@@ -236,6 +237,84 @@ describe('Yjs Schema - Sprint 1 Success Criteria', () => {
 
             const block = getBlock(doc, blockId);
             expect(block?.get('modified')).toBeTruthy();
+        });
+    });
+
+    describe('EIM Features', () => {
+        describe('Data Lineage (Provenance)', () => {
+            it('should store provenance data when creating a block', () => {
+                const provenance = {
+                    sourceId: 'src-sheet-123',
+                    authorId: 'original-author-001',
+                    timestamp: '2025-01-01T12:00:00Z',
+                    signature: 'hash-xyz'
+                };
+
+                const blockId = createBlock(doc, 'paragraph',
+                    { text: 'Sourced Data' },
+                    provenance
+                );
+
+                const block = getBlock(doc, blockId);
+                const json = blockToJSON(block!);
+
+                expect(json.data.metadata.provenance).toEqual(provenance);
+            });
+
+            it('should update provenance author/timestamp on value update', () => {
+                const blockId = createVariableBlock(doc, 'test', 100);
+
+                // Sleep to ensure timestamp diff
+                const start = new Date().getTime();
+                while (new Date().getTime() === start) { }
+
+                updateBlockValue(doc, blockId, { name: 'test', value: 200 }, 'modifier-user-888');
+
+                const block = getBlock(doc, blockId);
+                const json = blockToJSON(block!);
+                const prov = json.data.metadata.provenance;
+
+                expect(prov).toBeDefined();
+                expect(prov?.authorId).toBe('modifier-user-888');
+                expect(new Date(prov!.timestamp).getTime()).toBeGreaterThan(new Date('2024-01-01').getTime());
+            });
+        });
+
+        describe('Inline Transclusion', () => {
+            it('should create an inline reference block', () => {
+                const targetId = 'source-block-uuid';
+                const refId = createInlineReference(doc,
+                    targetId,
+                    'value',
+                    'Loading...',
+                    { sourceId: targetId, authorId: userId, timestamp: new Date().toISOString() }
+                );
+
+                const block = getBlock(doc, refId);
+                const json = blockToJSON(block!);
+
+                expect(json.type).toBe('inline-reference');
+                expect(json.data.inlineRef).toBeDefined();
+                expect(json.data.inlineRef?.referencedBlockId).toBe(targetId);
+                expect(json.data.inlineRef?.field).toBe('value');
+            });
+        });
+
+        describe('Governance Metadata', () => {
+            it('should store classification and lock status', () => {
+                const blockId = createBlock(doc, 'paragraph', {
+                    text: 'Secret Info',
+                    metadata: {
+                        classification: 'confidential',
+                        locked: true
+                    }
+                });
+
+                const json = blockToJSON(getBlock(doc, blockId)!);
+
+                expect(json.data.metadata.classification).toBe('confidential');
+                expect(json.data.metadata.locked).toBe(true);
+            });
         });
     });
 });

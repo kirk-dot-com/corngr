@@ -9,7 +9,8 @@ export type BlockType =
     | 'heading2'
     | 'variable'
     | 'image'
-    | 'chart';
+    | 'chart'
+    | 'inline-reference'; // [EIM] New type for inline transclusions
 
 /**
  * Permission Rule for ABAC
@@ -22,6 +23,31 @@ export interface PermissionRule {
 }
 
 /**
+ * [EIM] Data Lineage / Provenance
+ * Tracks the origin of a data point for "X-Ray" features.
+ */
+export interface Provenance {
+    sourceId: string; // ID of the original block/cell
+    authorId: string; // User who last modified the source
+    timestamp: string; // When the source was last modified
+    signature?: string; // Opt: Content hash for immutable verification
+    history?: { // Short history of last 3 hops
+        blockId: string;
+        timestamp: string;
+    }[];
+}
+
+/**
+ * [EIM] Inline Reference Data
+ * Used for embedding live data inside text.
+ */
+export interface InlineRefData {
+    referencedBlockId: string;
+    field: string; // e.g., 'value', 'data.value', 'metadata.status'
+    fallbackText: string; // Shown if reference is broken
+}
+
+/**
  * Block Metadata
  */
 export interface BlockMetadata {
@@ -30,6 +56,11 @@ export interface BlockMetadata {
     acl?: string[]; // Block IDs this references
     isChunk?: boolean; // True if auto-paginated chunk
     parentId?: string; // Original block ID if chunked
+
+    // [EIM] Governance Fields
+    provenance?: Provenance;
+    classification?: 'public' | 'internal' | 'confidential' | 'restricted';
+    locked?: boolean; // If true, requires special permission to edit
 }
 
 /**
@@ -50,6 +81,7 @@ export interface Block {
     data: {
         text?: string; // For text-based blocks
         value?: any; // For structured data (variables, charts)
+        inlineRef?: InlineRefData; // [EIM] For inline reference blocks
         metadata: BlockMetadata;
     };
     created: string;
@@ -92,7 +124,8 @@ export function createCorngrDoc(ownerId: string, title: string = 'Untitled'): Y.
 export function createBlock(
     doc: Y.Doc,
     type: BlockType,
-    data: Partial<Block['data']> = {}
+    data: Partial<Block['data']> = {},
+    provenance?: Provenance
 ): string {
     const content = doc.getArray('content');
     const blockId = generateUUID();
@@ -107,10 +140,19 @@ export function createBlock(
     blockData.set('text', data.text || '');
     blockData.set('value', data.value || null);
 
+    if (data.inlineRef) {
+        blockData.set('inlineRef', data.inlineRef);
+    }
+
     const metadata = new Y.Map();
     metadata.set('slideIndex', data.metadata?.slideIndex !== undefined ? data.metadata.slideIndex : null);
     metadata.set('layout', data.metadata?.layout || 'full-width');
     metadata.set('acl', data.metadata?.acl || []);
+
+    // [EIM] Set Governance Metdata
+    if (provenance) metadata.set('provenance', provenance);
+    if (data.metadata?.classification) metadata.set('classification', data.metadata.classification);
+    if (data.metadata?.locked) metadata.set('locked', data.metadata.locked);
 
     blockData.set('metadata', metadata);
     block.set('data', blockData);
@@ -142,9 +184,31 @@ export function createVariableBlock(
 }
 
 /**
+ * [EIM] Creates an inline reference block (transclusion)
+ */
+export function createInlineReference(
+    doc: Y.Doc,
+    targetBlockId: string,
+    field: string,
+    fallbackText: string,
+    provenance: Provenance
+): string {
+    return createBlock(doc, 'inline-reference', {
+        inlineRef: {
+            referencedBlockId: targetBlockId,
+            field,
+            fallbackText
+        },
+        metadata: {
+            layout: 'inline'
+        }
+    }, provenance);
+}
+
+/**
  * Updates a block's value
  */
-export function updateBlockValue(doc: Y.Doc, blockId: string, newValue: any): void {
+export function updateBlockValue(doc: Y.Doc, blockId: string, newValue: any, modifierUserId?: string): void {
     const content = doc.getArray('content');
 
     for (let i = 0; i < content.length; i++) {
@@ -153,6 +217,17 @@ export function updateBlockValue(doc: Y.Doc, blockId: string, newValue: any): vo
             const data = block.get('data') as Y.Map<any>;
             data.set('value', newValue);
             block.set('modified', new Date().toISOString());
+
+            // [EIM] Update Provenance if modifier provided
+            if (modifierUserId) {
+                const metadata = data.get('metadata') as Y.Map<any>;
+                const currentProv = metadata.get('provenance') || {};
+                metadata.set('provenance', {
+                    ...currentProv,
+                    authorId: modifierUserId,
+                    timestamp: new Date().toISOString()
+                });
+            }
 
             // Update doc modified time
             const meta = doc.getMap('meta');
@@ -191,12 +266,18 @@ export function blockToJSON(block: Y.Map<any>): Block {
         data: {
             text: data?.get('text') || '',
             value: data?.get('value') || null,
+            inlineRef: data?.get('inlineRef') || undefined,
             metadata: {
                 slideIndex: metadata?.get('slideIndex') ?? null,
                 layout: metadata?.get('layout') || 'full-width',
                 acl: metadata?.get('acl') || [],
                 isChunk: metadata?.get('isChunk') || false,
-                parentId: metadata?.get('parentId') || undefined
+                parentId: metadata?.get('parentId') || undefined,
+
+                // [EIM]
+                provenance: metadata?.get('provenance') || undefined,
+                classification: metadata?.get('classification') || undefined,
+                locked: metadata?.get('locked') || false
             }
         },
         created: block.get('created') || new Date().toISOString(),
