@@ -47,6 +47,21 @@ export class TauriSecureNetwork {
         }
     }
 
+    public async save() {
+        console.log('💾 Saving to File System (Rust)...');
+        const blocks = this.clientDoc.getArray('content').toJSON();
+
+        // Note: In real app, we would send the DIFF, not the whole doc.
+        // For Phase 1 prototype, we push the whole JSON.
+        const success = await invoke('save_secure_document', { blocks, user: this.user });
+
+        if (success) {
+            console.log('✅ Save confirmed by backend.');
+        } else {
+            console.error('❌ Save rejected by backend (Permission denied).');
+        }
+    }
+
     public updateUser(newUser: User) {
         this.user = newUser;
         this.sync();
