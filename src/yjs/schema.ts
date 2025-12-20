@@ -292,61 +292,73 @@ export function blockToJSON(block: Y.Map<any>): Block {
  * Phase 2: Now preserves stable block IDs from ProseMirror nodes
  */
 export function getAllBlocks(doc: Y.Doc): Block[] {
-    // Phase 1 Fix: Source of Truth is now the Prosemirror Fragment
+    // Priority 1: Prosemirror Fragment (Live Editor State)
     const fragment = doc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
     const blocks: Block[] = [];
 
-    if (!fragment?.length) {
-        // Fallback or empty
-        return [];
-    }
+    if (fragment && fragment.length > 0) {
+        // Iterate over top-level nodes (paragraphs, headings)
+        for (const node of fragment.toArray()) {
+            if (node instanceof Y.XmlElement) {
+                const nodeName = node.nodeName;
+                const attrs = node.getAttributes();
 
-    // Iterate over top-level nodes (paragraphs, headings)
-    for (const node of fragment.toArray()) {
-        if (node instanceof Y.XmlElement) {
-            const nodeName = node.nodeName;
-            const attrs = node.getAttributes();
+                // Phase 2: Extract stable block ID or generate one
+                const blockId = attrs.blockId || generateUUID();
 
-            // Phase 2: Extract stable block ID or generate one
-            const blockId = attrs.blockId || generateUUID();
+                // Extract text content
+                let text = '';
+                text = node.toString();
 
-            // Extract text content
-            let text = '';
-            text = node.toString();
+                let blockType: BlockType = 'paragraph';
+                let metadata: BlockMetadata = {
+                    slideIndex: null, // Default to flow
+                    layout: 'full-width'
+                };
 
-            let blockType: BlockType = 'paragraph';
-            let metadata: BlockMetadata = {
-                slideIndex: null, // Default to flow
-                layout: 'full-width'
-            };
+                // Map Node Types
+                if (nodeName === 'paragraph') {
+                    blockType = 'paragraph';
+                } else if (nodeName === 'heading') {
+                    const level = attrs.level || 1;
+                    blockType = level === 1 ? 'heading1' : 'heading2';
+                } else if (nodeName === 'variable') {
+                    blockType = 'variable';
+                }
 
-            // Map Node Types
-            if (nodeName === 'paragraph') {
-                blockType = 'paragraph';
-            } else if (nodeName === 'heading') {
-                const level = attrs.level || 1;
-                blockType = level === 1 ? 'heading1' : 'heading2';
-            } else if (nodeName === 'variable') {
-                blockType = 'variable';
+                blocks.push({
+                    id: blockId,
+                    type: blockType,
+                    // @ts-ignore
+                    type_: blockType,
+                    data: {
+                        text: text,
+                        value: null,
+                        metadata: metadata
+                    },
+                    created: new Date().toISOString(),
+                    modified: new Date().toISOString()
+                });
             }
-
-            blocks.push({
-                id: blockId, // Phase 2: Stable ID!
-                type: blockType,
-                // @ts-ignore - Rust Block struct needs both 'type' and 'type_' fields
-                type_: blockType,
-                data: {
-                    text: text,
-                    value: null,
-                    metadata: metadata
-                },
-                created: new Date().toISOString(),
-                modified: new Date().toISOString()
-            });
         }
+        return blocks;
     }
 
-    return blocks;
+    // Priority 2: Legacy Content Array (used in Unit Tests and Phase 0/1 headless loads)
+    const content = doc.getArray('content');
+    if (content && content.length > 0) {
+        return content.toArray().map((blockMap: any) => {
+            const block = blockToJSON(blockMap as Y.Map<any>);
+            // Ensure type_ for Rust
+            return {
+                ...block,
+                // @ts-ignore
+                type_: block.type
+            };
+        });
+    }
+
+    return [];
 }
 
 /**
