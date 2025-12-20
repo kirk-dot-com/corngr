@@ -8,6 +8,8 @@ import { EditorView } from 'prosemirror-view';
 import { User, Role } from './security/types';
 import { TauriSecureNetwork } from './security/TauriSecureNetwork';
 import { PerformanceMonitor } from './components/PerformanceMonitor';
+import { MarketplaceSidebar, MarketplaceBlock } from './components/MarketplaceSidebar';
+import { generateUUID, BlockMetadata } from './yjs/schema';
 import './DemoApp.css';
 
 // Mock Users with Clearance Levels for ABAC testing
@@ -35,6 +37,9 @@ export const DemoApp: React.FC = () => {
 
     // Performance Testing State
     const [autoMutate, setAutoMutate] = useState(false);
+
+    // Marketplace State
+    const [showMarketplace, setShowMarketplace] = useState(false);
 
     // Collaboration State
     const [activeUserCount, setActiveUserCount] = useState(1);
@@ -166,6 +171,42 @@ export const DemoApp: React.FC = () => {
         console.log('🚀 Injected 1000 blocks into Client Doc');
     };
 
+    // Marketplace Integration
+    const handleImportBlock = (mBlock: MarketplaceBlock) => {
+        if (!clientDoc || !secureNetwork) return;
+
+        const blockId = generateUUID();
+
+        // 1. Register in MetadataStore (Governance)
+        const metadata: BlockMetadata = {
+            ...mBlock.data.metadata,
+            provenance: {
+                authorId: mBlock.author,
+                sourceId: mBlock.id,
+                timestamp: new Date().toISOString()
+            }
+        };
+        secureNetwork.getMetadataStore().set(blockId, metadata);
+
+        // 2. Insert into Editor (Content)
+        const fragment = clientDoc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
+
+        clientDoc.transact(() => {
+            const nodeName = mBlock.type === 'heading1' ? 'heading' : 'paragraph';
+            const newNode = new Y.XmlElement(nodeName);
+            newNode.setAttribute('blockId', blockId);
+            if (mBlock.type === 'heading1') newNode.setAttribute('level', 1);
+
+            const textNode = new Y.XmlText(mBlock.data.text);
+            newNode.insert(0, [textNode]);
+
+            fragment.push([newNode]);
+        });
+
+        console.log(`🎁 [Marketplace] Imported ${mBlock.title} (${blockId})`);
+        setShowMarketplace(false);
+    };
+
     // Track editor view for toolbar
     useEffect(() => {
         if (!editorContainerRef.current) return;
@@ -243,6 +284,13 @@ export const DemoApp: React.FC = () => {
                         onClick={() => setView('slides')}
                     >
                         📊 Slides
+                    </button>
+
+                    <button
+                        className={`view-btn ${showMarketplace ? 'active' : ''}`}
+                        onClick={() => setShowMarketplace(!showMarketplace)}
+                    >
+                        🛒 Marketplace
                     </button>
 
                     {/* Collaboration Indicator */}
