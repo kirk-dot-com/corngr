@@ -36,7 +36,7 @@ export class TauriSyncProvider extends Observable<any> {
         // 2. Listen for local awareness changes and send to Tauri
         this.awareness.on('update', ({ added, updated, removed }: any) => {
             const changedClients = added.concat(updated).concat(removed);
-            const awarenessUpdate = Y.encodeAwarenessUpdate(this.awareness, changedClients);
+            const awarenessUpdate = encodeAwarenessUpdate(this.awareness, changedClients);
 
             emit('awareness-update', Array.from(awarenessUpdate)).catch(err => {
                 console.error('Failed to emit awareness-update:', err);

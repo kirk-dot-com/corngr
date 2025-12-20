@@ -108,6 +108,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
             schema: corngrSchema,
             plugins: [
                 ySyncPlugin(yXmlFragment),
+                ...(awareness ? [yCursorPlugin(awareness)] : []),
                 yUndoPlugin(),
                 variablePlugin,
                 ...(metadataStore && user ? [createFilterPlugin(metadataStore, user)] : []),
