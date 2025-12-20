@@ -12,26 +12,73 @@ export const corngrSchema = new Schema({
         },
 
         paragraph: {
+            attrs: { blockId: { default: null } },
             content: 'inline*',
             group: 'block',
-            parseDOM: [{ tag: 'p' }],
-            toDOM() {
-                return ['p', 0];
+            parseDOM: [{
+                tag: 'p',
+                getAttrs(dom) {
+                    const el = dom as HTMLElement;
+                    return {
+                        blockId: el.getAttribute('data-block-id')
+                    };
+                }
+            }],
+            toDOM(node) {
+                const attrs: any = {};
+                if (node.attrs.blockId) {
+                    attrs['data-block-id'] = node.attrs.blockId;
+                }
+                return ['p', attrs, 0];
             }
         },
 
         heading: {
-            attrs: { level: { default: 1 } },
+            attrs: {
+                level: { default: 1 },
+                blockId: { default: null }
+            },
             content: 'inline*',
             group: 'block',
             defining: true,
             parseDOM: [
-                { tag: 'h1', attrs: { level: 1 } },
-                { tag: 'h2', attrs: { level: 2 } },
-                { tag: 'h3', attrs: { level: 3 } }
+                {
+                    tag: 'h1',
+                    getAttrs(dom) {
+                        const el = dom as HTMLElement;
+                        return {
+                            level: 1,
+                            blockId: el.getAttribute('data-block-id')
+                        };
+                    }
+                },
+                {
+                    tag: 'h2',
+                    getAttrs(dom) {
+                        const el = dom as HTMLElement;
+                        return {
+                            level: 2,
+                            blockId: el.getAttribute('data-block-id')
+                        };
+                    }
+                },
+                {
+                    tag: 'h3',
+                    getAttrs(dom) {
+                        const el = dom as HTMLElement;
+                        return {
+                            level: 3,
+                            blockId: el.getAttribute('data-block-id')
+                        };
+                    }
+                }
             ],
             toDOM(node) {
-                return ['h' + node.attrs.level, 0];
+                const attrs: any = {};
+                if (node.attrs.blockId) {
+                    attrs['data-block-id'] = node.attrs.blockId;
+                }
+                return ['h' + node.attrs.level, attrs, 0];
             }
         },
 
