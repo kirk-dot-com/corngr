@@ -280,6 +280,7 @@ fn get_mock_blocks() -> Vec<Block> {
     ]
 }
 
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -287,4 +288,91 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![greet, load_secure_document, save_secure_document, check_block_permission])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_admin_access() {
+        let admin = User {
+            id: "admin1".to_string(),
+            role: "admin".to_string(),
+            department: None,
+            clearance_level: 5,
+        };
+        let blocks = get_mock_blocks();
+        
+        // Admin should see everything
+        for block in blocks {
+            assert!(
+                check_access(&admin, &block, "read"),
+                "Admin should see block {}",
+                block.id
+            );
+        }
+    }
+
+    #[test]
+    fn test_viewer_access_public() {
+        let viewer = User {
+            id: "u3".to_string(),
+            role: "viewer".to_string(),
+            department: None,
+            clearance_level: 0,
+        };
+        let blocks = get_mock_blocks();
+        
+        // Block 1 is Public
+        assert!(check_access(&viewer, &blocks[0], "read"), "Viewer should see public block");
+        
+        // Block 2 is Internal (Viewer is internal)
+        assert!(check_access(&viewer, &blocks[1], "read"), "Viewer should see internal block");
+        
+        // Block 3 is Confidential (Requires Level 2)
+        assert!(!check_access(&viewer, &blocks[2], "read"), "Viewer should NOT see confidential block");
+
+        // Block 4 is Restricted (Requires Level 3 + Admin Role)
+        assert!(!check_access(&viewer, &blocks[3], "read"), "Viewer should NOT see restricted block");
+    }
+
+    #[test]
+    fn test_manager_access_confidential() {
+        let manager = User {
+            id: "m1".to_string(),
+            role: "editor".to_string(),
+            department: None,
+            clearance_level: 2, // Sufficient for Confidential
+        };
+        let blocks = get_mock_blocks();
+
+        // Should see Confidential
+        assert!(check_access(&manager, &blocks[2], "read"), "Manager L2 should see confidential block");
+        
+        // Should NOT see Restricted (Level 3 or specific ACL)
+        // Block 4 has ACL ["admin"]
+        assert!(!check_access(&manager, &blocks[3], "read"), "Manager L2 should NOT see Admin Only block");
+    }
+
+    #[test]
+    fn test_write_permission() {
+        let viewer = User {
+            id: "u3".to_string(),
+            role: "viewer".to_string(),
+            department: None,
+            clearance_level: 0,
+        };
+        let editor = User {
+            id: "u2".to_string(),
+            role: "editor".to_string(),
+            department: None,
+            clearance_level: 1,
+        };
+
+        let block = &get_mock_blocks()[0]; // Public block
+
+        assert!(!check_access(&viewer, block, "write"), "Viewer cannot write");
+        assert!(check_access(&editor, block, "write"), "Editor can write");
+    }
 }
