@@ -1,0 +1,68 @@
+/* Transclusion Styles [Sprint 3] */
+
+.transclusion {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.9em;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    border: 1px solid transparent;
+}
+
+.transclusion.loading {
+    background: rgba(255, 255, 255, 0.05);
+    color: #666;
+    border-color: rgba(255, 255, 255, 0.1);
+    font-style: italic;
+    animation: transclusion-pulse 2s infinite ease-in-out;
+}
+
+.transclusion.active {
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    border-color: rgba(102, 126, 234, 0.3);
+    cursor: help;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+}
+
+.transclusion.active:hover {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: #667eea;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+}
+
+.transclusion.denied {
+    background: rgba(244, 67, 54, 0.1);
+    color: #f44336;
+    border-color: rgba(244, 67, 54, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.75rem;
+}
+
+.transclusion.error {
+    background: rgba(255, 152, 0, 0.1);
+    color: #ff9800;
+    border-color: rgba(255, 152, 0, 0.3);
+}
+
+@keyframes transclusion-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Source Indicator (X-Ray effect) */
+.transclusion.active::before {
+    content: '🌐';
+    margin-right: 6px;
+    font-size: 0.8em;
+}

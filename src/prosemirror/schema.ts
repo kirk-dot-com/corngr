@@ -124,6 +124,41 @@ export const corngrSchema = new Schema({
             }
         },
 
+        // [Sprint 3] Inline Reference node (Transclusion)
+        'inline-reference': {
+            attrs: {
+                refId: {},
+                fallbackText: { default: 'Loading global reference...' }
+            },
+            group: 'inline',
+            inline: true,
+            atom: true,
+            selectable: true,
+            parseDOM: [{
+                tag: 'span[data-ref-id]',
+                getAttrs(dom) {
+                    const el = dom as HTMLElement;
+                    return {
+                        refId: el.getAttribute('data-ref-id'),
+                        fallbackText: el.getAttribute('data-fallback')
+                    };
+                }
+            }],
+            toDOM(node) {
+                const { refId, fallbackText } = node.attrs;
+                return [
+                    'span',
+                    {
+                        class: 'corngr-inline-reference',
+                        'data-ref-id': refId,
+                        'data-fallback': fallbackText,
+                        contenteditable: 'false'
+                    },
+                    fallbackText
+                ];
+            }
+        },
+
         text: {
             group: 'inline'
         }
