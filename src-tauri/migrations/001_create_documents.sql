@@ -17,21 +17,25 @@ CREATE INDEX IF NOT EXISTS idx_documents_owner ON documents(owner_id);
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Users can read their own documents
-CREATE POLICY IF NOT EXISTS documents_select_policy ON documents
+DROP POLICY IF EXISTS documents_select_policy ON documents;
+CREATE POLICY documents_select_policy ON documents
     FOR SELECT
     USING (auth.uid()::text = owner_id);
 
 -- Policy: Users can insert their own documents  
-CREATE POLICY IF NOT EXISTS documents_insert_policy ON documents
+DROP POLICY IF EXISTS documents_insert_policy ON documents;
+CREATE POLICY documents_insert_policy ON documents
     FOR INSERT
     WITH CHECK (auth.uid()::text = owner_id);
 
 -- Policy: Users can update their own documents
-CREATE POLICY IF NOT EXISTS documents_update_policy ON documents
+DROP POLICY IF EXISTS documents_update_policy ON documents;
+CREATE POLICY documents_update_policy ON documents
     FOR UPDATE
     USING (auth.uid()::text = owner_id);
 
 -- Policy: Users can delete their own documents
-CREATE POLICY IF NOT EXISTS documents_delete_policy ON documents
+DROP POLICY IF EXISTS documents_delete_policy ON documents;
+CREATE POLICY documents_delete_policy ON documents
     FOR DELETE
     USING (auth.uid()::text = owner_id);
