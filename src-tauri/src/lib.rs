@@ -1,4 +1,4 @@
-use ed25519_dalek::{Signature, Signer, SignerMut, SigningKey, VerifyingKey};
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -329,8 +329,10 @@ fn verify_token(token_id: &str, signature_hex: &str) -> bool {
 
     // Decode hex signature
     if let Ok(sig_bytes) = hex::decode(signature_hex) {
-        if let Ok(signature) = Signature::from_bytes(&sig_bytes.try_into().unwrap_or([0u8; 64])) {
-            return public_key.verify(token_id.as_bytes(), &signature).is_ok();
+        if let Ok(byte_array) = sig_bytes.try_into() {
+            if let Ok(signature) = Signature::from_bytes(&byte_array) {
+                return public_key.verify(token_id.as_bytes(), &signature).is_ok();
+            }
         }
     }
     false
