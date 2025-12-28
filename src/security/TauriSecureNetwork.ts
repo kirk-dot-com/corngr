@@ -7,7 +7,10 @@ import { TauriSyncProvider } from './TauriSyncProvider';
 import { GlobalReferenceStore } from './GlobalReferenceStore';
 
 // Import the REAL Tauri invoke function to connect to Rust backend
-import { invoke } from '@tauri-apps/api/tauri';
+// Conditional import for Tauri environment (will be undefined in browser)
+declare global {
+    function invoke(cmd: string, args?: any): Promise<any>;
+}
 
 // [Phase 4] Supabase Client
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
