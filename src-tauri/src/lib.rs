@@ -301,6 +301,18 @@ fn request_capability_token(req: CapabilityRequest) -> Result<CapabilityToken, S
     Err("Handshake Failed: Access Denied".into())
 }
 
+/**
+ * [Phase 5] Revoke Capability Token
+ * Invalidates a token immediately, preventing further use.
+ */
+#[tauri::command]
+fn revoke_capability_token(token_id: String) -> bool {
+    let mut revoked = REVOKED_TOKENS.lock().unwrap();
+    revoked.insert(token_id.clone());
+    println!("🚫 Token {} revoked", token_id);
+    true
+}
+
 // ==========================================
 // [Phase 4] Cryptographic Key Management
 // ==========================================
@@ -346,10 +358,25 @@ fn sign_token(token_id: &str) -> String {
 }
 
 /**
+ * [Phase 5] Check if token is revoked
+ */
+fn is_token_revoked(token_id: &str) -> bool {
+    let revoked = REVOKED_TOKENS.lock().unwrap();
+    revoked.contains(token_id)
+}
+
+/**
  * [Phase 4] Real Ed25519 Verification with Expiration Check
+ * [Phase 5] Added revocation check
  */
 fn verify_token_with_expiration(token: &CapabilityToken) -> bool {
     let public_key = KeyManager::get_public_key();
+
+    // 0. Check revocation
+    if is_token_revoked(&token.token_id) {
+        println!("❌ Token {} has been revoked", token.token_id);
+        return false;
+    }
 
     // 1. Check expiration
     if let Ok(expires_at) = chrono::DateTime::parse_from_rfc3339(&token.expires_at) {
@@ -679,7 +706,8 @@ pub fn run() {
             check_block_permission,
             reset_secure_document,
             fetch_external_block,
-            request_capability_token
+            request_capability_token,
+            revoke_capability_token
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
