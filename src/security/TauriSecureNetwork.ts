@@ -16,6 +16,21 @@ declare global {
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, ENABLE_CLOUD_SYNC } from '../config/SupabaseConfig';
 
+// [DEV] Mock Tauri invoke for Browser Verification
+if (typeof window !== 'undefined' && !(window as any).__TAURI__ && !(window as any).invoke) {
+    console.log('🔧 Injecting Mock Tauri Invoke for Browser Testing');
+    (window as any).invoke = async (cmd: string, args: any) => {
+        console.log(`📡 [Mock Invoke] ${cmd}`, args);
+        if (cmd === 'save_secure_document') return true;
+        if (cmd === 'request_capability_token') return {
+            token_id: 'mock-token',
+            signature: '0000',
+            expires_at: new Date(Date.now() + 300000).toISOString()
+        };
+        return null;
+    };
+}
+
 /**
  * Connects the Frontend (Yjs) to the Local-First Backend (Tauri/Rust)
  * Replaces the 'MockSecureNetwork' from Phase 0.
