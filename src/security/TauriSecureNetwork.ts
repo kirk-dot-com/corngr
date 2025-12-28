@@ -295,7 +295,7 @@ export class TauriSecureNetwork {
                 origin_url: ref.originUrl,
                 doc_id: ref.targetDocId,
                 block_id: ref.targetBlockId,
-                token: token ? `${token.token_id}:${token.signature}` : undefined
+                token: token ? `${token.token_id}:${token.signature}:${token.expires_at}` : undefined
             });
 
             this.referenceStore.updateStatus(refId, 'active');

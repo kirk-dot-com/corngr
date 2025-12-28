@@ -198,22 +198,40 @@ fn fetch_external_block(
     if let Some(mut block) = blocks.into_iter().find(|b| b.id == block_id) {
         // [Phase 4] Verify Capability Token if present (High-Speed Access)
         if let Some(token_str) = token {
-            // In a real system, we'd parse the full CapabilityToken struct.
-            // For now, we assume the string passed is "token_id|signature" or similar,
-            // OR we just verify the token signature if we had the object.
-            // But valid `token` arg is currently just a string.
-            // Let's assume the frontend passes the entire JSON of the token?
-            // Or simpler: pass "token_id:signature".
-            // Let's implement a simple split for now to verify logic.
-            if let Some((t_id, sig)) = token_str.split_once(':') {
-                if verify_token(t_id, sig) {
-                    println!("✅ CRYPTO PROOF: Valid Signature for Token {}", t_id);
+            // Parse token format: "token_id:signature:expires_at"
+            // This allows us to check both signature AND expiration
+            let parts: Vec<&str> = token_str.split(':').collect();
+            if parts.len() >= 3 {
+                let capability_token = CapabilityToken {
+                    token_id: parts[0].to_string(),
+                    signature: parts[1].to_string(),
+                    expires_at: parts[2].to_string(),
+                };
+
+                if verify_token_with_expiration(&capability_token) {
+                    println!(
+                        "✅ CRYPTO PROOF: Valid Token {} (expires: {})",
+                        capability_token.token_id, capability_token.expires_at
+                    );
                     // Fast-path allow!
                     block.data.metadata.origin_doc_id = Some(doc_id);
                     block.data.metadata.origin_url = Some(origin_url);
                     return Ok(block);
                 } else {
-                    println!("❌ CRYPTO FAIL: Invalid Signature for Token {}", t_id);
+                    println!("❌ CRYPTO FAIL: Invalid or Expired Token");
+                }
+            } else {
+                // Fallback to old format for backwards compatibility
+                if let Some((t_id, sig)) = token_str.split_once(':') {
+                    if verify_token(t_id, sig) {
+                        println!(
+                            "⚠️ LEGACY TOKEN: Valid Signature but no expiration check for {}",
+                            t_id
+                        );
+                        block.data.metadata.origin_doc_id = Some(doc_id);
+                        block.data.metadata.origin_url = Some(origin_url);
+                        return Ok(block);
+                    }
                 }
             }
         }
@@ -321,7 +339,39 @@ fn sign_token(token_id: &str) -> String {
 }
 
 /**
- * [Phase 4] Real Ed25519 Verification
+ * [Phase 4] Real Ed25519 Verification with Expiration Check
+ */
+fn verify_token_with_expiration(token: &CapabilityToken) -> bool {
+    let public_key = KeyManager::get_public_key();
+
+    // 1. Check expiration
+    if let Ok(expires_at) = chrono::DateTime::parse_from_rfc3339(&token.expires_at) {
+        if expires_at.timestamp() < chrono::Utc::now().timestamp() {
+            println!(
+                "❌ Token {} expired at {}",
+                token.token_id, token.expires_at
+            );
+            return false;
+        }
+    } else {
+        println!("❌ Invalid expiration format for token {}", token.token_id);
+        return false;
+    }
+
+    // 2. Verify signature
+    if let Ok(sig_bytes) = hex::decode(&token.signature) {
+        if let Ok(byte_array) = sig_bytes.try_into() {
+            let signature = Signature::from_bytes(&byte_array);
+            return public_key
+                .verify(token.token_id.as_bytes(), &signature)
+                .is_ok();
+        }
+    }
+    false
+}
+
+/**
+ * [Phase 4] Legacy signature-only verification (for backwards compatibility)
  */
 fn verify_token(token_id: &str, signature_hex: &str) -> bool {
     let public_key = KeyManager::get_public_key();
