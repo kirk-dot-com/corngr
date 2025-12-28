@@ -7,6 +7,8 @@ import { TauriSyncProvider } from './TauriSyncProvider';
 import { GlobalReferenceStore } from './GlobalReferenceStore';
 
 // Import the REAL Tauri invoke function to connect to Rust backend
+import { invoke } from '@tauri-apps/api/tauri';
+
 // [Phase 4] Supabase Client
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, ENABLE_CLOUD_SYNC } from '../config/SupabaseConfig';
@@ -231,32 +233,7 @@ export class TauriSecureNetwork {
         }
     }
 
-    public async save() {
-        console.log('💾 Saving to File System (Rust)...');
 
-        // Phase 1 Fix: Get blocks from the Prosemirror Fragment (Source of Truth)
-        const blocks = getAllBlocks(this.clientDoc);
-
-        // Phase 2: Enrich blocks with metadata from shadow store
-        const enrichedBlocks = blocks.map(b => ({
-            ...b,
-            data: {
-                ...b.data,
-                // Merge metadata from shadow store (or keep existing if not in store)
-                metadata: this.metadataStore.get(b.id) || b.data.metadata
-            }
-        }));
-
-        console.log(`🔐 [Phase 2] Enriched ${enrichedBlocks.length} blocks with metadata from shadow store`);
-
-        const success = await invoke('save_secure_document', { blocks: enrichedBlocks, user: this.user });
-
-        if (success) {
-            console.log('✅ Save confirmed by backend.');
-        } else {
-            console.error('❌ Save rejected by backend (Permission denied).');
-        }
-    }
 
     /**
      * Phase 4: Request Capability Token [SPRINT 4]
