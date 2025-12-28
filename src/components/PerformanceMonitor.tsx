@@ -41,7 +41,7 @@ export const PerformanceMonitor: React.FC<Props> = ({ yDoc }) => {
 
         // Listen for internal metric updates
         const onMetricChange = () => {
-            setStats(prev => {
+            setStats(_prev => {
                 const newLatency = metrics.latency;
                 if (newLatency > maxLatency) setMaxLatency(newLatency);
                 return { latency: newLatency };

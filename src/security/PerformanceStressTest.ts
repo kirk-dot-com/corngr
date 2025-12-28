@@ -1,5 +1,5 @@
 import { TauriSecureNetwork } from './TauriSecureNetwork';
-import { User, Role } from './types';
+import { User } from './types';
 
 /**
  * Sprint 4: Performance & Verification Stress Test

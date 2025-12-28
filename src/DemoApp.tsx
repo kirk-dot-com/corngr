@@ -259,7 +259,7 @@ export const DemoApp: React.FC = () => {
 
         // 2. Run Test
         const results = await runPerformanceStressTest(secureNetwork, currentUser);
-        alert(`📊 Stress Test Complete!\nAvg Latency: ${results.transclusionLatency.reduce((a, b) => a + b, 0) / (results.transclusionLatency.length || 1).toFixed(2)}ms\nRedaction Speed: ${results.redactionLatency.toFixed(2)}ms`);
+        alert(`📊 Stress Test Complete!\nAvg Latency: ${(results.transclusionLatency.reduce((a, b) => a + b, 0) / (results.transclusionLatency.length || 1)).toFixed(2)}ms\nRedaction Speed: ${results.redactionLatency.toFixed(2)}ms`);
     };
 
     // Track editor view for toolbar

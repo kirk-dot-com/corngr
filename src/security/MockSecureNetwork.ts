@@ -25,7 +25,7 @@ export class MockSecureNetwork {
         this.syncServerToClient();
 
         // Listen for Server changes -> Push to Client (Filtered)
-        serverDoc.on('update', (update: Uint8Array) => {
+        serverDoc.on('update', (_update: Uint8Array) => {
             // In a real app we'd decode the update, filter it, and re-encode.
             // For this sim, we just trigger a full re-scan sync because decoding generic Yjs updates 
             // to filter specific array items is complex. 

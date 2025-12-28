@@ -21,7 +21,7 @@ describe('ProseMirror Integration - Sprint 2 Success Criteria', () => {
 
     describe('Editor Rendering', () => {
         it('should render ProseMirror editor component', () => {
-            const { container } = render(<ProseMirrorEditor yDoc={doc} />);
+            const { container } = render(<ProseMirrorEditor yDoc={doc} user={null} metadataStore={null} />);
 
             const editorContainer = container.querySelector('.prosemirror-editor-container');
             expect(editorContainer).toBeTruthy();
@@ -31,7 +31,7 @@ describe('ProseMirror Integration - Sprint 2 Success Criteria', () => {
         });
 
         it('should have ProseMirror instance attached', async () => {
-            const { container } = render(<ProseMirrorEditor yDoc={doc} />);
+            const { container } = render(<ProseMirrorEditor yDoc={doc} user={null} metadataStore={null} />);
 
             await waitFor(() => {
                 const prosemirror = container.querySelector('.ProseMirror');
@@ -40,7 +40,7 @@ describe('ProseMirror Integration - Sprint 2 Success Criteria', () => {
         });
 
         it('should bind to Yjs Y.XmlFragment', async () => {
-            render(<ProseMirrorEditor yDoc={doc} />);
+            render(<ProseMirrorEditor yDoc={doc} user={null} metadataStore={null} />);
 
             await waitFor(() => {
                 const fragment = doc.get('prosemirror', Y.XmlFragment);
@@ -52,9 +52,9 @@ describe('ProseMirror Integration - Sprint 2 Success Criteria', () => {
     describe('Variable Node Rendering', () => {
         it('should display variable nodes inline (Sprint 2 Success Criterion)', async () => {
             // Create a variable block in Yjs
-            const blockId = createVariableBlock(doc, 'revenue', 1000, 'currency');
+            const _blockId = createVariableBlock(doc, 'revenue', 1000, 'currency');
 
-            const { container } = render(<ProseMirrorEditor yDoc={doc} />);
+            const { container } = render(<ProseMirrorEditor yDoc={doc} user={null} metadataStore={null} />);
 
             await waitFor(() => {
                 const variableNodes = container.querySelectorAll('.corngr-variable');
@@ -65,7 +65,7 @@ describe('ProseMirror Integration - Sprint 2 Success Criteria', () => {
         });
 
         it('should apply variable styling with data attributes', async () => {
-            const { container } = render(<ProseMirrorEditor yDoc={doc} />);
+            const { container } = render(<ProseMirrorEditor yDoc={doc} user={null} metadataStore={null} />);
 
             await waitFor(() => {
                 const editor = container.querySelector('.prosemirror-editor');
@@ -84,11 +84,11 @@ describe('ProseMirror Integration - Sprint 2 Success Criteria', () => {
 
             // Create two editors bound to same Y.Doc
             const { container: container1 } = render(
-                <ProseMirrorEditor yDoc={doc} editorId="editor1" />
+                <ProseMirrorEditor yDoc={doc} editorId="editor1" user={null} metadataStore={null} />
             );
 
             const { container: container2 } = render(
-                <ProseMirrorEditor yDoc={doc} editorId="editor2" />
+                <ProseMirrorEditor yDoc={doc} editorId="editor2" user={null} metadataStore={null} />
             );
 
             // Wait for both editors to initialize
@@ -112,7 +112,7 @@ describe('ProseMirror Integration - Sprint 2 Success Criteria', () => {
         });
 
         it('should reflect Yjs changes in editor', async () => {
-            const { container } = render(<ProseMirrorEditor yDoc={doc} />);
+            const { container } = render(<ProseMirrorEditor yDoc={doc} user={null} metadataStore={null} />);
 
             await waitFor(() => {
                 const pm = container.querySelector('.ProseMirror');
@@ -130,7 +130,7 @@ describe('ProseMirror Integration - Sprint 2 Success Criteria', () => {
 
     describe('Editor State', () => {
         it('should support undo/redo operations', async () => {
-            const { container } = render(<ProseMirrorEditor yDoc={doc} />);
+            const { container } = render(<ProseMirrorEditor yDoc={doc} user={null} metadataStore={null} />);
 
             await waitFor(() => {
                 const pm = container.querySelector('.ProseMirror');
@@ -143,7 +143,7 @@ describe('ProseMirror Integration - Sprint 2 Success Criteria', () => {
         });
 
         it('should have proper schema with custom nodes', async () => {
-            const { container } = render(<ProseMirrorEditor yDoc={doc} />);
+            const { container } = render(<ProseMirrorEditor yDoc={doc} user={null} metadataStore={null} />);
 
             await waitFor(() => {
                 const pm = container.querySelector('.ProseMirror');
@@ -157,9 +157,9 @@ describe('ProseMirror Integration - Sprint 2 Success Criteria', () => {
 
     describe('Variable Value Updates', () => {
         it('should update variable display when Yjs value changes', async () => {
-            const blockId = createVariableBlock(doc, 'total', 100, 'number');
+            const _blockId = createVariableBlock(doc, 'total', 100, 'number');
 
-            const { container } = render(<ProseMirrorEditor yDoc={doc} />);
+            const { container } = render(<ProseMirrorEditor yDoc={doc} user={null} metadataStore={null} />);
 
             await waitFor(() => {
                 const pm = container.querySelector('.ProseMirror');
@@ -188,7 +188,7 @@ describe('ProseMirror Integration - Sprint 2 Success Criteria', () => {
     describe('Editor Attributes', () => {
         it('should set custom editor ID attribute', async () => {
             const { container } = render(
-                <ProseMirrorEditor yDoc={doc} editorId="custom-editor" />
+                <ProseMirrorEditor yDoc={doc} editorId="custom-editor" user={null} metadataStore={null} />
             );
 
             await waitFor(() => {
@@ -198,7 +198,7 @@ describe('ProseMirror Integration - Sprint 2 Success Criteria', () => {
         });
 
         it('should apply corngr-editor class', async () => {
-            const { container } = render(<ProseMirrorEditor yDoc={doc} />);
+            const { container } = render(<ProseMirrorEditor yDoc={doc} user={null} metadataStore={null} />);
 
             await waitFor(() => {
                 const editor = container.querySelector('.corngr-editor');
@@ -209,7 +209,7 @@ describe('ProseMirror Integration - Sprint 2 Success Criteria', () => {
 
     describe('Cleanup', () => {
         it('should destroy editor view on unmount', async () => {
-            const { container, unmount } = render(<ProseMirrorEditor yDoc={doc} />);
+            const { container, unmount } = render(<ProseMirrorEditor yDoc={doc} user={null} metadataStore={null} />);
 
             await waitFor(() => {
                 const pm = container.querySelector('.ProseMirror');
