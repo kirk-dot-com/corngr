@@ -744,4 +744,29 @@ mod tests {
         );
         assert!(check_access(&editor, block, "write"), "Editor can write");
     }
+
+    #[test]
+    fn test_crypto_handshake() {
+        // 1. Sign a token
+        let token_id = "test-token-123";
+        let signature = sign_token(token_id);
+
+        println!("Generated Signature: {}", signature);
+
+        // 2. Verify it
+        assert!(
+            verify_token(token_id, &signature),
+            "Signature should be valid"
+        );
+
+        // 3. Verify tampering fails
+        assert!(
+            !verify_token("tampered-token", &signature),
+            "Tampered token should fail"
+        );
+        assert!(
+            !verify_token(token_id, "deadbeef"),
+            "Invalid signature hex should fail"
+        );
+    }
 }
