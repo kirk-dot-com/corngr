@@ -94,8 +94,12 @@ export const TransclusionRenderer: React.FC<TransclusionRendererProps> = ({
     const value = type === 'variable' ? data.value?.value : data.text;
     const formatted = type === 'variable' ? formatValue(value, data.value?.format) : value;
 
+    // [Phase 4] Check for Cryptographic Verification
+    const isVerified = !!data.metadata?.origin_doc_id;
+    const statusClass = isVerified ? 'verified' : 'active';
+
     return (
-        <span ref={containerRef} className="transclusion active" title={`Source: ${content.id}`}>
+        <span ref={containerRef} className={`transclusion ${statusClass}`} title={`Source: ${content.id}`}>
             {formatted}
         </span>
     );

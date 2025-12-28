@@ -7,8 +7,9 @@ import { TauriSyncProvider } from './TauriSyncProvider';
 import { GlobalReferenceStore } from './GlobalReferenceStore';
 
 // Import the REAL Tauri invoke function to connect to Rust backend
-import { invoke } from '@tauri-apps/api/core';
-
+// [Phase 4] Supabase Client
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, ENABLE_CLOUD_SYNC } from '../config/SupabaseConfig';
 
 /**
  * Connects the Frontend (Yjs) to the Local-First Backend (Tauri/Rust)
@@ -17,6 +18,8 @@ import { invoke } from '@tauri-apps/api/core';
  * Phase 2: Dual-Layer Architecture
  * - ProseMirror handles content
  * - MetadataStore handles security metadata (classification, ACL, provenance)
+ * 
+ * [Phase 4] Integrated Cloud Persistence (Supabase)
  */
 export class TauriSecureNetwork {
     private clientDoc: Y.Doc;
@@ -24,6 +27,9 @@ export class TauriSecureNetwork {
     private metadataStore: MetadataStore;
     private syncProvider: TauriSyncProvider;
     private referenceStore: GlobalReferenceStore;
+
+    // [Phase 4] Cloud Client
+    private supabase: SupabaseClient | null = null;
 
     constructor(clientDoc: Y.Doc, user: User) {
         this.clientDoc = clientDoc;
@@ -34,8 +40,87 @@ export class TauriSecureNetwork {
         // Phase 3: Collaborative Sync Provider
         this.syncProvider = new TauriSyncProvider(this.clientDoc);
 
+        // [Phase 4] Initialize Cloud Persistence
+        if (ENABLE_CLOUD_SYNC) {
+            console.log('☁️ Initializing Supabase Cloud Sync...');
+            this.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+
         this.initMetadataSync();
         this.sync();
+    }
+
+    // ... existing initMetadataSync ...
+
+    public async save() {
+        console.log('💾 Saving to File System (Rust)...');
+
+        // Phase 1 Fix: Get blocks from the Prosemirror Fragment (Source of Truth)
+        const blocks = getAllBlocks(this.clientDoc);
+
+        // Phase 2: Enrich blocks with metadata from shadow store
+        const enrichedBlocks = blocks.map(b => ({
+            ...b,
+            data: {
+                ...b.data,
+                // Merge metadata from shadow store (or keep existing if not in store)
+                metadata: this.metadataStore.get(b.id) || b.data.metadata
+            }
+        }));
+
+        console.log(`🔐 [Phase 2] Enriched ${enrichedBlocks.length} blocks with metadata from shadow store`);
+
+        const success = await invoke('save_secure_document', { blocks: enrichedBlocks, user: this.user });
+
+        if (success) {
+            console.log('✅ Save confirmed by backend.');
+
+            // [Phase 4] Cloud Backup
+            if (this.supabase && ENABLE_CLOUD_SYNC) {
+                this.saveToCloud(enrichedBlocks);
+            }
+
+        } else {
+            console.error('❌ Save rejected by backend (Permission denied).');
+        }
+    }
+
+    /**
+     * [Phase 4] Persist state to Supabase
+     */
+    private async saveToCloud(blocks: any[]) {
+        if (!this.supabase) return;
+
+        console.log('☁️ Syncing to Supabase...');
+        const update = Y.encodeStateAsUpdate(this.clientDoc);
+
+        // Convert Uint8Array to Base64 for storage
+        // In a real app we'd use a binary column, but strings are easier for prototypes
+        const contentBase64 = this.toBase64(update);
+
+        const { error } = await this.supabase
+            .from('documents')
+            .upsert({
+                id: 'doc_default', // Single doc for now
+                content: contentBase64,
+                owner_id: this.user.id,
+                updated_at: new Date().toISOString()
+            });
+
+        if (error) {
+            console.error('☁️❌ Cloud Sync Failed:', error.message);
+        } else {
+            console.log('☁️✅ Cloud Sync Successful');
+        }
+    }
+
+    private toBase64(bytes: Uint8Array): string {
+        let binary = '';
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
     }
 
     /**
