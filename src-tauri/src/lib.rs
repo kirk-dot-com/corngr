@@ -1,5 +1,9 @@
+use ed25519_dalek::{Signature, Signer, SignerMut, SigningKey, VerifyingKey};
+use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 use uuid::Uuid;
 
 // ==========================================
@@ -193,7 +197,29 @@ fn fetch_external_block(
     let blocks = get_mock_blocks();
 
     if let Some(mut block) = blocks.into_iter().find(|b| b.id == block_id) {
-        // 2. Perform Authoritative ABAC Check
+        // [Phase 4] Verify Capability Token if present (High-Speed Access)
+        if let Some(token_str) = token {
+            // In a real system, we'd parse the full CapabilityToken struct.
+            // For now, we assume the string passed is "token_id|signature" or similar,
+            // OR we just verify the token signature if we had the object.
+            // But valid `token` arg is currently just a string.
+            // Let's assume the frontend passes the entire JSON of the token?
+            // Or simpler: pass "token_id:signature".
+            // Let's implement a simple split for now to verify logic.
+            if let Some((t_id, sig)) = token_str.split_once(':') {
+                if verify_token(t_id, sig) {
+                    println!("✅ CRYPTO PROOF: Valid Signature for Token {}", t_id);
+                    // Fast-path allow!
+                    block.data.metadata.origin_doc_id = Some(doc_id);
+                    block.data.metadata.origin_url = Some(origin_url);
+                    return Ok(block);
+                } else {
+                    println!("❌ CRYPTO FAIL: Invalid Signature for Token {}", t_id);
+                }
+            }
+        }
+
+        // 2. Perform Authoritative ABAC Check (Fallback)
         if check_access(&user, &block, "read") {
             // Enrich with origin metadata to ensure receiver knows it's external
             block.data.metadata.origin_doc_id = Some(doc_id);
@@ -229,11 +255,14 @@ fn request_capability_token(req: CapabilityRequest) -> Result<CapabilityToken, S
     if let Some(b) = block {
         // 2. Perform ABAC check
         if check_access(&req.user, &b, "read") {
-            // 3. Generate Ephemeral Token (Mock signing for Phase 3)
+            // 3. Generate Ephemeral Token (Real Ed25519 Signature)
+            let token_id = format!("cap-{}", Uuid::new_v4());
+            let signature = sign_token(&token_id);
+
             let token = CapabilityToken {
-                token_id: format!("cap-{}", Uuid::new_v4()),
+                token_id,
                 expires_at: (chrono::Utc::now() + chrono::Duration::seconds(300)).to_rfc3339(),
-                signature: "SIMULATED_ED25519_SIG".into(),
+                signature,
             };
 
             println!("✅ Handshake Successful: Token Issued ({})", token.token_id);
@@ -246,6 +275,65 @@ fn request_capability_token(req: CapabilityRequest) -> Result<CapabilityToken, S
         req.user.id, req.block_id
     );
     Err("Handshake Failed: Access Denied".into())
+}
+
+// ==========================================
+// [Phase 4] Cryptographic Key Management
+// ==========================================
+
+const KEY_FILE: &str = "corngr_node.key";
+
+struct KeyManager;
+
+impl KeyManager {
+    /// Loads or generates a persistent Ed25519 signing key for this node
+    fn get_signing_key() -> SigningKey {
+        if Path::new(KEY_FILE).exists() {
+            // Load existing key
+            let bytes = fs::read(KEY_FILE).expect("Failed to read key file");
+            if bytes.len() == 32 {
+                let mut arr = [0u8; 32];
+                arr.copy_from_slice(&bytes);
+                return SigningKey::from_bytes(&arr);
+            }
+        }
+
+        // Generate new key
+        println!("🔑 Generating new Identity Key for this node...");
+        let mut csprng = OsRng;
+        let signing_key = SigningKey::generate(&mut csprng);
+        fs::write(KEY_FILE, signing_key.to_bytes()).expect("Failed to write key file");
+        signing_key
+    }
+
+    fn get_public_key() -> VerifyingKey {
+        let signing_key = Self::get_signing_key();
+        signing_key.verifying_key()
+    }
+}
+
+/**
+ * [Phase 4] Real Ed25519 Signing
+ */
+fn sign_token(token_id: &str) -> String {
+    let signing_key = KeyManager::get_signing_key();
+    let signature: Signature = signing_key.sign(token_id.as_bytes());
+    hex::encode(signature.to_bytes())
+}
+
+/**
+ * [Phase 4] Real Ed25519 Verification
+ */
+fn verify_token(token_id: &str, signature_hex: &str) -> bool {
+    let public_key = KeyManager::get_public_key();
+
+    // Decode hex signature
+    if let Ok(sig_bytes) = hex::decode(signature_hex) {
+        if let Ok(signature) = Signature::from_bytes(&sig_bytes.try_into().unwrap_or([0u8; 64])) {
+            return public_key.verify(token_id.as_bytes(), &signature).is_ok();
+        }
+    }
+    false
 }
 
 /**
