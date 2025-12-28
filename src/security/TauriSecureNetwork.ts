@@ -49,6 +49,9 @@ export class TauriSecureNetwork {
         if (ENABLE_CLOUD_SYNC) {
             console.log('☁️ Initializing Supabase Cloud Sync...');
             this.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+            // [Phase 5] Restore from cloud on startup
+            this.restoreFromCloud();
         }
 
         this.initMetadataSync();
@@ -117,6 +120,53 @@ export class TauriSecureNetwork {
         } else {
             console.log('☁️✅ Cloud Sync Successful');
         }
+    }
+
+    /**
+     * [Phase 5] Restore state from Supabase on app launch
+     */
+    private async restoreFromCloud() {
+        if (!this.supabase) return;
+
+        console.log('☁️ Checking for cloud backup...');
+
+        const { data, error } = await this.supabase
+            .from('documents')
+            .select('content, updated_at')
+            .eq('id', 'doc_default')
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                console.log('☁️ No cloud backup found (first launch)');
+            } else {
+                console.error('☁️❌ Cloud Restore Failed:', error.message);
+            }
+            return;
+        }
+
+        if (data) {
+            try {
+                // Decode Base64 to Uint8Array
+                const update = this.fromBase64(data.content);
+
+                // Apply cloud state to local Yjs doc
+                Y.applyUpdate(this.clientDoc, update);
+
+                console.log(`☁️✅ Restored from cloud (last updated: ${data.updated_at})`);
+            } catch (e) {
+                console.error('☁️❌ Failed to apply cloud state:', e);
+            }
+        }
+    }
+
+    private fromBase64(base64: string): Uint8Array {
+        const binary = window.atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes;
     }
 
     private toBase64(bytes: Uint8Array): string {
