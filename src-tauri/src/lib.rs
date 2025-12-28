@@ -1,9 +1,16 @@
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
+use std::sync::Mutex;
 use uuid::Uuid;
+
+// [Phase 5] Token Revocation System
+lazy_static::lazy_static! {
+    static ref REVOKED_TOKENS: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
+}
 
 // ==========================================
 // [EIM] Schema Definitions (Mirroring TS)
