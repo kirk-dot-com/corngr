@@ -52,7 +52,7 @@ describe('ProseMirror Integration - Sprint 2 Success Criteria', () => {
     describe('Variable Node Rendering', () => {
         it('should display variable nodes inline (Sprint 2 Success Criterion)', async () => {
             // Create a variable block in Yjs
-            const _blockId = createVariableBlock(doc, 'revenue', 1000, 'currency');
+            createVariableBlock(doc, 'revenue', 1000, 'currency');
 
             const { container } = render(<ProseMirrorEditor yDoc={doc} user={null} metadataStore={null} />);
 
@@ -157,7 +157,7 @@ describe('ProseMirror Integration - Sprint 2 Success Criteria', () => {
 
     describe('Variable Value Updates', () => {
         it('should update variable display when Yjs value changes', async () => {
-            const _blockId = createVariableBlock(doc, 'total', 100, 'number');
+            createVariableBlock(doc, 'total', 100, 'number');
 
             const { container } = render(<ProseMirrorEditor yDoc={doc} user={null} metadataStore={null} />);
 

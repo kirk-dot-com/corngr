@@ -66,7 +66,7 @@ describe('Yjs Schema - Sprint 1 Success Criteria', () => {
         });
 
         it('should create variable block and read value (Sprint 1 Success Criterion)', () => {
-            const _blockId = createVariableBlock(doc, 'revenue', 1000, 'currency');
+            createVariableBlock(doc, 'revenue', 1000, 'currency');
 
             const content = doc.getArray('content');
             expect(content.length).toBe(1);
