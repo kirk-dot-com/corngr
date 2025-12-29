@@ -52,13 +52,53 @@ export class TauriSecureNetwork {
 
             // [Phase 5] Restore from cloud on startup
             this.restoreFromCloud();
+
+            // [Phase 6] Listen for real-time updates from other devices
+            this.subscribeToRealtimeUpdates();
         }
 
         this.initMetadataSync();
         this.sync();
     }
 
-    // ... existing initMetadataSync ...
+    // [Phase 6] Subscribe to Real-Time Cloud Updates (Multi-Device Sync)
+    private subscribeToRealtimeUpdates() {
+        if (!this.supabase) return;
+
+        console.log('📡 Subscribing to Real-Time Cloud Updates...');
+        this.supabase
+            .channel('public:documents')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'documents',
+                    filter: `owner_id=eq.${this.user.id}`
+                },
+                (payload) => {
+                    console.log('☁️⚡ Real-Time Update Received:', payload);
+                    const newRecord = payload.new as any;
+                    if (newRecord && newRecord.content) {
+                        this.applyCloudUpdate(newRecord.content);
+                    }
+                }
+            )
+            .subscribe((status) => {
+                console.log(`📡 Real-Time Subscription Status: ${status}`);
+            });
+    }
+
+    private applyCloudUpdate(contentBase64: string) {
+        try {
+            const update = this.fromBase64(contentBase64);
+            // Apply update to local doc. Yjs handles conflicts automatically.
+            Y.applyUpdate(this.clientDoc, update);
+            console.log('✅ Applied Real-Time Update to Local Doc');
+        } catch (e) {
+            console.error('❌ Failed to apply Real-Time Update:', e);
+        }
+    }
 
     public async save() {
         console.log('💾 Saving to File System (Rust)...');
