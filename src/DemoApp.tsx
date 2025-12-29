@@ -21,7 +21,23 @@ const USERS: Record<Role, User> = {
     viewer: { id: 'u3', attributes: { role: 'viewer', department: 'Marketing', clearanceLevel: 0 } }
 };
 
+import { AuthPage } from './components/AuthPage';
+import { createClient } from '@supabase/supabase-js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config/SupabaseConfig';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Mock Users with Clearance Levels for ABAC testing
+const USERS: Record<Role, User> = {
+    admin: { id: 'u1', attributes: { role: 'admin', department: 'IT', clearanceLevel: 5 } },
+    editor: { id: 'u2', attributes: { role: 'editor', department: 'Sales', clearanceLevel: 2 } },
+    viewer: { id: 'u3', attributes: { role: 'viewer', department: 'Marketing', clearanceLevel: 0 } }
+};
+
 export const DemoApp: React.FC = () => {
+    // Phase 6: Authentication State
+    const [session, setSession] = useState<any>(null); // Supabase Session
+
     // Phase 1 Architecture:
     // Client Doc is the Single Source of Truth for the UI.
     // Syncs with Rust Backend via TauriSecureNetwork.
@@ -46,20 +62,44 @@ export const DemoApp: React.FC = () => {
     // Collaboration State
     const [activeUserCount, setActiveUserCount] = useState(1);
 
-    // Initialize Document & Network
+    // [Phase 6] Listen for Auth Changes
     useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+        });
+
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    // Initialize Document & Network (Only if Session exists)
+    useEffect(() => {
+        if (!session) return;
+
         // 1. Create fresh Client Doc
         const cDoc = new Y.Doc();
         setClientDoc(cDoc);
 
         // 2. Initialize Bridge to Rust Backend
-        console.log(`🔐 Initializing Secure Network for ${currentUser.attributes.role}`);
-        const bridge = new TauriSecureNetwork(cDoc, currentUser);
+        // For Phase 6 demo, we map the real auth user to our demo "Admin" user attributes
+        // In Phase 7, we will fetch real attributes from DB
+        const networkUser = {
+            id: session.user.id,
+            attributes: currentUser.attributes // Keep role switching for demo purposes
+        };
+
+        console.log(`🔐 Initializing Secure Network for ${networkUser.attributes.role}`);
+        const bridge = new TauriSecureNetwork(cDoc, networkUser);
 
         // Phase 3: Set initial awareness state
         const awareness = bridge.getSyncProvider().awareness;
         awareness.setLocalStateField('user', {
-            name: `${currentUser.attributes.role} (You)`,
+            name: session.user.email || 'Anonymous',
             color: '#667eea'
         });
 
@@ -71,7 +111,11 @@ export const DemoApp: React.FC = () => {
         return () => {
             cDoc.destroy();
         };
-    }, []);
+    }, [session]);
+
+    if (!session) {
+        return <AuthPage supabase={supabase} />;
+    }
 
     // Update Network User when role changes
     useEffect(() => {
