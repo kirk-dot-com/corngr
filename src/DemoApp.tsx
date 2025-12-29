@@ -27,12 +27,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config/SupabaseConfig';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Mock Users with Clearance Levels for ABAC testing
-const USERS: Record<Role, User> = {
-    admin: { id: 'u1', attributes: { role: 'admin', department: 'IT', clearanceLevel: 5 } },
-    editor: { id: 'u2', attributes: { role: 'editor', department: 'Sales', clearanceLevel: 2 } },
-    viewer: { id: 'u3', attributes: { role: 'viewer', department: 'Marketing', clearanceLevel: 0 } }
-};
+
 
 export const DemoApp: React.FC = () => {
     // Phase 6: Authentication State
