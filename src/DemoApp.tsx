@@ -356,6 +356,13 @@ export const DemoApp: React.FC = () => {
                             <option value="editor">✏️ Editor</option>
                             <option value="viewer">👀 Viewer</option>
                         </select>
+                        <button
+                            className="view-btn warning"
+                            style={{ padding: '4px 8px', fontSize: '0.8rem', background: '#e53e3e' }}
+                            onClick={() => supabase.auth.signOut()}
+                        >
+                            Sign Out
+                        </button>
                     </div>
 
                     <button className={`view-btn ${view === 'split' ? 'active' : ''}`} onClick={() => setView('split')}>⚡ Dual View</button>
