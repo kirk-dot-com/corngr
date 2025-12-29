@@ -1,0 +1,201 @@
+/* DocumentList Aesthetic Alignment: Phase 6.5 */
+
+.dashboard-container {
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: 32px;
+    border-radius: 24px;
+    background: var(--bg-panel, rgba(255, 255, 255, 0.03));
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--border-glass, rgba(255, 255, 255, 0.08));
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    color: var(--text-primary, #f0f0f0);
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 32px;
+}
+
+.dashboard-title h1 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    margin: 0;
+    background: linear-gradient(135deg, #fff 0%, #a0a0a0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+
+.dashboard-title p {
+    margin: 8px 0 0 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary, #a0a0a0);
+    opacity: 0.7;
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.doc-grid {
+    display: grid;
+    gap: 16px;
+}
+
+.doc-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 24px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.doc-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--accent-primary, #667eea);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.doc-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 2px;
+    height: 100%;
+    background: var(--accent-primary, #667eea);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.doc-card:hover::before {
+    opacity: 1;
+}
+
+.doc-info {
+    flex: 1;
+}
+
+.doc-info h3 {
+    margin: 0 0 4px 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.doc-info .date {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #a0a0a0);
+    opacity: 0.6;
+}
+
+.doc-actions {
+    display: flex;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.doc-card:hover .doc-actions {
+    opacity: 1;
+}
+
+.action-icon {
+    padding: 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary, #a0a0a0);
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.action-icon:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.action-icon.delete:hover {
+    color: #f55;
+    background: rgba(245, 85, 85, 0.1);
+    border-color: rgba(245, 85, 85, 0.2);
+}
+
+.rename-input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--accent-primary, #667eea);
+    border-radius: 6px;
+    padding: 2px 8px;
+    color: white;
+    outline: none;
+    font-family: inherit;
+    font-size: inherit;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 64px;
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+}
+
+.empty-state p {
+    color: var(--text-secondary, #a0a0a0);
+    margin-bottom: 24px;
+}
+
+.create-first-btn {
+    color: var(--accent-primary, #667eea);
+    background: none;
+    border: none;
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.create-first-btn:hover {
+    color: #8da2fb;
+}
+
+/* Loading Spinner */
+.loading-box {
+    text-align: center;
+    padding: 80px;
+    color: var(--text-secondary, #a0a0a0);
+}
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--accent-primary, #667eea);
+    border-radius: 50%;
+    margin: 0 auto 16px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

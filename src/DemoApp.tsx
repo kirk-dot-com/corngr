@@ -24,23 +24,22 @@ const USERS: Record<Role, User> = {
 import { AuthPage } from './components/AuthPage';
 import { DocumentList } from './components/DocumentList';
 import { HelpPanel } from './components/HelpPanel';
+import { InputModal } from './components/InputModal';
+import { CommandPalette, CommandAction } from './components/CommandPalette';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config/SupabaseConfig';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-
-
 export const DemoApp: React.FC = () => {
     // Phase 6: Authentication State
     const [session, setSession] = useState<any>(null); // Supabase Session
     const [currentDocId, setCurrentDocId] = useState<string | null>(null); // [Phase 6.5] Dashboard Routing
+    const [currentDocTitle, setCurrentDocTitle] = useState<string>(''); // [Phase 6.5] Title Visibility
     const [showHelp, setShowHelp] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
     // Phase 1 Architecture:
-    // Client Doc is the Single Source of Truth for the UI.
-    // Syncs with Rust Backend via TauriSecureNetwork.
     const [clientDoc, setClientDoc] = useState<Y.Doc | null>(null);
 
     const [view, setView] = useState<'split' | 'editor' | 'slides' | 'governance'>('split');
@@ -61,45 +60,93 @@ export const DemoApp: React.FC = () => {
 
     // Collaboration State
     const [activeUserCount, setActiveUserCount] = useState(1);
+    const [showInputModal, setShowInputModal] = useState(false);
+    const [showCommandPalette, setShowCommandPalette] = useState(false);
+    const [appMode, setAppMode] = useState<'draft' | 'audit' | 'presentation'>('draft');
+
+    const handleGlobalCreateConfirm = async (title: string) => {
+        const effectiveTitle = title.trim() || 'Untitled Document';
+        const uuid = (typeof crypto !== 'undefined' && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : Math.random().toString(36).substring(2) + Date.now().toString(36);
+
+        const newDocId = `doc_${uuid}`;
+        setShowInputModal(false);
+
+        try {
+            const { error } = await supabase.from('documents').insert({
+                id: newDocId,
+                owner_id: session.user.id,
+                title: effectiveTitle,
+                content: 'AAA=',
+                updated_at: new Date().toISOString()
+            });
+            if (error) throw error;
+            setCurrentDocId(newDocId);
+            setCurrentDocTitle(effectiveTitle);
+        } catch (err: any) {
+            console.error('❌ Failed to create document from header:', err);
+            alert('Failed to create document: ' + err.message);
+        }
+    };
 
     // [Phase 6] Listen for Auth Changes
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
-            console.log('🔍 Initial Session Check:', session ? 'Found' : 'Null');
             setSession(session);
         });
 
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange((event, session) => {
-            console.log(`🔔 Auth Event: ${event}`, session?.user?.id);
+        } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
         });
 
         return () => subscription.unsubscribe();
     }, []);
 
-    // Initialize Document & Network (Only if Session AND DocId exist)
+    // [Phase 7] Command Palette Keyboard Shortcut
     useEffect(() => {
-        if (!session) return;
-        if (!currentDocId) return; // Wait for selection from Dashboard
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                setShowCommandPalette(prev => !prev);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
-        // 1. Create fresh Client Doc
+    const handleStressTest = async () => {
+        if (!secureNetwork) return;
+        const results = await runPerformanceStressTest(secureNetwork, currentUser);
+        alert(`📊 Stress Test Complete!\nAvg Latency: ${(results.transclusionLatency.reduce((a, b) => a + b, 0) / (results.transclusionLatency.length || 1)).toFixed(2)}ms\nRedaction Speed: ${results.redactionLatency.toFixed(2)}ms`);
+    };
+
+    const commandActions: CommandAction[] = [
+        { id: 'new-doc', label: 'New Document', icon: '➕', category: 'Application', shortcut: '⌘N', onExecute: () => setShowInputModal(true) },
+        { id: 'save-doc', label: 'Save Document', icon: '💾', category: 'Application', shortcut: '⌘S', onExecute: () => secureNetwork?.save() },
+        { id: 'mode-draft', label: 'Switch to Drafting Mode', icon: '📝', category: 'Navigation', onExecute: () => setAppMode('draft') },
+        { id: 'mode-audit', label: 'Switch to Audit Mode', icon: '🛡️', category: 'Governance', onExecute: () => setAppMode('audit') },
+        { id: 'mode-presentation', label: 'Switch to Presentation Mode', icon: '📊', category: 'Presentation', onExecute: () => setAppMode('presentation') },
+        { id: 'view-dashboard', label: 'Go to Dashboard', icon: '🏠', category: 'Navigation', onExecute: () => setCurrentDocId(null) },
+        { id: 'show-marketplace', label: 'Open Marketplace', icon: '🛒', category: 'Application', onExecute: () => setShowMarketplace(true) },
+        { id: 'stress-test', label: 'Run Performance Stress Test', icon: '🧪', category: 'Governance', onExecute: handleStressTest },
+    ];
+
+    // Initialize Document & Network
+    useEffect(() => {
+        if (!session || !currentDocId) return;
+
         const cDoc = new Y.Doc();
         setClientDoc(cDoc);
 
-        // 2. Initialize Bridge to Rust Backend
-        // For Phase 6 demo, we map the real auth user to our demo "Admin" user attributes
-        // In Phase 7, we will fetch real attributes from DB
         const networkUser = {
             id: session.user.id,
-            attributes: currentUser.attributes // Keep role switching for demo purposes
+            attributes: currentUser.attributes
         };
 
-        console.log(`🔐 Initializing Secure Network for ${networkUser.attributes.role} on ${currentDocId}`);
         const bridge = new TauriSecureNetwork(cDoc, networkUser, supabase, currentDocId);
-
-        // Phase 3: Set initial awareness state
         const awareness = bridge.getSyncProvider().awareness;
         awareness.setLocalStateField('user', {
             name: session.user.email || 'Anonymous',
@@ -107,27 +154,38 @@ export const DemoApp: React.FC = () => {
         });
 
         setSecureNetwork(bridge);
-
-        // Phase 3: Expose network for NodeViews and Renderers
         (window as any).tauriNetwork = bridge;
 
         return () => {
             cDoc.destroy();
         };
-        return () => {
-            cDoc.destroy();
-        };
     }, [session, currentDocId]);
 
+    // [Phase 6.5] Fetch Title when DocId changes
+    useEffect(() => {
+        if (!session || !currentDocId) {
+            setCurrentDocTitle('');
+            return;
+        }
 
+        const fetchTitle = async () => {
+            const { data, error } = await supabase
+                .from('documents')
+                .select('title')
+                .eq('id', currentDocId)
+                .single();
+
+            if (!error && data) {
+                setCurrentDocTitle(data.title || 'Untitled Document');
+            }
+        };
+        fetchTitle();
+    }, [session, currentDocId]);
 
     // Update Network User when role changes
     useEffect(() => {
         if (secureNetwork) {
-            console.log(`🔄 Switching Secure Network Role to ${currentUser.attributes.role}`);
             secureNetwork.updateUser(currentUser);
-
-            // Phase 3: Update local awareness identity
             const awareness = secureNetwork.getSyncProvider().awareness;
             awareness.setLocalStateField('user', {
                 name: `${currentUser.attributes.role} (You)`,
@@ -136,37 +194,30 @@ export const DemoApp: React.FC = () => {
         }
     }, [currentUser, secureNetwork]);
 
-    // Awareness Listener for Header & Cursors
+    // Awareness Listener
     useEffect(() => {
         if (!secureNetwork) return;
-
         const awareness = secureNetwork.getSyncProvider().awareness;
         const handleAwarenessChange = () => {
             setActiveUserCount(awareness.getStates().size);
         };
-
         awareness.on('change', handleAwarenessChange);
         return () => {
             awareness.off('change', handleAwarenessChange);
         };
     }, [secureNetwork]);
 
-    // Auto-Save: Listen for changes and push to Rust
+    // Auto-Save
     useEffect(() => {
         if (!clientDoc || !secureNetwork) return;
-
         let debounceInfo: any = null;
-
         const updateHandler = () => {
-            // Debounce save
             if (debounceInfo) clearTimeout(debounceInfo);
             debounceInfo = setTimeout(() => {
                 secureNetwork.save();
-            }, 1000); // Auto-save after 1s of inactivity
+            }, 1000);
         };
-
         clientDoc.on('update', updateHandler);
-
         return () => {
             clientDoc.off('update', updateHandler);
             if (debounceInfo) clearTimeout(debounceInfo);
@@ -176,12 +227,9 @@ export const DemoApp: React.FC = () => {
     // Auto-Mutate Loop
     useEffect(() => {
         if (!autoMutate || !clientDoc) return;
-
-        console.log('⚡ Starting High-Freq Mutation Loop');
         const interval = setInterval(() => {
             clientDoc.transact(() => {
                 const content = clientDoc.getArray('content');
-                // Naive: Update first variable we find
                 for (let i = 0; i < content.length; i++) {
                     const block = content.get(i) as any;
                     if (block.get('type') === 'variable') {
@@ -194,15 +242,12 @@ export const DemoApp: React.FC = () => {
                     }
                 }
             });
-        }, 50); // 50ms interval
-
+        }, 50);
         return () => clearInterval(interval);
     }, [autoMutate, clientDoc]);
 
-    // 1k Injector
     const injectMassiveData = () => {
         if (!clientDoc) return;
-
         const newBlocks: any[] = [];
         for (let i = 0; i < 1000; i++) {
             newBlocks.push({
@@ -216,72 +261,41 @@ export const DemoApp: React.FC = () => {
                 modified: new Date().toISOString()
             });
         }
-
         clientDoc.transact(() => {
             const content = clientDoc.getArray('content');
             content.insert(content.length, newBlocks as any);
         });
-        console.log('🚀 Injected 1000 blocks into Client Doc');
     };
 
-    // Marketplace Integration
     const handleImportBlock = (mBlock: MarketplaceBlock) => {
         if (!clientDoc || !secureNetwork) return;
-
         const blockId = generateUUID();
-
-        // 1. Register in MetadataStore (Governance)
         const metadata: BlockMetadata = {
             ...mBlock.data.metadata,
-            provenance: {
-                authorId: mBlock.author,
-                sourceId: mBlock.id,
-                timestamp: new Date().toISOString()
-            }
+            provenance: { authorId: mBlock.author, sourceId: mBlock.id, timestamp: new Date().toISOString() }
         };
         secureNetwork.getMetadataStore().set(blockId, metadata);
-
-        // 2. Insert into Editor (Content)
         const fragment = clientDoc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
-
         clientDoc.transact(() => {
             const nodeName = mBlock.type === 'heading1' ? 'heading' : 'paragraph';
             const newNode = new Y.XmlElement(nodeName);
-
-            // y-prosemirror expects attributes to be synced via Y.XmlElement attributes
             newNode.setAttribute('blockId', blockId);
-            if (mBlock.type === 'heading1') {
-                newNode.setAttribute('level', '1'); // attrs in schema.ts
-            }
-
+            if (mBlock.type === 'heading1') newNode.setAttribute('level', '1');
             const textNode = new Y.XmlText(mBlock.data.text);
             newNode.insert(0, [textNode]);
-
             fragment.push([newNode]);
         });
-
-        console.log(`🎁 [Marketplace] Imported ${mBlock.title} (${blockId})`);
         setShowMarketplace(false);
     };
 
-    // [Sprint 3] Global Transclusion Test
     const insertGlobalTransclusion = () => {
         if (!clientDoc || !secureNetwork) return;
-
         const refId = 'ext-ref-' + Math.random().toString(36).substring(7);
-
-        // 1. Register a mock external reference in the store
-        // In a real scenario, this would come from a picker or clipboard
         secureNetwork.getReferenceStore().addReference({
-            id: refId,
-            targetDocId: 'doc-alpha-99',
-            targetBlockId: 'b3', // Confidential Block in mock data
+            id: refId, targetDocId: 'doc-alpha-99', targetBlockId: 'b3',
             originUrl: 'https://security.corngr.com/vault/finance-2024.crng',
-            lastVerified: new Date().toISOString(),
-            status: 'active'
+            lastVerified: new Date().toISOString(), status: 'active'
         });
-
-        // 2. Insert the reference into the editor
         const fragment = clientDoc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
         clientDoc.transact(() => {
             const node = new Y.XmlElement('inline-reference');
@@ -289,31 +303,11 @@ export const DemoApp: React.FC = () => {
             node.setAttribute('fallbackText', 'Resolving Finance Data...');
             fragment.push([node]);
         });
-
-        console.log(`🌐 [Sprint 3] Inserted Global Transclusion: ${refId}`);
     };
 
-    // [Sprint 4] Run Stress Test
-    const handleStressTest = async () => {
-        if (!secureNetwork) return;
 
-        // 1. Insert some transclusions if none exist
-        const refs = secureNetwork.getReferenceStore().listAll();
-        if (refs.length === 0) {
-            console.log('🔄 Seeding transclusions for test...');
-            insertGlobalTransclusion();
-            insertGlobalTransclusion();
-        }
-
-        // 2. Run Test
-        const results = await runPerformanceStressTest(secureNetwork, currentUser);
-        alert(`📊 Stress Test Complete!\nAvg Latency: ${(results.transclusionLatency.reduce((a, b) => a + b, 0) / (results.transclusionLatency.length || 1)).toFixed(2)}ms\nRedaction Speed: ${results.redactionLatency.toFixed(2)}ms`);
-    };
-
-    // Track editor view for toolbar
     useEffect(() => {
         if (!editorContainerRef.current) return;
-
         const interval = setInterval(() => {
             const pmEditor = editorContainerRef.current?.querySelector('.ProseMirror') as any;
             if (pmEditor?.pmViewDesc?.view) {
@@ -321,251 +315,109 @@ export const DemoApp: React.FC = () => {
                 clearInterval(interval);
             }
         }, 100);
-
         return () => clearInterval(interval);
     }, [clientDoc, view]);
 
-    if (!session) {
-        return <AuthPage supabase={supabase} />;
-    }
-
-    // [Phase 6.5] Dashboard View
-    if (!currentDocId) {
-        return (
-            <DocumentList
-                supabase={supabase}
-                user={session.user}
-                onSelectDocument={setCurrentDocId}
-            />
-        );
-    }
-
-    // [Phase 6.5] Editor Loading
-    if (!clientDoc) {
-        return (
-            <div className="demo-app loading">
-                <div className="loading-spinner">
-                    <h1>Loading Corngr...</h1>
-                    <p>Connecting to Rust Secure Backend</p>
-                </div>
-            </div>
-        );
-    }
+    if (!session) return <AuthPage supabase={supabase} />;
+    if (!currentDocId) return <DocumentList supabase={supabase} user={session.user} onSelectDocument={setCurrentDocId} />;
+    if (!clientDoc) return <div className="demo-app loading"><div className="loading-spinner"><h1>Loading...</h1></div></div>;
 
     return (
         <div className="demo-app">
             <PerformanceMonitor yDoc={clientDoc} />
-
             <header className="demo-header">
                 <div className="header-content">
-                    {/* [Phase 6.5] Back to Dashboard */}
                     {currentDocId && (
-                        <button
-                            onClick={() => setCurrentDocId(null)}
-                            className="view-btn"
-                            style={{ marginRight: '1rem', background: 'transpaent', border: '1px solid #4a5568' }}
-                            title="Back to Dashboard"
-                        >
-                            ⬅
-                        </button>
+                        <button onClick={() => setCurrentDocId(null)} className="view-btn back-btn" title="Back to Dashboard">⬅</button>
                     )}
-                    <h1>🌽 Corngr Phase 3</h1>
-                    <p className="tagline">Ecosystem & Marketplace Integration</p>
+                    <div className="branding-stack">
+                        <div className="branding">
+                            <h1>🌽 Corngr Phase 3</h1>
+                            <p className="tagline">Ecosystem & Marketplace Integration</p>
+                        </div>
+                        {currentDocTitle && (
+                            <div className="doc-context-line">
+                                <span className="label">DOCUMENT:</span>
+                                <span className="title-text">{currentDocTitle}</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="view-controls">
-                    {/* [Phase 6.5] Create New Doc from anywhere */}
-                    <button
-                        onClick={async () => {
-                            const title = prompt('Enter document name:', 'New Document');
-                            if (!title) return;
-                            const newDocId = `doc_${crypto.randomUUID()}`;
-                            const { error } = await supabase.from('documents').insert({
-                                id: newDocId,
-                                owner_id: session.user.id,
-                                title: title,
-                                content: 'AAA=',
-                                updated_at: new Date().toISOString()
-                            });
-                            if (!error) setCurrentDocId(newDocId);
-                        }}
-                        className="view-btn primary"
-                        style={{ border: 'none', background: '#38a169', color: 'white', fontWeight: 'bold' }}
-                    >
-                        ➕ New Document
-                    </button>
-
-                    <div style={{ width: '1px', height: '24px', background: '#444', margin: '0 12px' }}></div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '0.75rem', opacity: 0.6, textTransform: 'uppercase', fontWeight: 'bold' }}>View Mode:</span>
+                    <button onClick={() => setShowCommandPalette(true)} className="view-btn omni-btn" title="Open Command Palette (⌘K)">🔍 Omni</button>
+                    <div className="divider"></div>
+                    <button onClick={() => setShowInputModal(true)} className="view-btn primary">➕ New Document</button>
+                    <div className="divider"></div>
+                    <div className="mode-selector">
+                        <span className="mode-label">VIEW:</span>
                         <button className={`view-btn ${view === 'split' ? 'active' : ''}`} onClick={() => setView('split')}>⚡ Dual</button>
                         <button className={`view-btn ${view === 'editor' ? 'active' : ''}`} onClick={() => setView('editor')}>📝 Doc</button>
                         <button className={`view-btn ${view === 'slides' ? 'active' : ''}`} onClick={() => setView('slides')}>📊 Slides</button>
-                        <button className={`view-btn ${view === 'governance' ? 'active' : ''}`} onClick={() => setView('governance')}>🛡️ Governance</button>
+                        <button className={`view-btn ${view === 'governance' ? 'active' : ''}`} onClick={() => setView('governance')}>🛡️ Gov</button>
                     </div>
-
-                    <div style={{ width: '1px', height: '24px', background: '#444', margin: '0 12px' }}></div>
-
-                    <button
-                        className={`view-btn ${showMarketplace ? 'active' : ''}`}
-                        onClick={() => setShowMarketplace(!showMarketplace)}
-                    >
-                        🛒 Marketplace
-                    </button>
-
-                    <button
-                        className={`view-btn ${showMetadataPanel ? 'active' : ''}`}
-                        onClick={() => setShowMetadataPanel(!showMetadataPanel)}
-                    >
-                        🏷️ Metadata
-                    </button>
-
-                    <div style={{ width: '1px', height: '24px', background: '#444', margin: '0 12px' }}></div>
-
-                    <button
-                        className={`view-btn ${isSaving ? 'active' : ''}`}
-                        onClick={async () => {
-                            if (secureNetwork) {
-                                setIsSaving(true);
-                                await secureNetwork.save();
-                                setTimeout(() => setIsSaving(true), 100); // Keep indicator brief but visible
-                                setTimeout(() => setIsSaving(false), 800);
-                            }
-                        }}
-                        style={{
-                            border: '1px solid #ecc94b',
-                            color: '#ecc94b',
-                            background: isSaving ? 'rgba(236, 201, 75, 0.1)' : 'transparent'
-                        }}
-                        disabled={isSaving}
-                        title={typeof window !== 'undefined' && (window as any).__TAURI__ ? 'Save to Local Disk + Cloud' : 'Save to Encrypted Cloud (Browser Mode)'}
-                    >
+                    <div className="divider"></div>
+                    <div className="dev-tools">
+                        <span className="mode-label">DEV:</span>
+                        <button className="view-btn" onClick={insertGlobalTransclusion} title="Insert Transclusion">🌐 +Ref</button>
+                        <button className="view-btn" onClick={injectMassiveData} title="Inject 1k Blocks">🚀 1k</button>
+                        <button className={`view-btn ${autoMutate ? 'active' : ''}`} onClick={() => setAutoMutate(!autoMutate)} title="Auto-Mutate Toggle">⚡ Auto</button>
+                        <button className="view-btn" onClick={handleStressTest} title="Run Stress Test">🧪 Test</button>
+                    </div>
+                    <div className="divider"></div>
+                    <button className={`view-btn ${showMarketplace ? 'active' : ''}`} onClick={() => setShowMarketplace(!showMarketplace)}>🛒 Market</button>
+                    <button className={`view-btn ${showMetadataPanel ? 'active' : ''}`} onClick={() => setShowMetadataPanel(!showMetadataPanel)}>🏷️ Meta</button>
+                    <div className="divider"></div>
+                    <button className={`view-btn ${isSaving ? 'active' : ''}`} onClick={async () => { if (secureNetwork) { setIsSaving(true); await secureNetwork.save(); setTimeout(() => setIsSaving(false), 800); } }} disabled={isSaving}>
                         {isSaving ? '☁️ Syncing...' : '💾 Save'}
                     </button>
-
-                    <div style={{ width: '1px', height: '24px', background: '#444', margin: '0 12px' }}></div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>Role:</span>
-                        <select
-                            value={currentUser.attributes.role}
-                            onChange={async (e) => {
-                                const newRole = e.target.value as Role;
-                                if (secureNetwork) {
-                                    await secureNetwork.save();
-                                }
-                                setCurrentUser(USERS[newRole]);
-                            }}
-                            style={{
-                                padding: '4px 8px',
-                                borderRadius: '6px',
-                                background: '#1a1a1a',
-                                border: '1px solid #333',
-                                color: 'white',
-                                fontSize: '0.8rem'
-                            }}
-                        >
-                            <option value="admin">👮 Admin</option>
-                            <option value="editor">✏️ Editor</option>
-                            <option value="viewer">👀 Viewer</option>
-                        </select>
-                    </div>
-
-                    <button
-                        className={`view-btn ${showHelp ? 'active' : ''}`}
-                        onClick={() => setShowHelp(!showHelp)}
-                        style={{ marginLeft: '8px', background: showHelp ? 'rgba(102, 126, 234, 0.2)' : 'transparent', border: '1px solid #4a5568' }}
-                    >
-                        ❓ {showHelp ? 'Close Help' : 'Help'}
-                    </button>
-
-                    <div className="active-users-indicator" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px', background: 'rgba(102, 126, 234, 0.1)', border: '1px solid rgba(102, 126, 234, 0.2)', borderRadius: '20px', margin: '0 8px', height: '32px' }}>
+                    <div className="divider"></div>
+                    <select value={currentUser.attributes.role} onChange={(e) => setCurrentUser(USERS[e.target.value as Role])} className="role-select">
+                        <option value="admin">👮 Admin</option>
+                        <option value="editor">✏️ Editor</option>
+                        <option value="viewer">👀 Viewer</option>
+                    </select>
+                    <button className={`view-btn ${showHelp ? 'active' : ''}`} onClick={() => setShowHelp(!showHelp)}>❓ Help</button>
+                    <div className="active-users-indicator">
                         <div className="status-dot online"></div>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#9d88ff' }}>{activeUserCount} Active</span>
+                        <span>{activeUserCount} Active</span>
                     </div>
-
-                    <button
-                        className="view-btn"
-                        style={{ border: '1px solid #e53e3e', color: '#e53e3e', fontSize: '0.8rem', background: 'transparent' }}
-                        onClick={() => { if (confirm('Sign out?')) supabase.auth.signOut(); }}
-                    >
-                        Exit
-                    </button>
+                    {appMode !== 'draft' && (
+                        <div className={`mode-badge ${appMode}`}>
+                            {appMode.toUpperCase()} MODE
+                        </div>
+                    )}
                 </div>
-
             </header>
 
             <div className={`demo-content view-${view}`}>
                 {(view === 'split' || view === 'editor') && (
                     <div className="editor-panel">
-                        <div className="panel-header">
-                            <h2>Document View</h2>
-                            <span className="tech-badge">ProseMirror + Yjs</span>
-                        </div>
+                        <div className="panel-header"><h2>Document View</h2><span className="tech-badge">ProseMirror</span></div>
                         <Toolbar editorView={editorView} yDoc={clientDoc} />
-                        <div ref={editorContainerRef}>
-                            <ProseMirrorEditor
-                                yDoc={clientDoc}
-                                user={currentUser}
-                                metadataStore={secureNetwork?.getMetadataStore() || null}
-                                awareness={secureNetwork?.getSyncProvider().awareness || null}
-                                onBlockSelect={setSelectedBlockId}
-                                editorId="main-editor"
-                            />
-                        </div>
+                        <div ref={editorContainerRef}><ProseMirrorEditor yDoc={clientDoc} user={currentUser} metadataStore={secureNetwork?.getMetadataStore() || null} awareness={secureNetwork?.getSyncProvider().awareness || null} onBlockSelect={setSelectedBlockId} editorId="main-editor" appMode={appMode} /></div>
                     </div>
                 )}
-
                 {(view === 'split' || view === 'slides') && (
                     <div className="slides-panel">
-                        <div className="panel-header">
-                            <h2>Slide View</h2>
-                            <span className="tech-badge">React + Yjs</span>
-                        </div>
+                        <div className="panel-header"><h2>Slide View</h2><span className="tech-badge">React</span></div>
                         <SlideRenderer yDoc={clientDoc} user={currentUser} />
                     </div>
                 )}
-
-                {view === 'governance' && secureNetwork && (
-                    <div className="governance-panel" style={{ flexGrow: 1 }}>
-                        <GovernanceDashboard network={secureNetwork} yDoc={clientDoc} />
-                    </div>
-                )}
-
-                {showMetadataPanel && secureNetwork && (
-                    <MetadataPanel
-                        selectedBlockId={selectedBlockId}
-                        metadataStore={secureNetwork.getMetadataStore()}
-                        user={currentUser}
-                        onClose={() => setShowMetadataPanel(false)}
-                        onSave={() => secureNetwork.save()}
-                    />
-                )}
+                {view === 'governance' && secureNetwork && <div className="governance-panel"><GovernanceDashboard network={secureNetwork} yDoc={clientDoc} /></div>}
+                {showMetadataPanel && secureNetwork && <MetadataPanel selectedBlockId={selectedBlockId} metadataStore={secureNetwork.getMetadataStore()} user={currentUser} onClose={() => setShowMetadataPanel(false)} onSave={() => secureNetwork.save()} />}
             </div>
 
-            {showMarketplace && (
-                <MarketplaceSidebar
-                    onImportBlock={handleImportBlock}
-                    onClose={() => setShowMarketplace(false)}
-                />
-            )}
+            {showMarketplace && <MarketplaceSidebar onImportBlock={handleImportBlock} onClose={() => setShowMarketplace(false)} />}
 
             <footer className="demo-footer">
-                <div className="status-indicator">
-                    <span className="status-dot"></span>
-                    <span>Tauri File System Active</span>
-                </div>
-                <div className="footer-info">
-                    <span>Phase 3: Ecosystem</span>
-                    <span>•</span>
-                    <span>Provenance Verified ⛓️</span>
-                    <span>•</span>
-                    <span>User: {currentUser.attributes.role}</span>
-                </div>
+                <div className="status-indicator"><span className="status-dot"></span><span>Tauri Secure File System Active</span></div>
+                <button className="view-btn exit-btn" onClick={() => { if (confirm('Sign out?')) supabase.auth.signOut(); }}>Exit</button>
             </footer>
 
             <HelpPanel isOpen={showHelp} onClose={() => setShowHelp(false)} />
+            <InputModal isOpen={showInputModal} title="Create New Document" placeholder="Untitled Document" confirmLabel="Create" onCancel={() => setShowInputModal(false)} onConfirm={handleGlobalCreateConfirm} />
+            <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} actions={commandActions} />
         </div>
     );
 };

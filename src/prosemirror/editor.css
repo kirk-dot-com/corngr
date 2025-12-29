@@ -12,7 +12,7 @@
 
 .prosemirror-editor {
   flex: 1;
-  padding: 32px;
+  padding: 40px 40px 40px 80px;
   overflow-y: auto;
   font-family: 'Inter', -apple-system, sans-serif;
   font-size: 16px;
@@ -28,6 +28,7 @@
 
 .ProseMirror p {
   margin: 0 0 16px 0;
+  position: relative;
 }
 
 .ProseMirror h1,
@@ -38,6 +39,7 @@
   margin: 32px 0 16px 0;
   line-height: 1.2;
   color: #fff;
+  position: relative;
 }
 
 .ProseMirror h1 {
@@ -212,6 +214,74 @@
 .redacted-node.ProseMirror-selectednode {
   outline: 2px solid #f44336;
   background: rgba(244, 67, 54, 0.05) !important;
+}
+
+/* Block Gutter Styles */
+.block-gutter-wrapper {
+  position: absolute;
+  left: -50px;
+  top: 0;
+  width: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.ProseMirror *:hover>.block-gutter-wrapper,
+.block-gutter-wrapper:hover {
+  opacity: 1;
+}
+
+.gutter-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gutter-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.gutter-btn.active {
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+}
+
+/* Audit Mode Overrides */
+.audit-mode .block-gutter-wrapper {
+  opacity: 1;
+  left: -48px;
+}
+
+.audit-indicator {
+  font-size: 0.9rem;
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.5));
+}
+
+.status-sealed {
+  color: #4cd964;
+}
+
+.status-unsealed {
+  color: #667eea;
+  opacity: 0.3;
 }
 
 /* Custom Scrollbar */

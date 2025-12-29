@@ -12,6 +12,7 @@ import { formatValue } from '../yjs/schema';
 import { MetadataStore } from '../metadata/MetadataStore';
 import { User } from '../security/types';
 import { createFilterPlugin } from './FilterPlugin';
+import { createGutterPlugin } from './GutterPlugin';
 import './editor.css';
 
 interface ProseMirrorEditorProps {
@@ -21,6 +22,7 @@ interface ProseMirrorEditorProps {
     awareness?: Awareness | null;
     onBlockSelect?: (blockId: string | null) => void;
     editorId?: string;
+    appMode?: 'draft' | 'audit' | 'presentation';
 }
 
 /**
@@ -32,7 +34,8 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
     metadataStore,
     awareness,
     onBlockSelect,
-    editorId = 'editor'
+    editorId = 'editor',
+    appMode = 'draft'
 }) => {
     const editorRef = useRef<HTMLDivElement>(null);
     const viewRef = useRef<EditorView | null>(null);
@@ -115,6 +118,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                 yUndoPlugin(),
                 variablePlugin,
                 ...(metadataStore && user ? [createFilterPlugin(metadataStore, user)] : []),
+                ...(metadataStore ? [createGutterPlugin(metadataStore, appMode)] : []),
                 history(),
                 keymap({
                     'Mod-z': yUndo,
@@ -203,10 +207,10 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
             view.destroy();
             viewRef.current = null;
         };
-    }, [yDoc, editorId, user, metadataStore, onBlockSelect]);
+    }, [yDoc, editorId, user, metadataStore, onBlockSelect, appMode]);
 
     return (
-        <div className="prosemirror-editor-container">
+        <div className={`prosemirror-editor-container ${appMode}-mode`}>
             <div ref={editorRef} className="prosemirror-editor" />
         </div>
     );
