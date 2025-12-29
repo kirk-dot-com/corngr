@@ -389,50 +389,23 @@ export const DemoApp: React.FC = () => {
                             });
                             if (!error) setCurrentDocId(newDocId);
                         }}
-                        className="view-btn"
-                        style={{ border: '1px solid #4a5568', background: 'rgba(72, 187, 120, 0.1)', color: '#48bb78' }}
+                        className="view-btn primary"
+                        style={{ border: 'none', background: '#38a169', color: 'white', fontWeight: 'bold' }}
                     >
-                        ➕ New
+                        ➕ New Document
                     </button>
-                    <div style={{ marginRight: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Role:</span>
-                        <select
-                            value={currentUser.attributes.role}
-                            onChange={async (e) => {
-                                const newRole = e.target.value as Role;
-                                if (secureNetwork) {
-                                    console.log('🔄 Saving before role switch...');
-                                    await secureNetwork.save();
-                                }
-                                setCurrentUser(USERS[newRole]);
-                            }}
-                            style={{ padding: '4px', borderRadius: '4px' }}
-                        >
-                            <option value="admin">👮 Admin</option>
-                            <option value="editor">✏️ Editor</option>
-                            <option value="viewer">👀 Viewer</option>
-                        </select>
-                        <button
-                            className="view-btn warning"
-                            style={{ padding: '4px 8px', fontSize: '0.8rem', background: '#e53e3e' }}
-                            onClick={() => supabase.auth.signOut()}
-                        >
-                            Sign Out
-                        </button>
+
+                    <div style={{ width: '1px', height: '24px', background: '#444', margin: '0 12px' }}></div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.75rem', opacity: 0.6, textTransform: 'uppercase', fontWeight: 'bold' }}>View Mode:</span>
+                        <button className={`view-btn ${view === 'split' ? 'active' : ''}`} onClick={() => setView('split')}>⚡ Dual</button>
+                        <button className={`view-btn ${view === 'editor' ? 'active' : ''}`} onClick={() => setView('editor')}>📝 Doc</button>
+                        <button className={`view-btn ${view === 'slides' ? 'active' : ''}`} onClick={() => setView('slides')}>📊 Slides</button>
+                        <button className={`view-btn ${view === 'governance' ? 'active' : ''}`} onClick={() => setView('governance')}>🛡️ Governance</button>
                     </div>
 
-                    <button
-                        className={`view-btn ${showHelp ? 'active' : ''}`}
-                        onClick={() => setShowHelp(true)}
-                        style={{ marginRight: '1rem', background: 'rgba(255, 255, 255, 0.1)', color: '#a0aec0' }}
-                        title="User Guide"
-                    >
-                        ❓ Help
-                    </button>
-
-                    <button className={`view-btn ${view === 'split' ? 'active' : ''}`} onClick={() => setView('split')}>⚡ Dual View</button>
-                    <button className={`view-btn ${view === 'editor' ? 'active' : ''}`} onClick={() => setView('editor')}>📝 Document</button>
-                    <button className={`view-btn ${view === 'slides' ? 'active' : ''}`} onClick={() => setView('slides')}>📊 Slides</button>
+                    <div style={{ width: '1px', height: '24px', background: '#444', margin: '0 12px' }}></div>
 
                     <button
                         className={`view-btn ${showMarketplace ? 'active' : ''}`}
@@ -441,12 +414,14 @@ export const DemoApp: React.FC = () => {
                         🛒 Marketplace
                     </button>
 
-                    <div className="active-users-indicator" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px', background: 'rgba(102, 126, 234, 0.1)', border: '1px solid rgba(102, 126, 234, 0.2)', borderRadius: '20px', margin: '0 8px', height: '32px' }}>
-                        <div className="status-dot online"></div>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#9d88ff' }}>Active: {activeUserCount}</span>
-                    </div>
+                    <button
+                        className={`view-btn ${showMetadataPanel ? 'active' : ''}`}
+                        onClick={() => setShowMetadataPanel(!showMetadataPanel)}
+                    >
+                        🏷️ Metadata
+                    </button>
 
-                    <button className={`view-btn ${view === 'governance' ? 'active' : ''}`} onClick={() => setView('governance')}>🛡️ Governance</button>
+                    <div style={{ width: '1px', height: '24px', background: '#444', margin: '0 12px' }}></div>
 
                     <button
                         className={`view-btn ${isSaving ? 'active' : ''}`}
@@ -454,39 +429,71 @@ export const DemoApp: React.FC = () => {
                             if (secureNetwork) {
                                 setIsSaving(true);
                                 await secureNetwork.save();
-                                setTimeout(() => setIsSaving(false), 500);
+                                setTimeout(() => setIsSaving(true), 100); // Keep indicator brief but visible
+                                setTimeout(() => setIsSaving(false), 800);
                             }
                         }}
-                        style={{ border: '1px solid #ecc94b', color: '#ecc94b' }}
+                        style={{
+                            border: '1px solid #ecc94b',
+                            color: '#ecc94b',
+                            background: isSaving ? 'rgba(236, 201, 75, 0.1)' : 'transparent'
+                        }}
                         disabled={isSaving}
+                        title={typeof window !== 'undefined' && (window as any).__TAURI__ ? 'Save to Local Disk + Cloud' : 'Save to Encrypted Cloud (Browser Mode)'}
                     >
-                        {isSaving ? '☁️ Saving...' : '💾 Save'}
+                        {isSaving ? '☁️ Syncing...' : '💾 Save'}
                     </button>
+
+                    <div style={{ width: '1px', height: '24px', background: '#444', margin: '0 12px' }}></div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>Role:</span>
+                        <select
+                            value={currentUser.attributes.role}
+                            onChange={async (e) => {
+                                const newRole = e.target.value as Role;
+                                if (secureNetwork) {
+                                    await secureNetwork.save();
+                                }
+                                setCurrentUser(USERS[newRole]);
+                            }}
+                            style={{
+                                padding: '4px 8px',
+                                borderRadius: '6px',
+                                background: '#1a1a1a',
+                                border: '1px solid #333',
+                                color: 'white',
+                                fontSize: '0.8rem'
+                            }}
+                        >
+                            <option value="admin">👮 Admin</option>
+                            <option value="editor">✏️ Editor</option>
+                            <option value="viewer">👀 Viewer</option>
+                        </select>
+                    </div>
+
+                    <button
+                        className={`view-btn ${showHelp ? 'active' : ''}`}
+                        onClick={() => setShowHelp(!showHelp)}
+                        style={{ marginLeft: '8px', background: showHelp ? 'rgba(102, 126, 234, 0.2)' : 'transparent', border: '1px solid #4a5568' }}
+                    >
+                        ❓ {showHelp ? 'Close Help' : 'Help'}
+                    </button>
+
+                    <div className="active-users-indicator" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px', background: 'rgba(102, 126, 234, 0.1)', border: '1px solid rgba(102, 126, 234, 0.2)', borderRadius: '20px', margin: '0 8px', height: '32px' }}>
+                        <div className="status-dot online"></div>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#9d88ff' }}>{activeUserCount} Active</span>
+                    </div>
 
                     <button
                         className="view-btn"
-                        onClick={insertGlobalTransclusion}
-                        style={{ border: '1px dashed #667eea', color: '#667eea' }}
+                        style={{ border: '1px solid #e53e3e', color: '#e53e3e', fontSize: '0.8rem', background: 'transparent' }}
+                        onClick={() => { if (confirm('Sign out?')) supabase.auth.signOut(); }}
                     >
-                        🌐 +Transclude
+                        Exit
                     </button>
-
-                    <button
-                        className={`view-btn ${showMetadataPanel ? 'active' : ''}`}
-                        onClick={() => setShowMetadataPanel(!showMetadataPanel)}
-                        style={{ marginLeft: '12px', background: showMetadataPanel ? '#764ba2' : '#222' }}
-                    >
-                        🏷️ Metadata
-                    </button>
-
-                    <div style={{ width: '1px', height: '20px', background: '#444', margin: '0 8px' }}></div>
-
-                    <button className="view-btn warning" onClick={injectMassiveData} style={{ fontSize: '0.8rem', background: '#e0b0ff', color: '#333' }}>🚀 1k Blocks</button>
-                    <button className="view-btn warning" onClick={() => setAutoMutate(!autoMutate)} style={{ fontSize: '0.8rem', background: autoMutate ? '#0f0' : '#444', color: autoMutate ? '#000' : '#ccc' }}>⚡ Auto-Mutate</button>
-                    <button className="view-btn" onClick={handleStressTest} style={{ fontSize: '0.8rem', background: '#3b82f6', color: 'white' }}>🧪 Stress Test</button>
-                    <button className="view-btn" onClick={() => secureNetwork?.save()} style={{ fontSize: '0.8rem', background: '#222' }}>💾 Save</button>
-                    <button className="view-btn warning" onClick={() => { if (confirm('Reset?')) secureNetwork?.reset(); }} style={{ fontSize: '0.8rem', background: '#f55', color: 'white' }}>🗑️ Reset</button>
                 </div>
+
             </header>
 
             <div className={`demo-content view-${view}`}>
