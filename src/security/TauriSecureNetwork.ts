@@ -35,6 +35,7 @@ export class TauriSecureNetwork {
 
     // [Phase 4] Cloud Client
     private supabase: SupabaseClient | null = null;
+    private channel: any = null; // Supabase Realtime Channel (Phase 6)
 
     constructor(clientDoc: Y.Doc, user: User) {
         this.clientDoc = clientDoc;
