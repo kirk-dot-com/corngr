@@ -36,6 +36,7 @@ export const DemoApp: React.FC = () => {
     const [session, setSession] = useState<any>(null); // Supabase Session
     const [currentDocId, setCurrentDocId] = useState<string | null>(null); // [Phase 6.5] Dashboard Routing
     const [showHelp, setShowHelp] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Phase 1 Architecture:
     // Client Doc is the Single Source of Truth for the UI.
@@ -373,6 +374,26 @@ export const DemoApp: React.FC = () => {
                 </div>
 
                 <div className="view-controls">
+                    {/* [Phase 6.5] Create New Doc from anywhere */}
+                    <button
+                        onClick={async () => {
+                            const title = prompt('Enter document name:', 'New Document');
+                            if (!title) return;
+                            const newDocId = `doc_${crypto.randomUUID()}`;
+                            const { error } = await supabase.from('documents').insert({
+                                id: newDocId,
+                                owner_id: session.user.id,
+                                title: title,
+                                content: 'AAA=',
+                                updated_at: new Date().toISOString()
+                            });
+                            if (!error) setCurrentDocId(newDocId);
+                        }}
+                        className="view-btn"
+                        style={{ border: '1px solid #4a5568', background: 'rgba(72, 187, 120, 0.1)', color: '#48bb78' }}
+                    >
+                        ➕ New
+                    </button>
                     <div style={{ marginRight: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Role:</span>
                         <select
@@ -426,6 +447,21 @@ export const DemoApp: React.FC = () => {
                     </div>
 
                     <button className={`view-btn ${view === 'governance' ? 'active' : ''}`} onClick={() => setView('governance')}>🛡️ Governance</button>
+
+                    <button
+                        className={`view-btn ${isSaving ? 'active' : ''}`}
+                        onClick={async () => {
+                            if (secureNetwork) {
+                                setIsSaving(true);
+                                await secureNetwork.save();
+                                setTimeout(() => setIsSaving(false), 500);
+                            }
+                        }}
+                        style={{ border: '1px solid #ecc94b', color: '#ecc94b' }}
+                        disabled={isSaving}
+                    >
+                        {isSaving ? '☁️ Saving...' : '💾 Save'}
+                    </button>
 
                     <button
                         className="view-btn"
