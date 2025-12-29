@@ -59,11 +59,12 @@ export const DocumentList: React.FC<DocumentListProps> = ({ supabase, user, onSe
         // so we'll pass the intention to create/name it via the secure network later,
         // or we just pre-create it here.
         // Let's pre-create to ensure the title is saved.
+        // Initialize with a valid empty Yjs state ([0, 0] encoded as Base64 is 'AAA=')
         const { error } = await supabase.from('documents').insert({
             id: newDocId,
             owner_id: user.id,
             title: title,
-            content: '', // Empty doc
+            content: 'AAA=', // Valid empty Yjs state
             updated_at: new Date().toISOString()
         });
 
