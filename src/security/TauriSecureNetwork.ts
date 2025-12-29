@@ -155,7 +155,7 @@ export class TauriSecureNetwork {
     }
 
     public async save() {
-        console.log('💾 Saving to File System (Rust)...');
+        console.log('💾 Save triggered...');
 
         // Phase 1 Fix: Get blocks from the Prosemirror Fragment (Source of Truth)
         const blocks = getAllBlocks(this.clientDoc);
@@ -172,6 +172,18 @@ export class TauriSecureNetwork {
 
         console.log(`🔐 [Phase 2] Enriched ${enrichedBlocks.length} blocks with metadata from shadow store`);
 
+        // [Phase 6.5 Fix] Handle browser vs Tauri environments differently
+        if (!isTauriEnv()) {
+            console.log('🌐 Browser mode: Saving to cloud only...');
+            // Cloud Backup
+            if (this.supabase && ENABLE_CLOUD_SYNC) {
+                await this.saveToCloud(enrichedBlocks);
+            }
+            return;
+        }
+
+        // Tauri environment: Save to local Rust backend + cloud
+        console.log('🖥️ Tauri mode: Saving to local backend + cloud...');
         const success = await invoke('save_secure_document', { blocks: enrichedBlocks, user: this.user });
 
         if (success) {
@@ -184,12 +196,6 @@ export class TauriSecureNetwork {
 
         } else {
             console.error('❌ Save rejected by backend (Permission denied).');
-        }
-
-        // Skip Tauri save if in browser
-        if (!isTauriEnv()) {
-            console.log('ℹ️ Browser mode: Skipping Tauri save, relying on cloud sync');
-            return;
         }
     }
 
