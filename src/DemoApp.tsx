@@ -60,12 +60,14 @@ export const DemoApp: React.FC = () => {
     // [Phase 6] Listen for Auth Changes
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
+            console.log('🔍 Initial Session Check:', session ? 'Found' : 'Null');
             setSession(session);
         });
 
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
+        } = supabase.auth.onAuthStateChange((event, session) => {
+            console.log(`🔔 Auth Event: ${event}`, session?.user?.id);
             setSession(session);
         });
 
