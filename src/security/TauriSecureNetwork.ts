@@ -1,5 +1,6 @@
 
 import * as Y from 'yjs';
+import { encodeAwarenessUpdate, applyAwarenessUpdate } from 'y-protocols/awareness';
 import { User } from './types';
 import { getAllBlocks } from '../yjs/schema';
 import { MetadataStore } from '../metadata/MetadataStore';
@@ -62,22 +63,26 @@ export class TauriSecureNetwork {
         this.sync();
     }
 
-    // [Phase 6] Subscribe to Real-Time Cloud Updates (Multi-Device Sync)
+    /**
+     * [Phase 6] Subscribe to Real-Time Cloud Updates & Presence
+     */
     private subscribeToRealtimeUpdates() {
         if (!this.supabase) return;
 
-        console.log('📡 Subscribing to Real-Time Cloud Updates...');
-        this.supabase
-            .channel('public:documents')
+        console.log('📡 Subscribing to Real-Time Room (room_1)...');
+        // Use a shared room for both content sync and presence
+        this.channel = this.supabase.channel('room_1');
+
+        this.channel
             .on(
                 'postgres_changes',
                 {
                     event: 'UPDATE',
                     schema: 'public',
                     table: 'documents',
-                    filter: `owner_id=eq.${this.user.id}`
+                    filter: 'id=eq.doc_default'
                 },
-                (payload) => {
+                (payload: any) => {
                     console.log('☁️⚡ Real-Time Update Received:', payload);
                     const newRecord = payload.new as any;
                     if (newRecord && newRecord.content) {
@@ -85,9 +90,48 @@ export class TauriSecureNetwork {
                     }
                 }
             )
-            .subscribe((status) => {
+            .on('presence', { event: 'sync' }, () => {
+                const presenceState = this.channel.presenceState();
+                console.log('👥 Current Presence:', presenceState);
+
+                // [Phase 6] Map Supabase Presence to Yjs Awareness
+                Object.values(presenceState).forEach((presences: any) => {
+                    presences.forEach((p: any) => {
+                        if (p.user_id !== this.user.id && p.awarenessUpdate) {
+                            const update = this.fromBase64(p.awarenessUpdate);
+                            applyAwarenessUpdate(this.syncProvider.awareness, update, 'remote');
+                        }
+                    });
+                });
+            })
+            .subscribe((status: string) => {
                 console.log(`📡 Real-Time Subscription Status: ${status}`);
+                if (status === 'SUBSCRIBED') {
+                    // Start tracking local awareness through Supabase
+                    this.initAwarenessBridging();
+                }
             });
+    }
+
+    /**
+     * [Phase 6] Bridging Yjs Awareness updates to Supabase Presence
+     */
+    private initAwarenessBridging() {
+        this.syncProvider.awareness.on('update', ({ added, updated, removed }: any) => {
+            const changedClients = added.concat(updated).concat(removed);
+            if (changedClients.length === 0) return;
+
+            const update = encodeAwarenessUpdate(this.syncProvider.awareness, changedClients);
+            const updateBase64 = this.toBase64(update);
+
+            if (this.channel) {
+                this.channel.track({
+                    user_id: this.user.id,
+                    awarenessUpdate: updateBase64,
+                    online_at: new Date().toISOString(),
+                });
+            }
+        });
     }
 
     private applyCloudUpdate(contentBase64: string) {
@@ -137,7 +181,7 @@ export class TauriSecureNetwork {
     /**
      * [Phase 4] Persist state to Supabase
      */
-    private async saveToCloud(blocks: any[]) {
+    private async saveToCloud(_blocks: any[]) {
         if (!this.supabase) return;
 
         console.log('☁️ Syncing to Supabase...');
