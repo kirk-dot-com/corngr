@@ -50,6 +50,7 @@ export class TauriSecureNetwork {
         this.clientDoc = clientDoc;
         this.user = user;
         this.docId = docId; // [Phase 6.5] Support dynamic IDs
+        console.log(`📄 Initializing TauriSecureNetwork for document: ${docId}`);
         this.metadataStore = new MetadataStore();
         this.referenceStore = new GlobalReferenceStore();
 
@@ -224,7 +225,7 @@ export class TauriSecureNetwork {
         if (error) {
             console.error('☁️❌ Cloud Sync Failed:', error.message);
         } else {
-            console.log('☁️✅ Cloud Sync Successful');
+            console.log(`☁️✅ Cloud Sync Successful for ${this.docId}`);
         }
     }
 
