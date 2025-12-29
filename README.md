@@ -68,6 +68,12 @@ npm install
    export const ENABLE_CLOUD_SYNC = true; // Set to false to disable
    ```
 
+   d. **IMPORTANT: Disable Email Confirmation** (for local dev):
+   - Go to **Authentication > Providers > Email**
+   - Toggle **OFF** "Confirm email"
+   - Click **Save**
+   *(This prevents "Email link invalid" errors on localhost)*
+
 4. **Run the development server**
 ```bash
 npm run tauri dev
