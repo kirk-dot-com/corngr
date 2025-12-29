@@ -23,7 +23,7 @@ const USERS: Record<Role, User> = {
 
 import { AuthPage } from './components/AuthPage';
 import { DocumentList } from './components/DocumentList';
-import { HelpModal } from './components/HelpModal';
+import { HelpPanel } from './components/HelpPanel';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config/SupabaseConfig';
 
@@ -558,7 +558,7 @@ export const DemoApp: React.FC = () => {
                 </div>
             </footer>
 
-            {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+            <HelpPanel isOpen={showHelp} onClose={() => setShowHelp(false)} />
         </div>
     );
 };
