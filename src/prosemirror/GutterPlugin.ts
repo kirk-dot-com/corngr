@@ -81,8 +81,8 @@ export function createGutterPlugin(
                         }, { side: -1, stopEvent: () => true });
                         decos.push(widget);
                     }
-                    // We only want to add gutters to top-level blocks
-                    return pos === 0;
+                    // Don't descend into child nodes - we only want top-level block gutters
+                    return false;
                 });
 
                 return DecorationSet.create(state.doc, decos);
