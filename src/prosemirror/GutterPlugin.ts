@@ -16,12 +16,17 @@ export function createGutterPlugin(
                 const decos: Decoration[] = [];
 
                 state.doc.descendants((node, pos) => {
-                    if (node.isBlock && node.attrs.blockId) {
+                    // Show gutters on paragraph and heading blocks, even without blockId
+                    const isGutterableBlock = node.isBlock && (node.type.name === 'paragraph' || node.type.name === 'heading');
+                    if (isGutterableBlock) {
+                        // Use blockId if available, otherwise use position as temporary identifier
+                        const blockIdentifier = node.attrs.blockId || `pos-${pos}`;
+
                         const widget = Decoration.widget(pos, (view) => {
                             const dom = document.createElement('div');
                             dom.className = `block-gutter-wrapper ${appMode}-mode`;
 
-                            const metadata = metadataStore.get(node.attrs.blockId);
+                            const metadata = node.attrs.blockId ? metadataStore.get(node.attrs.blockId) : null;
                             const isSealed = !!metadata?.provenance?.signature;
 
                             if (appMode === 'audit') {
@@ -42,7 +47,7 @@ export function createGutterPlugin(
                                     e.stopPropagation();
 
                                     if (isSealed) {
-                                        alert(`🛡️ BLOCK VERIFIED\nID: ${node.attrs.blockId}\nSigner: ${metadata?.provenance?.authorId || 'Unknown'}\nTimestamp: ${metadata?.provenance?.timestamp}`);
+                                        alert(`🛡️ BLOCK VERIFIED\nID: ${blockIdentifier}\nSigner: ${metadata?.provenance?.authorId || 'Unknown'}\nTimestamp: ${metadata?.provenance?.timestamp}`);
                                     } else {
                                         // Mock Signing Process
                                         const proceed = confirm('Sign this block with your Ed25519 identity? This will freeze the content in Audit Mode.');
@@ -56,7 +61,9 @@ export function createGutterPlugin(
                                                     timestamp: new Date().toISOString()
                                                 }
                                             };
-                                            metadataStore.set(node.attrs.blockId, newMetadata as any);
+                                            if (node.attrs.blockId) {
+                                                metadataStore.set(node.attrs.blockId, newMetadata as any);
+                                            }
                                             // The view will re-render decorations on next update
                                             view.dispatch(view.state.tr);
                                         }
@@ -72,7 +79,7 @@ export function createGutterPlugin(
                                 infoBtn.onclick = (e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    alert(`Block Lineage:\nID: ${node.attrs.blockId}\nType: ${node.type.name}\nProvenance: ${metadata?.provenance?.sourceId || 'Local'}`);
+                                    alert(`Block Lineage:\nID: ${blockIdentifier}\nType: ${node.type.name}\nProvenance: ${metadata?.provenance?.sourceId || 'Local'}`);
                                 };
                                 dom.appendChild(infoBtn);
                             }
