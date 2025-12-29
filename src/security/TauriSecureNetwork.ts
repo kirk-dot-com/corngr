@@ -14,8 +14,15 @@ declare global {
 }
 
 // [Phase 4] Supabase Client
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, ENABLE_CLOUD_SYNC } from '../config/SupabaseConfig';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { ENABLE_CLOUD_SYNC } from '../config/SupabaseConfig';
+
+/**
+ * Detects if running in Tauri (desktop) or browser environment
+ */
+function isTauriEnv(): boolean {
+    return typeof window !== 'undefined' && '__TAURI__' in window;
+}
 
 /**
  * Connects the Frontend (Yjs) to the Local-First Backend (Tauri/Rust)
@@ -37,10 +44,12 @@ export class TauriSecureNetwork {
     // [Phase 4] Cloud Client
     private supabase: SupabaseClient | null = null;
     private channel: any = null; // Supabase Realtime Channel (Phase 6)
+    private docId: string;
 
-    constructor(clientDoc: Y.Doc, user: User) {
+    constructor(clientDoc: Y.Doc, user: User, supabaseClient: SupabaseClient | null = null, docId: string = 'doc_default') {
         this.clientDoc = clientDoc;
         this.user = user;
+        this.docId = docId; // [Phase 6.5] Support dynamic IDs
         this.metadataStore = new MetadataStore();
         this.referenceStore = new GlobalReferenceStore();
 
@@ -48,9 +57,9 @@ export class TauriSecureNetwork {
         this.syncProvider = new TauriSyncProvider(this.clientDoc);
 
         // [Phase 4] Initialize Cloud Persistence
-        if (ENABLE_CLOUD_SYNC) {
-            console.log('☁️ Initializing Supabase Cloud Sync...');
-            this.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        if (ENABLE_CLOUD_SYNC && supabaseClient) {
+            console.log('☁️ Initializing Supabase Cloud Sync via Injected Client...');
+            this.supabase = supabaseClient;
 
             // [Phase 5] Restore from cloud on startup
             this.restoreFromCloud();
@@ -69,9 +78,9 @@ export class TauriSecureNetwork {
     private subscribeToRealtimeUpdates() {
         if (!this.supabase) return;
 
-        console.log('📡 Subscribing to Real-Time Room (room_1)...');
+        console.log(`📡 Subscribing to Real-Time Room (${this.docId})...`);
         // Use a shared room for both content sync and presence
-        this.channel = this.supabase.channel('room_1');
+        this.channel = this.supabase.channel(`room_${this.docId}`);
 
         this.channel
             .on(
@@ -80,7 +89,7 @@ export class TauriSecureNetwork {
                     event: 'UPDATE',
                     schema: 'public',
                     table: 'documents',
-                    filter: 'id=eq.doc_default'
+                    filter: `id=eq.${this.docId}`
                 },
                 (payload: any) => {
                     console.log('☁️⚡ Real-Time Update Received:', payload);
@@ -176,6 +185,12 @@ export class TauriSecureNetwork {
         } else {
             console.error('❌ Save rejected by backend (Permission denied).');
         }
+
+        // Skip Tauri save if in browser
+        if (!isTauriEnv()) {
+            console.log('ℹ️ Browser mode: Skipping Tauri save, relying on cloud sync');
+            return;
+        }
     }
 
     /**
@@ -194,7 +209,7 @@ export class TauriSecureNetwork {
         const { error } = await this.supabase
             .from('documents')
             .upsert({
-                id: 'doc_default', // Single doc for now
+                id: this.docId,
                 content: contentBase64,
                 owner_id: this.user.id,
                 updated_at: new Date().toISOString()
@@ -218,7 +233,7 @@ export class TauriSecureNetwork {
         const { data, error } = await this.supabase
             .from('documents')
             .select('content, updated_at')
-            .eq('id', 'doc_default')
+            .eq('id', this.docId)
             .single();
 
         if (error) {
@@ -302,6 +317,12 @@ export class TauriSecureNetwork {
         console.log('═══════════════════════════════════════════');
         console.log('🔄 SYNC: Requesting blocks from Rust backend');
         console.log('   User:', this.user.id, '|', this.user.attributes.role, '| Clearance:', this.user.attributes.clearanceLevel);
+
+        // Skip Tauri backend if running in browser
+        if (!isTauriEnv()) {
+            console.log('⚠️ Running in browser mode - Tauri backend unavailable, using cloud-only sync');
+            return;
+        }
 
         try {
             // 1. Request Filtered Data from Rust (The "Server")

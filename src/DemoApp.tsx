@@ -22,6 +22,8 @@ const USERS: Record<Role, User> = {
 };
 
 import { AuthPage } from './components/AuthPage';
+import { DocumentList } from './components/DocumentList';
+import { HelpModal } from './components/HelpModal';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config/SupabaseConfig';
 
@@ -32,6 +34,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 export const DemoApp: React.FC = () => {
     // Phase 6: Authentication State
     const [session, setSession] = useState<any>(null); // Supabase Session
+    const [currentDocId, setCurrentDocId] = useState<string | null>(null); // [Phase 6.5] Dashboard Routing
+    const [showHelp, setShowHelp] = useState(false);
 
     // Phase 1 Architecture:
     // Client Doc is the Single Source of Truth for the UI.
@@ -74,9 +78,10 @@ export const DemoApp: React.FC = () => {
         return () => subscription.unsubscribe();
     }, []);
 
-    // Initialize Document & Network (Only if Session exists)
+    // Initialize Document & Network (Only if Session AND DocId exist)
     useEffect(() => {
         if (!session) return;
+        if (!currentDocId) return; // Wait for selection from Dashboard
 
         // 1. Create fresh Client Doc
         const cDoc = new Y.Doc();
@@ -90,8 +95,8 @@ export const DemoApp: React.FC = () => {
             attributes: currentUser.attributes // Keep role switching for demo purposes
         };
 
-        console.log(`🔐 Initializing Secure Network for ${networkUser.attributes.role}`);
-        const bridge = new TauriSecureNetwork(cDoc, networkUser);
+        console.log(`🔐 Initializing Secure Network for ${networkUser.attributes.role} on ${currentDocId}`);
+        const bridge = new TauriSecureNetwork(cDoc, networkUser, supabase, currentDocId);
 
         // Phase 3: Set initial awareness state
         const awareness = bridge.getSyncProvider().awareness;
@@ -108,7 +113,10 @@ export const DemoApp: React.FC = () => {
         return () => {
             cDoc.destroy();
         };
-    }, [session]);
+        return () => {
+            cDoc.destroy();
+        };
+    }, [session, currentDocId]);
 
 
 
@@ -320,6 +328,18 @@ export const DemoApp: React.FC = () => {
         return <AuthPage supabase={supabase} />;
     }
 
+    // [Phase 6.5] Dashboard View
+    if (!currentDocId) {
+        return (
+            <DocumentList
+                supabase={supabase}
+                user={session.user}
+                onSelectDocument={setCurrentDocId}
+            />
+        );
+    }
+
+    // [Phase 6.5] Editor Loading
     if (!clientDoc) {
         return (
             <div className="demo-app loading">
@@ -337,6 +357,17 @@ export const DemoApp: React.FC = () => {
 
             <header className="demo-header">
                 <div className="header-content">
+                    {/* [Phase 6.5] Back to Dashboard */}
+                    {currentDocId && (
+                        <button
+                            onClick={() => setCurrentDocId(null)}
+                            className="view-btn"
+                            style={{ marginRight: '1rem', background: 'transpaent', border: '1px solid #4a5568' }}
+                            title="Back to Dashboard"
+                        >
+                            ⬅
+                        </button>
+                    )}
                     <h1>🌽 Corngr Phase 3</h1>
                     <p className="tagline">Ecosystem & Marketplace Integration</p>
                 </div>
@@ -368,6 +399,15 @@ export const DemoApp: React.FC = () => {
                             Sign Out
                         </button>
                     </div>
+
+                    <button
+                        className={`view-btn ${showHelp ? 'active' : ''}`}
+                        onClick={() => setShowHelp(true)}
+                        style={{ marginRight: '1rem', background: 'rgba(255, 255, 255, 0.1)', color: '#a0aec0' }}
+                        title="User Guide"
+                    >
+                        ❓ Help
+                    </button>
 
                     <button className={`view-btn ${view === 'split' ? 'active' : ''}`} onClick={() => setView('split')}>⚡ Dual View</button>
                     <button className={`view-btn ${view === 'editor' ? 'active' : ''}`} onClick={() => setView('editor')}>📝 Document</button>
@@ -481,6 +521,8 @@ export const DemoApp: React.FC = () => {
                     <span>User: {currentUser.attributes.role}</span>
                 </div>
             </footer>
+
+            {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
         </div>
     );
 };
