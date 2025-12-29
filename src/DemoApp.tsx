@@ -110,9 +110,7 @@ export const DemoApp: React.FC = () => {
         };
     }, [session]);
 
-    if (!session) {
-        return <AuthPage supabase={supabase} />;
-    }
+
 
     // Update Network User when role changes
     useEffect(() => {
@@ -317,6 +315,10 @@ export const DemoApp: React.FC = () => {
 
         return () => clearInterval(interval);
     }, [clientDoc, view]);
+
+    if (!session) {
+        return <AuthPage supabase={supabase} />;
+    }
 
     if (!clientDoc) {
         return (
