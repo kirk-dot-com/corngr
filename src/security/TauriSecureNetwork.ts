@@ -95,10 +95,12 @@ export class TauriSecureNetwork {
                 }
             })
             .on('presence', { event: 'sync' }, () => {
+                // [Phase 6] Map Supabase Presence to Yjs Awareness
+                // DISABLED DEBUG: Check if this is causing 'Unexpected case' crash
+                /*
                 const presenceState = this.channel.presenceState();
                 console.log('👥 Current Presence:', presenceState);
 
-                // [Phase 6] Map Supabase Presence to Yjs Awareness
                 Object.values(presenceState).forEach((presences: any) => {
                     presences.forEach((p: any) => {
                         if (p.user_id !== this.user.id && p.awarenessUpdate) {
@@ -107,8 +109,10 @@ export class TauriSecureNetwork {
                         }
                     });
                 });
+                */
             })
-            .subscribe((status: string) => {
+            .subscribe((status: string, err: any) => {
+                if (err) console.error('Real-Time Connection Error:', err);
                 console.log(`📡 Real-Time Subscription Status: ${status}`);
                 if (status === 'SUBSCRIBED') {
                     // Start tracking local awareness through Supabase
