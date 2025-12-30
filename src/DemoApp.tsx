@@ -345,6 +345,7 @@ export const DemoApp: React.FC = () => {
                 isSaving={isSaving}
                 activeUserCount={activeUserCount}
                 currentRole={currentUser.attributes.role}
+                awareness={secureNetwork?.getSyncProvider().awareness}
                 onBack={() => setCurrentDocId(null)}
                 onViewChange={setView}
                 onToggleAutoMutate={() => setAutoMutate(!autoMutate)}
