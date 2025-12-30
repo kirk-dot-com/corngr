@@ -32,27 +32,49 @@ export const CollaboratorCursor: React.FC<CollaboratorCursorProps> = ({
     const [cursors, setCursors] = useState<CursorPosition[]>([]);
 
     useEffect(() => {
-        if (!editorView || !awareness) return;
+        if (!editorView || !awareness) {
+            console.log('🔍 CollaboratorCursor: Missing dependencies', { editorView: !!editorView, awareness: !!awareness });
+            return;
+        }
 
         const updateCursors = () => {
             const states = awareness.getStates();
             const remoteCursors: CursorPosition[] = [];
 
+            console.log('🔍 CollaboratorCursor: Awareness states', {
+                stateCount: states.size,
+                localClientId,
+                states: Array.from(states.entries()).map(([id, state]) => ({
+                    clientId: id,
+                    hasUser: !!state.user,
+                    hasCursor: !!state.cursor,
+                    user: state.user,
+                    cursor: state.cursor
+                }))
+            });
+
             states.forEach((state: any, clientId: number) => {
                 // Skip local user
-                if (clientId === localClientId) return;
+                if (clientId === localClientId) {
+                    console.log('🔍 Skipping local user', clientId);
+                    return;
+                }
 
                 // Only show cursor if we have both user info and cursor position
                 if (state.user && state.cursor) {
+                    console.log('🔍 Adding remote cursor', { clientId, user: state.user, cursor: state.cursor });
                     remoteCursors.push({
                         clientId,
                         user: state.user,
                         anchor: state.cursor.anchor,
                         head: state.cursor.head
                     });
+                } else {
+                    console.log('🔍 Skipping incomplete state', { clientId, hasUser: !!state.user, hasCursor: !!state.cursor });
                 }
             });
 
+            console.log('🔍 Setting cursors', { count: remoteCursors.length });
             setCursors(remoteCursors);
         };
 
@@ -66,6 +88,8 @@ export const CollaboratorCursor: React.FC<CollaboratorCursorProps> = ({
     }, [editorView, awareness, localClientId]);
 
     if (!editorView) return null;
+
+    console.log('🔍 CollaboratorCursor rendering', { cursorCount: cursors.length });
 
     return (
         <>
