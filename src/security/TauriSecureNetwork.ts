@@ -90,22 +90,6 @@ export class TauriSecureNetwork {
         });
 
         this.channel
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'documents',
-                    filter: `id=eq.${this.docId}`
-                },
-                (payload: any) => {
-                    console.log('☁️⚡ Real-Time Update Received:', payload);
-                    const newRecord = payload.new as any;
-                    if (newRecord && newRecord.content) {
-                        this.applyCloudUpdate(newRecord.content);
-                    }
-                }
-            )
             .on('broadcast', { event: 'yjs-update' }, ({ payload }: { payload: any }) => {
                 // [Phase 6] Receive Y.Doc updates from other clients via broadcast
                 console.log('📡 Received Y.Doc update via broadcast');
