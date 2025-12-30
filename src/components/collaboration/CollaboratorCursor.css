@@ -1,0 +1,51 @@
+.collaborator-cursor {
+    position: absolute;
+    pointer-events: none;
+    z-index: 100;
+    transition: top 0.15s ease-out, left 0.15s ease-out;
+}
+
+.collaborator-cursor::before {
+    content: '';
+    position: absolute;
+    width: 2px;
+    height: 20px;
+    background-color: currentColor;
+    border-left: 2px solid;
+    border-color: inherit;
+}
+
+.collaborator-cursor-label {
+    position: absolute;
+    top: -24px;
+    left: 0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    font-family: 'Outfit', sans-serif;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Selection range (if we want to show selected text later) */
+.collaborator-selection {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0.3;
+    mix-blend-mode: multiply;
+}
