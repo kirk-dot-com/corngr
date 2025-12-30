@@ -118,7 +118,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
             plugins: [
                 createBlockIdPlugin(), // Must come before ySyncPlugin to ensure IDs are assigned before sync
                 ySyncPlugin(yXmlFragment),
-                ...(awareness ? [yCursorPlugin(awareness)] : []),
+                // ...(awareness ? [yCursorPlugin(awareness)] : []), // Temporarily DISABLED to isolate 'Unexpected case' error
                 yUndoPlugin(),
                 variablePlugin,
                 ...(metadataStore && user ? [createFilterPlugin(metadataStore, user)] : []),

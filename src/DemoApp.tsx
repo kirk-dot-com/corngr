@@ -211,6 +211,9 @@ export const DemoApp: React.FC = () => {
         (window as any).tauriNetwork = bridge;
 
         return () => {
+            // [Phase 6] Cleanup Network
+            console.log('🧹 Cleaning up TauriSecureNetwork...');
+            bridge.destroy();
             cDoc.destroy();
         };
     }, [session, currentDocId]);

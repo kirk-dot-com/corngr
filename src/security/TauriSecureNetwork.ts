@@ -58,12 +58,14 @@ export class TauriSecureNetwork {
         this.syncProvider = new TauriSyncProvider(this.clientDoc);
 
         // [Phase 4] Initialize Cloud Persistence
-        if (this.supabase && ENABLE_CLOUD_SYNC) {
+        if (ENABLE_CLOUD_SYNC && supabaseClient) {
+            console.log('☁️ Initializing Supabase Cloud Sync via Injected Client...');
             this.supabase = supabaseClient;
-            // Load initial state and subscribe to changes
-            this.loadInitialState().then(() => {
-                this.subscribeToRealtimeUpdates();
-            });
+
+            // [Phase 5] Restore from cloud on startup
+            // this.restoreFromCloud(); // Replaced by loadInitialState logic if applicable, keeping simple for now
+            // Actually, keep the original logic which called subscribeToRealtimeUpdates
+            this.subscribeToRealtimeUpdates();
         }
     }
 
@@ -78,16 +80,6 @@ export class TauriSecureNetwork {
             console.log('❌ Unsubscribed from Realtime Channel');
         }
     }
-    if(ENABLE_CLOUD_SYNC && supabaseClient) {
-    console.log('☁️ Initializing Supabase Cloud Sync via Injected Client...');
-    this.supabase = supabaseClient;
-
-    // [Phase 5] Restore from cloud on startup
-    this.restoreFromCloud();
-
-    // [Phase 6] Listen for real-time updates from other devices
-    this.subscribeToRealtimeUpdates();
-}
 
 this.initMetadataSync();
 this.sync();
