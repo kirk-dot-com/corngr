@@ -179,6 +179,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
         setCurrentView(view);
 
         // Phase 6: Cursor tracking for collaboration
+        // Use transaction listener instead of dynamic plugin to avoid y-prosemirror conflicts
         if (awareness) {
             const updateCursor = () => {
                 const { selection } = view.state;
@@ -188,22 +189,25 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                 });
             };
 
-            // Update cursor on every transaction
-            const cursorPlugin = new Plugin({
-                view: () => ({
-                    update: (view, prevState) => {
-                        if (!view.state.selection.eq(prevState.selection)) {
-                            updateCursor();
-                        }
+            // Initial cursor position
+            updateCursor();
+
+            // Listen to editor updates (this is safe and doesn't conflict with y-prosemirror)
+            const handleTransaction = () => {
+                requestAnimationFrame(() => {
+                    if (viewRef.current) {
+                        const { selection } = viewRef.current.state;
+                        awareness.setLocalStateField('cursor', {
+                            anchor: selection.anchor,
+                            head: selection.head
+                        });
                     }
-                })
-            });
+                });
+            };
 
-            view.updateState(view.state.reconfigure({
-                plugins: [...view.state.plugins, cursorPlugin]
-            }));
-
-            updateCursor(); // Initial cursor position
+            // Add DOM event listener for clicks and selections
+            view.dom.addEventListener('click', handleTransaction);
+            view.dom.addEventListener('keyup', handleTransaction);
         }
 
         // Phase 2.3: Selection tracking for MetadataPanel
