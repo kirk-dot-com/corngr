@@ -100,6 +100,14 @@ export class TauriSecureNetwork {
                     }
                 }
             )
+            .on('broadcast', { event: 'yjs-update' }, ({ payload }: { payload: any }) => {
+                // [Phase 6] Receive Y.Doc updates from other clients via broadcast
+                console.log('📡 Received Y.Doc update via broadcast');
+                if (payload.update) {
+                    const update = this.fromBase64(payload.update);
+                    Y.applyUpdate(this.clientDoc, update);
+                }
+            })
             .on('presence', { event: 'sync' }, () => {
                 const presenceState = this.channel.presenceState();
                 console.log('👥 Current Presence:', presenceState);
@@ -119,8 +127,30 @@ export class TauriSecureNetwork {
                 if (status === 'SUBSCRIBED') {
                     // Start tracking local awareness through Supabase
                     this.initAwarenessBridging();
+                    // [Phase 6] Broadcast Y.Doc updates to other clients
+                    this.initYjsBroadcasting();
                 }
             });
+    }
+
+    /**
+     * [Phase 6] Bridging Y.Doc updates to Supabase Realtime Broadcast
+     */
+    private initYjsBroadcasting() {
+        this.clientDoc.on('update', (update: Uint8Array, origin: any) => {
+            // Don't broadcast updates that came from another client
+            if (origin === 'remote') return;
+
+            const updateBase64 = this.toBase64(update);
+            if (this.channel) {
+                this.channel.send({
+                    type: 'broadcast',
+                    event: 'yjs-update',
+                    payload: { update: updateBase64 }
+                });
+                console.log('📡 Broadcasting Y.Doc update to other clients');
+            }
+        });
     }
 
     /**
