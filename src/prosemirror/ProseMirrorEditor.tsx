@@ -119,7 +119,8 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
             plugins: [
                 createBlockIdPlugin(), // Must come before ySyncPlugin to ensure IDs are assigned before sync
                 ySyncPlugin(yXmlFragment),
-                ...(awareness ? [yCursorPlugin(awareness)] : []), // Re-enabled for debugging
+                // yCursorPlugin disabled - using custom CollaboratorCursor component instead
+                // ...(awareness ? [yCursorPlugin(awareness)] : []),
                 yUndoPlugin(),
                 variablePlugin,
                 ...(metadataStore && user ? [createFilterPlugin(metadataStore, user)] : []),
