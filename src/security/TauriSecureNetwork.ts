@@ -112,14 +112,16 @@ export class TauriSecureNetwork {
             .on('presence', { event: 'sync' }, () => {
                 // [Phase 6] Initial sync - apply all current presence states
                 const presenceState = this.channel.presenceState();
-                console.log('👥 Presence SYNC:', presenceState);
+                const localClientId = this.syncProvider.awareness.clientID;
+                console.log('👥 Presence SYNC:', presenceState, 'Local ClientID:', localClientId);
 
                 Object.values(presenceState).forEach((presences: any) => {
                     presences.forEach((p: any) => {
-                        if (p.user_id !== this.user.id && p.awarenessUpdate) {
+                        // FIXED: Compare clientId instead of user_id (same user can have multiple tabs)
+                        if (p.clientId !== localClientId && p.awarenessUpdate) {
                             try {
                                 const update = this.fromBase64(p.awarenessUpdate);
-                                console.log(`🔍 [SYNC] Applying Remote Awareness from ${p.user_id}, Size: ${update.length}`);
+                                console.log(`🔍 [SYNC] Applying Remote Awareness from client ${p.clientId} (user: ${p.user_id}), Size: ${update.length}`);
                                 applyAwarenessUpdate(this.syncProvider.awareness, update, 'remote');
                             } catch (e) {
                                 console.error(`❌ Failed to apply awareness update from ${p.user_id}:`, e);
@@ -130,16 +132,24 @@ export class TauriSecureNetwork {
             })
             .on('presence', { event: 'join' }, ({ key, newPresences }: any) => {
                 // [Phase 6] New user joined - apply their awareness
-                console.log(`👋 User JOINED:`, key, newPresences);
+                const localClientId = this.syncProvider.awareness.clientID;
+                console.log(`👋💡 Client JOINED:`, { key, newPresences, localClientId });
+                console.log(`👋💡 Presence structure:`, JSON.stringify(newPresences, null, 2));
+
                 newPresences.forEach((p: any) => {
-                    if (p.user_id !== this.user.id && p.awarenessUpdate) {
+                    console.log(`  ClientID: ${p.clientId}, User: ${p.user_id}, Has awarenessUpdate: ${!!p.awarenessUpdate}, Keys: ${Object.keys(p).join(', ')}`);
+
+                    // FIXED: Compare clientId instead of user_id
+                    if (p.clientId !== localClientId && p.awarenessUpdate) {
                         try {
                             const update = this.fromBase64(p.awarenessUpdate);
-                            console.log(`🔍 [JOIN] Applying Awareness from ${p.user_id}`);
+                            console.log(`🔍 [JOIN] Applying Awareness from client ${p.clientId} (user: ${p.user_id})`);
                             applyAwarenessUpdate(this.syncProvider.awareness, update, 'remote');
                         } catch (e) {
-                            console.error(`❌ Failed to apply awareness from new user:`, e);
+                            console.error(`❌ Failed to apply awareness from new client:`, e);
                         }
+                    } else {
+                        console.log(`⏭️ Skipping: selfClient=${p.clientId === localClientId}, hasUpdate=${!!p.awarenessUpdate}`);
                     }
                 });
             })
@@ -191,21 +201,46 @@ export class TauriSecureNetwork {
      * [Phase 6] Bridging Yjs Awareness updates to Supabase Presence
      */
     private initAwarenessBridging() {
+        console.log('🔌 Initializing Awareness Bridging...');
+        const localClientId = this.syncProvider.awareness.clientID;
+        console.log(`   Local Client ID: ${localClientId}`);
+
         this.syncProvider.awareness.on('update', ({ added, updated, removed }: any) => {
             const changedClients = added.concat(updated).concat(removed);
-            if (changedClients.length === 0) return;
+            console.log(`🔔 Awareness Update Event:`, { added, updated, removed, changedClients });
+
+            if (changedClients.length === 0) {
+                console.log('⏭️ No changed clients, skipping track');
+                return;
+            }
 
             const update = encodeAwarenessUpdate(this.syncProvider.awareness, changedClients);
             const updateBase64 = this.toBase64(update);
 
+            const payload = {
+                user_id: this.user.id,
+                clientId: localClientId, // ADD: Yjs client ID for distinguishing tabs
+                awarenessUpdate: updateBase64,
+                online_at: new Date().toISOString(),
+            };
+
+            console.log(`📤 Tracking Presence:`, {
+                user_id: payload.user_id,
+                clientId: payload.clientId,
+                awarenessUpdateLength: updateBase64.length,
+                online_at: payload.online_at,
+                changedClients
+            });
+
             if (this.channel) {
-                this.channel.track({
-                    user_id: this.user.id,
-                    awarenessUpdate: updateBase64,
-                    online_at: new Date().toISOString(),
-                });
+                this.channel.track(payload);
+                console.log('✅ channel.track() called');
+            } else {
+                console.error('❌ No channel available for tracking!');
             }
         });
+
+        console.log('✅ Awareness bridging initialized');
     }
 
     private applyCloudUpdate(contentBase64: string) {
