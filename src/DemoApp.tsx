@@ -85,6 +85,7 @@ export const DemoApp: React.FC = () => {
             if (error) throw error;
             setCurrentDocId(newDocId);
             setCurrentDocTitle(effectiveTitle);
+            // URL hash will be updated by useEffect
         } catch (err: any) {
             console.error('❌ Failed to create document from header:', err);
             alert('Failed to create document: ' + err.message);
@@ -105,6 +106,45 @@ export const DemoApp: React.FC = () => {
 
         return () => subscription.unsubscribe();
     }, []);
+
+    // [Phase 6] URL Hash Routing - sync document ID across windows
+    useEffect(() => {
+        // Read document ID from URL hash on mount
+        const hash = window.location.hash;
+        if (hash.startsWith('#doc_')) {
+            const docIdFromUrl = hash.substring(1); // Remove # prefix
+            if (session && docIdFromUrl !== currentDocId) {
+                setCurrentDocId(docIdFromUrl);
+            }
+        }
+
+        // Listen for hash changes (e.g., from another window or back/forward navigation)
+        const handleHashChange = () => {
+            const hash = window.location.hash;
+            if (hash.startsWith('#doc_')) {
+                const docIdFromUrl = hash.substring(1);
+                setCurrentDocId(docIdFromUrl);
+            } else if (hash === '' && currentDocId) {
+                // Hash cleared - return to dashboard
+                setCurrentDocId(null);
+            }
+        };
+
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, [session]);
+
+    // Update URL hash when document changes
+    useEffect(() => {
+        if (currentDocId) {
+            window.location.hash = currentDocId;
+        } else {
+            // Clear hash when returning to dashboard
+            if (window.location.hash) {
+                window.location.hash = '';
+            }
+        }
+    }, [currentDocId]);
 
     // [Phase 7] Command Palette Keyboard Shortcut
     useEffect(() => {
