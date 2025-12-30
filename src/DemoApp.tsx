@@ -30,7 +30,17 @@ import { SlidesPanel } from './components/editor/SlidesPanel';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config/SupabaseConfig';
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// [Phase 4] Explicitly configure Realtime to use native WebSocket
+// This prevents fallback to REST which breaks real-time sync
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    realtime: {
+        params: {
+            eventsPerSecond: 10,
+        },
+        // Force use of browser native WebSocket
+        websocket: (typeof window !== 'undefined' && window.WebSocket) ? window.WebSocket : undefined
+    }
+});
 
 export const DemoApp: React.FC = () => {
     // Phase 6: Authentication State
