@@ -16,6 +16,7 @@ import { createGutterPlugin } from './GutterPlugin';
 import { createBlockIdPlugin } from './BlockIdPlugin';
 import { CollaboratorCursor } from '../components/collaboration/CollaboratorCursor';
 import './editor.css';
+import './cursor.css'; // y-prosemirror cursor styles
 
 interface ProseMirrorEditorProps {
     yDoc: Y.Doc;
