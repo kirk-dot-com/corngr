@@ -113,7 +113,8 @@ export const DemoApp: React.FC = () => {
         const hash = window.location.hash;
         if (hash.startsWith('#doc_')) {
             const docIdFromUrl = hash.substring(1); // Remove # prefix
-            if (session && docIdFromUrl !== currentDocId) {
+            if (docIdFromUrl !== currentDocId) {
+                console.log(`📍 Loading document from URL hash: ${docIdFromUrl}`);
                 setCurrentDocId(docIdFromUrl);
             }
         }
@@ -123,16 +124,18 @@ export const DemoApp: React.FC = () => {
             const hash = window.location.hash;
             if (hash.startsWith('#doc_')) {
                 const docIdFromUrl = hash.substring(1);
+                console.log(`📍 Hash changed to: ${docIdFromUrl}`);
                 setCurrentDocId(docIdFromUrl);
             } else if (hash === '' && currentDocId) {
                 // Hash cleared - return to dashboard
+                console.log(`📍 Hash cleared, returning to dashboard`);
                 setCurrentDocId(null);
             }
         };
 
         window.addEventListener('hashchange', handleHashChange);
         return () => window.removeEventListener('hashchange', handleHashChange);
-    }, [session]);
+    }, []); // Run only once on mount and listen for hash changes
 
     // Update URL hash when document changes
     useEffect(() => {
