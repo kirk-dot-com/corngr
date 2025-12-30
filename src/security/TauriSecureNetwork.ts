@@ -80,14 +80,9 @@ export class TauriSecureNetwork {
         if (!this.supabase) return;
 
         console.log(`📡 Subscribing to Real-Time Room (${this.docId})...`);
-        // Use a shared room for both content sync and presence
-        // Configure channel with broadcast and presence enabled
-        this.channel = this.supabase.channel(`room_${this.docId}`, {
-            config: {
-                broadcast: { self: false }, // Don't echo back our own messages
-                presence: { key: this.user.id }
-            }
-        });
+
+        // Simplified channel - just use broadcast without special config
+        this.channel = this.supabase.channel(`room:${this.docId}`);
 
         this.channel
             .on('broadcast', { event: 'yjs-update' }, ({ payload }: { payload: any }) => {
