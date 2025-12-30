@@ -105,7 +105,8 @@ export class TauriSecureNetwork {
                 console.log('📡 Received Y.Doc update via broadcast');
                 if (payload.update) {
                     const update = this.fromBase64(payload.update);
-                    Y.applyUpdate(this.clientDoc, update);
+                    // Mark as 'remote' to prevent re-broadcasting
+                    Y.applyUpdate(this.clientDoc, update, 'remote');
                 }
             })
             .on('presence', { event: 'sync' }, () => {
