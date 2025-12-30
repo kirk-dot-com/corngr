@@ -114,8 +114,13 @@ export class TauriSecureNetwork {
                 Object.values(presenceState).forEach((presences: any) => {
                     presences.forEach((p: any) => {
                         if (p.user_id !== this.user.id && p.awarenessUpdate) {
-                            const update = this.fromBase64(p.awarenessUpdate);
-                            applyAwarenessUpdate(this.syncProvider.awareness, update, 'remote');
+                            try {
+                                const update = this.fromBase64(p.awarenessUpdate);
+                                console.log(`🔍 Applying Remote Awareness Update from ${p.user_id}, Size: ${update.length}`);
+                                applyAwarenessUpdate(this.syncProvider.awareness, update, 'remote');
+                            } catch (e) {
+                                console.error(`❌ Failed to apply awareness update from ${p.user_id}:`, e);
+                            }
                         }
                     });
                 });
