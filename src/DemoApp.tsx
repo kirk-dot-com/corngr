@@ -26,6 +26,7 @@ import { DocumentList } from './components/DocumentList';
 import { HelpPanel } from './components/HelpPanel';
 import { InputModal } from './components/InputModal';
 import { CommandPalette, CommandAction } from './components/CommandPalette';
+import { ModeIndicator } from './components/ModeIndicator';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config/SupabaseConfig';
 
@@ -382,11 +383,6 @@ export const DemoApp: React.FC = () => {
                         <div className="status-dot online"></div>
                         <span>{activeUserCount} Active</span>
                     </div>
-                    {appMode !== 'draft' && (
-                        <div className={`mode-badge ${appMode}`}>
-                            {appMode.toUpperCase()} MODE
-                        </div>
-                    )}
                 </div>
             </header>
 
@@ -418,6 +414,8 @@ export const DemoApp: React.FC = () => {
             <HelpPanel isOpen={showHelp} onClose={() => setShowHelp(false)} />
             <InputModal isOpen={showInputModal} title="Create New Document" placeholder="Untitled Document" confirmLabel="Create" onCancel={() => setShowInputModal(false)} onConfirm={handleGlobalCreateConfirm} />
             <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} actions={commandActions} />
+
+            <ModeIndicator mode={appMode} />
         </div>
     );
 };
