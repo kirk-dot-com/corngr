@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { EditorState, Plugin } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { Awareness } from 'y-protocols/awareness';
@@ -14,6 +14,7 @@ import { User } from '../security/types';
 import { createFilterPlugin } from './FilterPlugin';
 import { createGutterPlugin } from './GutterPlugin';
 import { createBlockIdPlugin } from './BlockIdPlugin';
+import { CollaboratorCursor } from '../components/collaboration/CollaboratorCursor';
 import './editor.css';
 
 interface ProseMirrorEditorProps {
@@ -40,6 +41,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
 }) => {
     const editorRef = useRef<HTMLDivElement>(null);
     const viewRef = useRef<EditorView | null>(null);
+    const [currentView, setCurrentView] = useState<EditorView | null>(null);
 
     useEffect(() => {
         if (!editorRef.current) return;
@@ -174,6 +176,35 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
         });
 
         viewRef.current = view;
+        setCurrentView(view);
+
+        // Phase 6: Cursor tracking for collaboration
+        if (awareness) {
+            const updateCursor = () => {
+                const { selection } = view.state;
+                awareness.setLocalStateField('cursor', {
+                    anchor: selection.anchor,
+                    head: selection.head
+                });
+            };
+
+            // Update cursor on every transaction
+            const cursorPlugin = new Plugin({
+                view: () => ({
+                    update: (view, prevState) => {
+                        if (!view.state.selection.eq(prevState.selection)) {
+                            updateCursor();
+                        }
+                    }
+                })
+            });
+
+            view.updateState(view.state.reconfigure({
+                plugins: [...view.state.plugins, cursorPlugin]
+            }));
+
+            updateCursor(); // Initial cursor position
+        }
 
         // Phase 2.3: Selection tracking for MetadataPanel
         if (onBlockSelect) {
@@ -214,6 +245,14 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
     return (
         <div className={`prosemirror-editor-container ${appMode}-mode`}>
             <div ref={editorRef} className="prosemirror-editor" />
+            {/* Phase 6: Cursor overlays for remote collaborators */}
+            {awareness && currentView && (
+                <CollaboratorCursor
+                    editorView={currentView}
+                    awareness={awareness}
+                    localClientId={awareness.clientID}
+                />
+            )}
         </div>
     );
 };

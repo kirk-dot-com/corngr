@@ -1,6 +1,7 @@
 import React from 'react';
 import { ViewControls } from './ViewControls';
 import { DevTools } from './DevTools';
+import { PresenceAvatars } from './collaboration/PresenceAvatars';
 import { Role } from '../security/types';
 
 type ViewMode = 'split' | 'editor' | 'slides' | 'governance';
@@ -16,6 +17,7 @@ interface AppHeaderProps {
     isSaving: boolean;
     activeUserCount: number;
     currentRole: Role;
+    awareness?: any; // Yjs Awareness for presence
     onBack: () => void;
     onViewChange: (view: ViewMode) => void;
     onToggleAutoMutate: () => void;
@@ -55,6 +57,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     isSaving,
     activeUserCount,
     currentRole,
+    awareness,
     onBack,
     onViewChange,
     onToggleAutoMutate,
@@ -83,8 +86,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 )}
                 <div className="branding-stack">
                     <div className="branding">
-                        <h1>🌽 Corngr Phase 3</h1>
-                        <p className="tagline">Ecosystem & Marketplace Integration</p>
+                        <h1>🌽 Corngr Phase 6</h1>
+                        <p className="tagline">Real-Time Collaboration</p>
                     </div>
                     {currentDocTitle && (
                         <div className="doc-context-line">
@@ -172,6 +175,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     <div className="status-dot online"></div>
                     <span>{activeUserCount} Active</span>
                 </div>
+
+                {/* Phase 6: Show presence avatars */}
+                {awareness && (
+                    <PresenceAvatars
+                        awareness={awareness}
+                        localClientId={awareness.clientID}
+                    />
+                )}
             </div>
         </header>
     );
