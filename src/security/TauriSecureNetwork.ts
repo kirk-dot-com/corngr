@@ -148,7 +148,6 @@ export class TauriSecureNetwork {
      */
     private initYjsBroadcasting() {
         let broadcastCount = 0;
-        let broadcastFailCount = 0;
 
         this.clientDoc.on('update', (update: Uint8Array, origin: any) => {
             // Don't broadcast updates that came from another client
@@ -157,19 +156,15 @@ export class TauriSecureNetwork {
             const updateBase64 = this.toBase64(update);
             if (this.channel) {
                 broadcastCount++;
-                const result = this.channel.send({
+
+                // Send returns immediately - the actual status is not synchronously available
+                this.channel.send({
                     type: 'broadcast',
                     event: 'yjs-update',
                     payload: { update: updateBase64 }
                 });
 
-                // Track success/failure
-                if (result === 'ok') {
-                    console.log(`📡 [${broadcastCount}] Broadcasting Y.Doc update (${update.length} bytes)`);
-                } else {
-                    broadcastFailCount++;
-                    console.error(`❌ [${broadcastCount}] Broadcast FAILED! Server may be rate-limiting. (Failures: ${broadcastFailCount})`);
-                }
+                console.log(`📡 [${broadcastCount}] Broadcasting Y.Doc update (${update.length} bytes, ${updateBase64.length} chars base64)`);
             }
         });
     }
