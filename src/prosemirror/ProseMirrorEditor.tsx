@@ -211,6 +211,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
         }
 
         // Phase 2.3: Selection tracking for MetadataPanel
+        // Use DOM event listener instead of setProps to avoid breaking y-prosemirror
         if (onBlockSelect) {
             const handleSelection = () => {
                 const { selection } = view.state;
@@ -227,16 +228,8 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                 }
             };
 
-            // Re-check selection on mouseup within the editor
-            view.setProps({
-                handleDOMEvents: {
-                    ...view.props.handleDOMEvents,
-                    mouseup: () => {
-                        handleSelection();
-                        return false;
-                    }
-                }
-            });
+            // Add direct DOM event listener instead of using setProps
+            view.dom.addEventListener('mouseup', handleSelection);
         }
 
         // Cleanup
