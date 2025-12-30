@@ -1,0 +1,33 @@
+/* y-prosemirror cursor styles */
+.ProseMirror-yjs-cursor {
+    position: absolute;
+    border-left: 2px solid;
+    border-color: inherit;
+    height: 1em;
+    word-break: normal;
+    pointer-events: none;
+    z-index: 50;
+}
+
+.ProseMirror-yjs-cursor>div {
+    position: absolute;
+    top: -1.8em;
+    left: -1px;
+    font-size: 13px;
+    background-color: inherit;
+    color: white;
+    padding: 2px 5px;
+    border-radius: 3px;
+    white-space: nowrap;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-weight: 500;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* Selection highlight for remote users */
+.ProseMirror-yjs-selection {
+    background-color: inherit;
+    opacity: 0.3;
+    pointer-events: none;
+}
