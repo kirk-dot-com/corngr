@@ -13,6 +13,7 @@ import { MetadataStore } from '../metadata/MetadataStore';
 import { User } from '../security/types';
 import { createFilterPlugin } from './FilterPlugin';
 import { createGutterPlugin } from './GutterPlugin';
+import { createBlockIdPlugin } from './BlockIdPlugin';
 import './editor.css';
 
 interface ProseMirrorEditorProps {
@@ -113,6 +114,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
         const state = EditorState.create({
             schema: corngrSchema,
             plugins: [
+                createBlockIdPlugin(), // Must come before ySyncPlugin to ensure IDs are assigned before sync
                 ySyncPlugin(yXmlFragment),
                 ...(awareness ? [yCursorPlugin(awareness)] : []),
                 yUndoPlugin(),
