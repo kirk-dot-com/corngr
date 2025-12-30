@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Y from 'yjs';
-import { ProseMirrorEditor } from './prosemirror/ProseMirrorEditor';
-import { SlideRenderer } from './slides/SlideRenderer';
-import { Toolbar } from './prosemirror/Toolbar';
-import { MetadataPanel } from './components/MetadataPanel';
 import { EditorView } from 'prosemirror-view';
 import { User, Role } from './security/types';
 import { TauriSecureNetwork } from './security/TauriSecureNetwork';
 import { PerformanceMonitor } from './components/PerformanceMonitor';
 import { MarketplaceSidebar, MarketplaceBlock } from './components/MarketplaceSidebar';
 import { GovernanceDashboard } from './components/governance/GovernanceDashboard';
+import { MetadataPanel } from './components/MetadataPanel';
 import { runPerformanceStressTest } from './security/PerformanceStressTest';
 import { generateUUID, BlockMetadata } from './yjs/schema';
 import './DemoApp.css';
@@ -27,6 +24,9 @@ import { HelpPanel } from './components/HelpPanel';
 import { InputModal } from './components/InputModal';
 import { CommandPalette, CommandAction } from './components/CommandPalette';
 import { ModeIndicator } from './components/ModeIndicator';
+import { AppHeader } from './components/AppHeader';
+import { EditorPanel } from './components/editor/EditorPanel';
+import { SlidesPanel } from './components/editor/SlidesPanel';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config/SupabaseConfig';
 
@@ -319,6 +319,13 @@ export const DemoApp: React.FC = () => {
         return () => clearInterval(interval);
     }, [clientDoc, view]);
 
+    const handleSave = async () => {
+        if (!secureNetwork) return;
+        setIsSaving(true);
+        await secureNetwork.save();
+        setTimeout(() => setIsSaving(false), 800);
+    };
+
     if (!session) return <AuthPage supabase={supabase} />;
     if (!currentDocId) return <DocumentList supabase={supabase} user={session.user} onSelectDocument={setCurrentDocId} />;
     if (!clientDoc) return <div className="demo-app loading"><div className="loading-spinner"><h1>Loading...</h1></div></div>;
@@ -326,94 +333,99 @@ export const DemoApp: React.FC = () => {
     return (
         <div className="demo-app">
             <PerformanceMonitor yDoc={clientDoc} />
-            <header className="demo-header">
-                <div className="header-content">
-                    {currentDocId && (
-                        <button onClick={() => setCurrentDocId(null)} className="view-btn back-btn" title="Back to Dashboard">⬅</button>
-                    )}
-                    <div className="branding-stack">
-                        <div className="branding">
-                            <h1>🌽 Corngr Phase 3</h1>
-                            <p className="tagline">Ecosystem & Marketplace Integration</p>
-                        </div>
-                        {currentDocTitle && (
-                            <div className="doc-context-line">
-                                <span className="label">DOCUMENT:</span>
-                                <span className="title-text">{currentDocTitle}</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
 
-                <div className="view-controls">
-                    <button onClick={() => setShowCommandPalette(true)} className="view-btn omni-btn" title="Open Command Palette (⌘K)">🔍 Omni</button>
-                    <div className="divider"></div>
-                    <button onClick={() => setShowInputModal(true)} className="view-btn primary">➕ New Document</button>
-                    <div className="divider"></div>
-                    <div className="mode-selector">
-                        <span className="mode-label">VIEW:</span>
-                        <button className={`view-btn ${view === 'split' ? 'active' : ''}`} onClick={() => setView('split')}>⚡ Dual</button>
-                        <button className={`view-btn ${view === 'editor' ? 'active' : ''}`} onClick={() => setView('editor')}>📝 Doc</button>
-                        <button className={`view-btn ${view === 'slides' ? 'active' : ''}`} onClick={() => setView('slides')}>📊 Slides</button>
-                        <button className={`view-btn ${view === 'governance' ? 'active' : ''}`} onClick={() => setView('governance')}>🛡️ Gov</button>
-                    </div>
-                    <div className="divider"></div>
-                    <div className="dev-tools">
-                        <span className="mode-label">DEV:</span>
-                        <button className="view-btn" onClick={insertGlobalTransclusion} title="Insert Transclusion">🌐 +Ref</button>
-                        <button className="view-btn" onClick={injectMassiveData} title="Inject 1k Blocks">🚀 1k</button>
-                        <button className={`view-btn ${autoMutate ? 'active' : ''}`} onClick={() => setAutoMutate(!autoMutate)} title="Auto-Mutate Toggle">⚡ Auto</button>
-                        <button className="view-btn" onClick={handleStressTest} title="Run Stress Test">🧪 Test</button>
-                    </div>
-                    <div className="divider"></div>
-                    <button className={`view-btn ${showMarketplace ? 'active' : ''}`} onClick={() => setShowMarketplace(!showMarketplace)}>🛒 Market</button>
-                    <button className={`view-btn ${showMetadataPanel ? 'active' : ''}`} onClick={() => setShowMetadataPanel(!showMetadataPanel)}>🏷️ Meta</button>
-                    <div className="divider"></div>
-                    <button className={`view-btn ${isSaving ? 'active' : ''}`} onClick={async () => { if (secureNetwork) { setIsSaving(true); await secureNetwork.save(); setTimeout(() => setIsSaving(false), 800); } }} disabled={isSaving}>
-                        {isSaving ? '☁️ Syncing...' : '💾 Save'}
-                    </button>
-                    <div className="divider"></div>
-                    <select value={currentUser.attributes.role} onChange={(e) => setCurrentUser(USERS[e.target.value as Role])} className="role-select">
-                        <option value="admin">👮 Admin</option>
-                        <option value="editor">✏️ Editor</option>
-                        <option value="viewer">👀 Viewer</option>
-                    </select>
-                    <button className={`view-btn ${showHelp ? 'active' : ''}`} onClick={() => setShowHelp(!showHelp)}>❓ Help</button>
-                    <div className="active-users-indicator">
-                        <div className="status-dot online"></div>
-                        <span>{activeUserCount} Active</span>
-                    </div>
-                </div>
-            </header>
+            <AppHeader
+                currentDocId={currentDocId}
+                currentDocTitle={currentDocTitle}
+                currentView={view}
+                autoMutate={autoMutate}
+                showMarketplace={showMarketplace}
+                showMetadataPanel={showMetadataPanel}
+                showHelp={showHelp}
+                isSaving={isSaving}
+                activeUserCount={activeUserCount}
+                currentRole={currentUser.attributes.role}
+                onBack={() => setCurrentDocId(null)}
+                onViewChange={setView}
+                onToggleAutoMutate={() => setAutoMutate(!autoMutate)}
+                onInsertTransclusion={insertGlobalTransclusion}
+                onInjectMassiveData={injectMassiveData}
+                onRunStressTest={handleStressTest}
+                onToggleMarketplace={() => setShowMarketplace(!showMarketplace)}
+                onToggleMetadataPanel={() => setShowMetadataPanel(!showMetadataPanel)}
+                onToggleHelp={() => setShowHelp(!showHelp)}
+                onSave={handleSave}
+                onRoleChange={(role) => setCurrentUser(USERS[role])}
+                onShowCommandPalette={() => setShowCommandPalette(true)}
+                onShowCreateModal={() => setShowInputModal(true)}
+            />
 
             <div className={`demo-content view-${view}`}>
                 {(view === 'split' || view === 'editor') && (
-                    <div className="editor-panel">
-                        <div className="panel-header"><h2>Document View</h2><span className="tech-badge">ProseMirror</span></div>
-                        <Toolbar editorView={editorView} yDoc={clientDoc} />
-                        <div ref={editorContainerRef}><ProseMirrorEditor yDoc={clientDoc} user={currentUser} metadataStore={secureNetwork?.getMetadataStore() || null} awareness={secureNetwork?.getSyncProvider().awareness || null} onBlockSelect={setSelectedBlockId} editorId="main-editor" appMode={appMode} /></div>
-                    </div>
+                    <EditorPanel
+                        yDoc={clientDoc}
+                        user={currentUser}
+                        metadataStore={secureNetwork?.getMetadataStore() || null}
+                        awareness={secureNetwork?.getSyncProvider().awareness || null}
+                        editorView={editorView}
+                        appMode={appMode}
+                        onBlockSelect={setSelectedBlockId}
+                        editorContainerRef={editorContainerRef}
+                    />
                 )}
                 {(view === 'split' || view === 'slides') && (
-                    <div className="slides-panel">
-                        <div className="panel-header"><h2>Slide View</h2><span className="tech-badge">React</span></div>
-                        <SlideRenderer yDoc={clientDoc} user={currentUser} />
+                    <SlidesPanel yDoc={clientDoc} user={currentUser} />
+                )}
+                {view === 'governance' && secureNetwork && (
+                    <div className="governance-panel">
+                        <GovernanceDashboard network={secureNetwork} yDoc={clientDoc} />
                     </div>
                 )}
-                {view === 'governance' && secureNetwork && <div className="governance-panel"><GovernanceDashboard network={secureNetwork} yDoc={clientDoc} /></div>}
-                {showMetadataPanel && secureNetwork && <MetadataPanel selectedBlockId={selectedBlockId} metadataStore={secureNetwork.getMetadataStore()} user={currentUser} onClose={() => setShowMetadataPanel(false)} onSave={() => secureNetwork.save()} />}
+                {showMetadataPanel && secureNetwork && (
+                    <MetadataPanel
+                        selectedBlockId={selectedBlockId}
+                        metadataStore={secureNetwork.getMetadataStore()}
+                        user={currentUser}
+                        onClose={() => setShowMetadataPanel(false)}
+                        onSave={() => secureNetwork.save()}
+                    />
+                )}
             </div>
 
-            {showMarketplace && <MarketplaceSidebar onImportBlock={handleImportBlock} onClose={() => setShowMarketplace(false)} />}
+            {showMarketplace && (
+                <MarketplaceSidebar
+                    onImportBlock={handleImportBlock}
+                    onClose={() => setShowMarketplace(false)}
+                />
+            )}
 
             <footer className="demo-footer">
-                <div className="status-indicator"><span className="status-dot"></span><span>Tauri Secure File System Active</span></div>
-                <button className="view-btn exit-btn" onClick={() => { if (confirm('Sign out?')) supabase.auth.signOut(); }}>Exit</button>
+                <div className="status-indicator">
+                    <span className="status-dot"></span>
+                    <span>Tauri Secure File System Active</span>
+                </div>
+                <button
+                    className="view-btn exit-btn"
+                    onClick={() => { if (confirm('Sign out?')) supabase.auth.signOut(); }}
+                >
+                    Exit
+                </button>
             </footer>
 
             <HelpPanel isOpen={showHelp} onClose={() => setShowHelp(false)} />
-            <InputModal isOpen={showInputModal} title="Create New Document" placeholder="Untitled Document" confirmLabel="Create" onCancel={() => setShowInputModal(false)} onConfirm={handleGlobalCreateConfirm} />
-            <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} actions={commandActions} />
+            <InputModal
+                isOpen={showInputModal}
+                title="Create New Document"
+                placeholder="Untitled Document"
+                confirmLabel="Create"
+                onCancel={() => setShowInputModal(false)}
+                onConfirm={handleGlobalCreateConfirm}
+            />
+            <CommandPalette
+                isOpen={showCommandPalette}
+                onClose={() => setShowCommandPalette(false)}
+                actions={commandActions}
+            />
 
             <ModeIndicator mode={appMode} />
         </div>
