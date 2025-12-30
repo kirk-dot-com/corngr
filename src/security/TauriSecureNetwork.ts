@@ -91,17 +91,22 @@ export class TauriSecureNetwork {
 
         console.log(`📡 Subscribing to Real-Time Room (${this.docId})...`);
 
+        let receiveCount = 0; // Counter to track received messages
+
         // Simplified channel - just use broadcast without special config
         this.channel = this.supabase.channel(`room:${this.docId}`);
 
         this.channel
             .on('broadcast', { event: 'yjs-update' }, ({ payload }: { payload: any }) => {
                 // [Phase 6] Receive Y.Doc updates from other clients via broadcast
-                console.log('📡 Received Y.Doc update via broadcast');
+                receiveCount++;
+                console.log(`📡 [${receiveCount}] Received Y.Doc update via broadcast (${payload.update?.length || 0} chars base64)`);
                 if (payload.update) {
                     const update = this.fromBase64(payload.update);
+                    console.log(`   ↳ Decoded to ${update.length} bytes, applying to Y.Doc...`);
                     // Mark as 'remote' to prevent re-broadcasting
                     Y.applyUpdate(this.clientDoc, update, 'remote');
+                    console.log(`   ✅ Applied remote update`);
                 }
             })
             .on('presence', { event: 'sync' }, () => {
@@ -142,18 +147,29 @@ export class TauriSecureNetwork {
      * [Phase 6] Bridging Y.Doc updates to Supabase Realtime Broadcast
      */
     private initYjsBroadcasting() {
+        let broadcastCount = 0;
+        let broadcastFailCount = 0;
+
         this.clientDoc.on('update', (update: Uint8Array, origin: any) => {
             // Don't broadcast updates that came from another client
             if (origin === 'remote') return;
 
             const updateBase64 = this.toBase64(update);
             if (this.channel) {
-                this.channel.send({
+                broadcastCount++;
+                const result = this.channel.send({
                     type: 'broadcast',
                     event: 'yjs-update',
                     payload: { update: updateBase64 }
                 });
-                console.log('📡 Broadcasting Y.Doc update to other clients');
+
+                // Track success/failure
+                if (result === 'ok') {
+                    console.log(`📡 [${broadcastCount}] Broadcasting Y.Doc update (${update.length} bytes)`);
+                } else {
+                    broadcastFailCount++;
+                    console.error(`❌ [${broadcastCount}] Broadcast FAILED! Server may be rate-limiting. (Failures: ${broadcastFailCount})`);
+                }
             }
         });
     }
