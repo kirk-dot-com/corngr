@@ -110,18 +110,16 @@ export class TauriSecureNetwork {
                 }
             })
             .on('presence', { event: 'sync' }, () => {
-                // [Phase 6] Map Supabase Presence to Yjs Awareness
-                // DISABLED DEBUG: Check if this is causing 'Unexpected case' crash
-
+                // [Phase 6] Initial sync - apply all current presence states
                 const presenceState = this.channel.presenceState();
-                console.log('👥 Current Presence:', presenceState);
+                console.log('👥 Presence SYNC:', presenceState);
 
                 Object.values(presenceState).forEach((presences: any) => {
                     presences.forEach((p: any) => {
                         if (p.user_id !== this.user.id && p.awarenessUpdate) {
                             try {
                                 const update = this.fromBase64(p.awarenessUpdate);
-                                console.log(`🔍 Applying Remote Awareness Update from ${p.user_id}, Size: ${update.length}`);
+                                console.log(`🔍 [SYNC] Applying Remote Awareness from ${p.user_id}, Size: ${update.length}`);
                                 applyAwarenessUpdate(this.syncProvider.awareness, update, 'remote');
                             } catch (e) {
                                 console.error(`❌ Failed to apply awareness update from ${p.user_id}:`, e);
@@ -129,8 +127,28 @@ export class TauriSecureNetwork {
                         }
                     });
                 });
-
             })
+            .on('presence', { event: 'join' }, ({ key, newPresences }: any) => {
+                // [Phase 6] New user joined - apply their awareness
+                console.log(`👋 User JOINED:`, key, newPresences);
+                newPresences.forEach((p: any) => {
+                    if (p.user_id !== this.user.id && p.awarenessUpdate) {
+                        try {
+                            const update = this.fromBase64(p.awarenessUpdate);
+                            console.log(`🔍 [JOIN] Applying Awareness from ${p.user_id}`);
+                            applyAwarenessUpdate(this.syncProvider.awareness, update, 'remote');
+                        } catch (e) {
+                            console.error(`❌ Failed to apply awareness from new user:`, e);
+                        }
+                    }
+                });
+            })
+            .on('presence', { event: 'leave' }, ({ key, leftPresences }: any) => {
+                // [Phase 6] User left - remove their awareness
+                console.log(`👋 User LEFT:`, key);
+                // Awareness will automatically clean up when we stop receiving updates
+            })
+
             .subscribe((status: string, err: any) => {
                 if (err) console.error('Real-Time Connection Error:', err);
                 console.log(`📡 Real-Time Subscription Status: ${status}`);
