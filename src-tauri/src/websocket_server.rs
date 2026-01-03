@@ -12,7 +12,8 @@ use tokio_tungstenite::{
     tungstenite::Message,
 };
 use y_sync::sync::{Message as YSyncMessage, SyncMessage};
-use yrs::updates::decoder::Decode;
+use yrs::updates::decoder::{Decode, DecoderV1};
+use yrs::updates::encoder::Encode;
 use yrs::{Doc, ReadTxn, StateVector, Transact};
 
 const STORAGE_DIR: &str = ".corngr/storage";
@@ -177,17 +178,25 @@ impl CollabServer {
                                 eprintln!("❌ Error broadcasting message: {}", e);
                             }
 
-                            // 2. Snoop on updates to save to disk
-                            // Decode y-sync message
-                            if let Ok(y_msg) = YSyncMessage::decode(&data) {
-                                match y_msg {
-                                    YSyncMessage::Sync(SyncMessage::Update(update_data)) => {
-                                        // This is an update! Apply to server doc.
-                                        if let Err(e) = self.apply_update_to_room(&room_name, &update_data).await {
-                                            eprintln!("❌ Error applying update: {}", e);
+                            // 2. Snoop on updates to save to disk.
+                            // We construct a DecoderV1 from the byte slice.
+                            // Note: DecoderV1::from(&[u8]) is available in yrs 0.17+
+                            let mut decoder = DecoderV1::from(data.as_slice());
+                            match YSyncMessage::decode(&mut decoder) {
+                                Ok(y_msg) => {
+                                    match y_msg {
+                                        YSyncMessage::Sync(SyncMessage::Update(update_data)) => {
+                                            // This is an update! Apply to server doc.
+                                            if let Err(e) = self.apply_update_to_room(&room_name, &update_data).await {
+                                                eprintln!("❌ Error applying update: {}", e);
+                                            }
                                         }
+                                        _ => {} // Ignore Auth, Awareness, etc.
                                     }
-                                    _ => {} // Ignore Auth, Awareness, etc. for server-side doc state
+                                }
+                                Err(_) => {
+                                    // It might be a raw update or something else, but if it's protocol we catch it.
+                                    // If decode fails, we do nothing (we already broadcasted raw data).
                                 }
                             }
                         }
@@ -228,19 +237,7 @@ impl CollabServer {
 
         room.clients.push(ClientConnection { client_id, tx });
 
-        // Get Sync Step 1 (or 2?)
-        // Actually, servers usually just wait for client to ask?
-        // But y-websocket text says: "Send sync step 1"
-        // Let's iterate using y-sync helper?
-        // For now, let's keep the existing logic which sends a raw update?
-        // Wait, line 186 in previous version: `txn.encode_diff_v1(&state_vector)`
-        // This generates an UPDATE.
-        // Sync protocol expects: `0` (Sync) `2` (Update) `len` `data`.
-        // If I send just `data`, the client might fail to decode it if it expects protocol?
-        // YES. My previous `Step 38` sent raw update without prefix.
-        // Client probably ignored it.
-
-        // I need to wrap it in SyncMessage::Update
+        // Generate Sync Step containing valid protocol Message
         let txn = room.doc.transact();
         let state_vector = txn.state_vector();
         let update = txn.encode_diff_v1(&state_vector);
@@ -253,8 +250,8 @@ impl CollabServer {
         );
 
         if !update.is_empty() {
+            // Wrap update in Protocol Message so client understands it
             let msg = SyncMessage::Update(update).encode_v1();
-            // msg is Vec<u8> with prefix
             Ok(Some(msg))
         } else {
             Ok(None)
