@@ -470,8 +470,52 @@ select:focus {
 
 /* Responsive */
 @media (max-width: 1024px) {
-    .demo-content {
+    . demo-content {
         flex-direction: column;
         overflow-y: auto;
     }
+}
+
+/* [Phase 6] Collaboration Controls */
+.collab-controls {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 999;
+}
+
+.collab-toggle-btn {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border: 1px solid #334155;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.collab-toggle-btn:hover {
+    transform: scale(1.1) translateY(-2px);
+    border-color: #60a5fa;
+    box-shadow: 0 8px 30px rgba(96, 165, 250, 0.4);
+}
+
+.collab-toggle-btn.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2),
+        0 8px 30px rgba(59, 130, 246, 0.5);
+}
+
+.collab-toggle-btn.active:hover {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3),
+        0 12px 40px rgba(59, 130, 246, 0.6);
 }

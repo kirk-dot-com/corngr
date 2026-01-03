@@ -27,6 +27,9 @@ import { ModeIndicator } from './components/ModeIndicator';
 import { AppHeader } from './components/AppHeader';
 import { EditorPanel } from './components/editor/EditorPanel';
 import { SlidesPanel } from './components/editor/SlidesPanel';
+import { CollaborationPerformanceTest } from './components/collaboration/CollaborationPerformanceTest';
+import { ActiveUsersList } from './components/collaboration/ActiveUsersList';
+import { PresenceNotifications } from './components/collaboration/PresenceNotifications';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config/SupabaseConfig';
 
@@ -74,6 +77,11 @@ export const DemoApp: React.FC = () => {
     const [showInputModal, setShowInputModal] = useState(false);
     const [showCommandPalette, setShowCommandPalette] = useState(false);
     const [appMode, setAppMode] = useState<'draft' | 'audit' | 'presentation'>('draft');
+
+    // [Phase 6] New Collaboration UI State
+    const [showPerfTest, setShowPerfTest] = useState(false);
+    const [showActiveUsers, setShowActiveUsers] = useState(true);
+    const [followingUserId, setFollowingUserId] = useState<number | null>(null);
 
     const handleGlobalCreateConfirm = async (title: string) => {
         const effectiveTitle = title.trim() || 'Untitled Document';
@@ -485,6 +493,47 @@ export const DemoApp: React.FC = () => {
             />
 
             <ModeIndicator mode={appMode} />
+
+            {/* [Phase 6] New Collaboration Components */}
+            {secureNetwork && (
+                <>
+                    {showPerfTest && (
+                        <CollaborationPerformanceTest
+                            awareness={secureNetwork.getSyncProvider().awareness}
+                            doc={clientDoc}
+                        />
+                    )}
+                    {showActiveUsers && (
+                        <ActiveUsersList
+                            awareness={secureNetwork.getSyncProvider().awareness}
+                            localClientId={secureNetwork.getSyncProvider().awareness.clientID}
+                            onFollowUser={setFollowingUserId}
+                        />
+                    )}
+                    <PresenceNotifications
+                        awareness={secureNetwork.getSyncProvider().awareness}
+                        localClientId={secureNetwork.getSyncProvider().awareness.clientID}
+                    />
+                </>
+            )}
+
+            {/* Toggle buttons for collaboration features */}
+            <div className="collab-controls">
+                <button
+                    className={`collab-toggle-btn ${showPerfTest ? 'active' : ''}`}
+                    onClick={() => setShowPerfTest(!showPerfTest)}
+                    title="Toggle Performance Monitor"
+                >
+                    📊
+                </button>
+                <button
+                    className={`collab-toggle-btn ${showActiveUsers ? 'active' : ''}`}
+                    onClick={() => setShowActiveUsers(!showActiveUsers)}
+                    title="Toggle Active Users"
+                >
+                    👥
+                </button>
+            </div>
         </div>
     );
 };
