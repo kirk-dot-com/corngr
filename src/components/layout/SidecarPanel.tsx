@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { sidecarStore, ChatMessage } from '../stores/SidecarStore';
-import { agentService } from '../services/AgentService';
+import { sidecarStore, ChatMessage } from '../../stores/SidecarStore'; // Fixed: ../../
+import { agentService } from '../../services/AgentService';   // Fixed: ../../
 import * as Y from 'yjs';
 import './SidecarPanel.css';
 
@@ -9,62 +9,77 @@ interface SidecarPanelProps {
 }
 
 export const SidecarPanel: React.FC<SidecarPanelProps> = ({ yDoc }) => {
+    const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isThinking, setIsThinking] = useState(false);
-    const [input, setInput] = useState('');
+    const [inputValue, setInputValue] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Subscribe to Store
     useEffect(() => {
         const update = () => {
+            setIsOpen(sidecarStore.isOpen);
             setMessages(sidecarStore.getMessages());
             setIsThinking(sidecarStore.isThinking);
         };
+
+        // Initial state
         update();
-        return sidecarStore.subscribe(update);
+
+        const unsubscribe = sidecarStore.subscribe(update);
+        return () => { unsubscribe(); };
     }, []);
 
-    // Auto-scroll
+    // Auto-scroll to bottom
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, isThinking]);
+    }, [messages, isThinking, isOpen]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!input.trim()) return;
+        if (!inputValue.trim()) return;
 
-        const p = input;
-        setInput('');
+        const prompt = inputValue;
+        setInputValue('');
 
-        // Add User Message
-        sidecarStore.addMessage('user', p);
+        // 1. Add User Message
+        sidecarStore.addMessage('user', prompt);
 
-        // Call Agent
-        await agentService.processPrompt(p, yDoc);
+        // 2. Send to Agent
+        await agentService.processPrompt(prompt, yDoc);
     };
 
-    if (!sidecarStore.isOpen) return null;
+    if (!isOpen) return null;
 
     return (
         <div className="sidecar-panel">
             <div className="sidecar-header">
-                <h3>🤖 AI Companion</h3>
-                <button className="close-btn" onClick={() => sidecarStore.toggle(false)}>×</button>
+                <h3>✨ AI Companion</h3>
+                <button className="close-btn" onClick={() => sidecarStore.toggle(false)}>
+                    &times;
+                </button>
             </div>
 
             <div className="sidecar-messages">
-                {messages.map(msg => (
+                {messages.map((msg) => (
                     <div key={msg.id} className={`message ${msg.role}`}>
-                        <div className="message-content">{msg.content}</div>
-                        <div className="message-time">
-                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        <div className="message-role">
+                            {msg.role === 'assistant' ? '🤖' : '👤'}
+                        </div>
+                        <div className="message-content">
+                            {msg.content}
                         </div>
                     </div>
                 ))}
 
                 {isThinking && (
                     <div className="message assistant thinking">
-                        <span className="dot">.</span><span className="dot">.</span><span className="dot">.</span>
+                        <div className="message-role">🤖</div>
+                        <div className="message-content">
+                            <span className="dot">.</span>
+                            <span className="dot">.</span>
+                            <span className="dot">.</span>
+                        </div>
                     </div>
                 )}
                 <div ref={messagesEndRef} />
@@ -73,12 +88,14 @@ export const SidecarPanel: React.FC<SidecarPanelProps> = ({ yDoc }) => {
             <form className="sidecar-input" onSubmit={handleSubmit}>
                 <input
                     type="text"
-                    placeholder="Ask AI to edit doc..."
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    disabled={isThinking}
+                    placeholder="Ask about this document..."
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    autoFocus
                 />
-                <button type="submit" disabled={isThinking || !input.trim()}>Send</button>
+                <button type="submit" disabled={!inputValue.trim() || isThinking}>
+                    Send
+                </button>
             </form>
         </div>
     );
