@@ -1,25 +1,16 @@
-export type Role = 'admin' | 'viewer' | 'editor';
-
 export interface UserAttributes {
-    role: Role;
-    department?: string;
-    clearanceLevel?: number;
-    [key: string]: any;
+    role: 'editor' | 'auditor' | 'viewer';
 }
 
 export interface User {
     id: string;
-    attributes: UserAttributes;
+    name: string;
+    role: 'editor' | 'auditor' | 'viewer';
+    color: string;
+    attributes: UserAttributes; // Ensure nesting is correct for ABAC
 }
 
-export interface PermissionRule {
-    resource: string; // The type of resource or specific ID
-    action: 'read' | 'write' | 'admin';
-    conditions?: Record<string, any>; // Attributes that must match
-}
-
-export interface ACL {
-    requiredRoles?: Role[];
-    requiredClearance?: number;
-    requiredDepartment?: string;
+export interface Action {
+    type: string;
+    payload?: any;
 }
