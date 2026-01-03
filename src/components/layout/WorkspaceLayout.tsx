@@ -1,42 +1,57 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import './WorkspaceLayout.css';
+import { SidecarPanel } from './SidecarPanel';
+import { sidecarStore } from '../stores/SidecarStore';
+import * as Y from 'yjs';
 
 interface WorkspaceLayoutProps {
-    sideNav: React.ReactNode;
-    topBar: React.ReactNode;
-    rightPanel?: React.ReactNode;
-    children: React.ReactNode;
-    modals?: React.ReactNode;
+    sideNav: ReactNode;
+    topBar: ReactNode;
+    children: ReactNode;
+    rightPanel?: ReactNode; // Optional utility panel (metadata/marketplace)
+    modals?: ReactNode;
+    yDoc?: Y.Doc; // Add yDoc to props
 }
 
 export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
     sideNav,
     topBar,
-    rightPanel,
     children,
-    modals
+    rightPanel,
+    modals,
+    yDoc
 }) => {
     return (
-        <div className="workspace-layout">
-            {/* Fixed Left Sidebar */}
-            {sideNav}
+        <div className="workspace-container">
+            {/* Fixed Left Navigation */}
+            <div className="workspace-sidenav">
+                {sideNav}
+            </div>
 
-            {/* Main Area */}
-            <div className="workspace-area">
-                <div className="top-bar-container">
+            {/* Main Content Area */}
+            <div className="workspace-main">
+                {/* Fixed Top Bar */}
+                <div className="workspace-topbar">
                     {topBar}
                 </div>
-                <div className="content-area">
+
+                {/* Scrollable Canvas */}
+                <div className="workspace-canvas">
                     {children}
                 </div>
             </div>
 
-            {/* Collapsible Right Panel */}
-            <div className={`utility-panel ${!rightPanel ? 'collapsed' : ''}`}>
-                {rightPanel}
-            </div>
+            {/* Right Utility Panel (Collapsible) - Existing */}
+            {rightPanel && (
+                <div className="workspace-right-panel">
+                    {rightPanel}
+                </div>
+            )}
 
-            {/* Modals / Overlays */}
+            {/* AI Sidecar (Overlay or Collapsible) */}
+            {yDoc && <SidecarPanel yDoc={yDoc} />}
+
+            {/* Absolute Modals */}
             {modals}
         </div>
     );

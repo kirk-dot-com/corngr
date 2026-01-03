@@ -1,128 +1,93 @@
-import React from 'react';
-import { PresenceAvatars } from './collaboration/PresenceAvatars';
+import React, { useEffect, useState } from 'react';
+import { useYjs } from '../yjs/YjsProvider';
+import { UserContext } from '../security/UserContext';
+import { MetadataStore } from '../metadata/MetadataStore';
+import { sidecarStore } from '../stores/SidecarStore';
+import './AppHeader.css';
 
-interface AppHeaderProps {
-    currentDocTitle: string;
-    isSaving: boolean;
-    activeUserCount: number;
-    awareness?: any; // Yjs Awareness
-    showMarketplace: boolean;
-    showMetadataPanel: boolean;
-
-    onShowCommandPalette: () => void;
-    onShowCreateModal: () => void;
-    onToggleMarketplace: () => void;
-    onToggleMetadataPanel: () => void;
-    onToggleHelp: () => void;
-    onSave: () => void;
+interface TopBarProps {
+    title?: string;
+    onToggleMarketplace?: () => void;
+    onToggleMetadata?: () => void;
+    onToggleHelp?: () => void;
+    metadataStore?: MetadataStore;
 }
 
-/**
- * AppHeader (TopBar)
- * 
- * Simplified for the Unified Workspace Layout.
- * Handles Document Context, Search Trigger, and Utility Toggles.
- */
-export const AppHeader: React.FC<AppHeaderProps> = ({
-    currentDocTitle,
-    isSaving,
-    activeUserCount,
-    awareness,
-    showMarketplace,
-    showMetadataPanel,
-    onShowCommandPalette,
-    onShowCreateModal,
+export const TopBar: React.FC<TopBarProps> = ({
+    title = 'Untitled Doc',
     onToggleMarketplace,
-    onToggleMetadataPanel,
+    onToggleMetadata,
     onToggleHelp,
-    onSave,
+    metadataStore
 }) => {
+    const { provider, connected, users } = useYjs();
+    const { user } = React.useContext(UserContext);
+    const [status, setStatus] = React.useState('Offline');
+
+    // Subscribe to Sidecar State for UI button active state
+    const [isSidecarOpen, setSidecarOpen] = useState(false);
+    useEffect(() => {
+        const update = () => setSidecarOpen(sidecarStore.isOpen);
+        update();
+        return sidecarStore.subscribe(update);
+    }, []);
+
+    React.useEffect(() => {
+        if (!connected) setStatus('Reconnecting...');
+        else setStatus('Saved');
+    }, [connected]);
+
     return (
-        <header className="app-top-bar" style={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'space-between' }}>
-            {/* Left: Document Context */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ fontWeight: 600, fontSize: '1.1rem', color: '#1a202c' }}>{currentDocTitle || 'Untitled Document'}</div>
-                <div style={{ fontSize: '0.8rem', color: '#718096', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {isSaving ? <span style={{ color: '#ed8936' }}>☁️ Syncing...</span> : <span style={{ color: '#48bb78' }}>✓ Saved</span>}
+        <header className="top-bar">
+            {/* Left: Context */}
+            <div className="top-bar-left">
+                <div className="doc-icon">📄</div>
+                <div className="doc-info">
+                    <span className="doc-title">{title}</span>
+                    <span className="doc-status">{status}</span>
                 </div>
             </div>
 
-            {/* Center: Omni Search */}
-            <button
-                onClick={onShowCommandPalette}
-                style={{
-                    background: '#f7fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    padding: '8px 16px',
-                    color: '#a0aec0',
-                    fontSize: '0.9rem',
-                    cursor: 'pointer',
-                    width: '320px',
-                    textAlign: 'left',
-                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)'
-                }}
-            >
-                🔍 Search or type command... (⌘K)
-            </button>
+            {/* Center: Search (Omnibox) */}
+            <div className="top-bar-center">
+                <div className="omnibox">
+                    <span className="search-icon">🔍</span>
+                    <input type="text" placeholder="Search or Type a command..." />
+                    <span className="shortcut">⌘K</span>
+                </div>
+            </div>
 
-            {/* Right: Actions & Presence */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {/* Presence */}
-                {awareness && (
-                    <div style={{ marginRight: '16px', display: 'flex', alignItems: 'center' }}>
-                        <PresenceAvatars awareness={awareness} localClientId={awareness.clientID} />
-                        <span style={{ fontSize: '0.8rem', color: '#718096', marginLeft: '6px' }}>{activeUserCount}</span>
+            {/* Right: Actions & Tools */}
+            <div className="top-bar-right">
+
+                {/* Collaboration Avatars */}
+                <div className="presence-cluster">
+                    {users.map(u => (
+                        <div key={u.id} className="avatar" title={u.name} style={{ background: u.color }}>
+                            {u.name[0]}
+                        </div>
+                    ))}
+                    <div className="avatar self" title="You ({user?.name})" style={{ background: user?.color }}>
+                        {user?.name?.[0]}
                     </div>
-                )}
+                </div>
 
-                <ActionBtn onClick={onShowCreateModal} title="New Document" icon="➕" />
                 <Divider />
 
-                <ActionBtn
-                    onClick={onToggleMarketplace}
-                    title="Marketplace"
-                    icon="🛒"
-                    active={showMarketplace}
-                />
-                <ActionBtn
-                    onClick={onToggleMetadataPanel}
-                    title="Metadata Panel"
-                    icon="🏷️"
-                    active={showMetadataPanel}
-                />
-                <ActionBtn
-                    onClick={onToggleHelp}
-                    title="Help"
-                    icon="❓"
-                />
+                <ActionBtn icon="✨" label="Ask AI" active={isSidecarOpen} onClick={() => sidecarStore.toggle()} />
+                <ActionBtn icon="🛍️" label="Extensions" onClick={onToggleMarketplace} />
+                <ActionBtn icon="ⓘ" label="Metadata" onClick={onToggleMetadata} />
+                <ActionBtn icon="?" label="Help" onClick={onToggleHelp} />
+
             </div>
         </header>
     );
 };
 
-const ActionBtn: React.FC<{ onClick: () => void, title: string, icon: string, active?: boolean }> = ({ onClick, title, icon, active }) => (
-    <button
-        onClick={onClick}
-        title={title}
-        style={{
-            background: active ? '#ebf8ff' : 'transparent',
-            border: 'none',
-            fontSize: '1.2rem',
-            cursor: 'pointer',
-            padding: '8px',
-            borderRadius: '6px',
-            transition: 'all 0.2s',
-            color: active ? '#3182ce' : '#4a5568',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-        }}
-    >
-        {icon}
+const ActionBtn = ({ icon, label, onClick, active }: any) => (
+    <button className={`action-btn ${active ? 'active' : ''}`} onClick={onClick} title={label}>
+        <span className="icon">{icon}</span>
     </button>
 );
 
-const Divider = () => (
-    <div style={{ width: '1px', height: '24px', background: '#e2e8f0', margin: '0 8px' }}></div>
-);
+const Divider = () => <div className="divider" />;
