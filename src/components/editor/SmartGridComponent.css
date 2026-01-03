@@ -1,0 +1,177 @@
+.smart-grid-wrapper {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    margin: 20px 0;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+}
+
+.smart-grid-header {
+    background: #f7fafc;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.grid-title {
+    font-weight: 600;
+    color: #2d3748;
+    font-size: 0.9rem;
+}
+
+.grid-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.grid-btn {
+    padding: 6px 12px;
+    border: 1px solid #cbd5e0;
+    background: white;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #4a5568;
+}
+
+.grid-btn:hover {
+    background: #f7fafc;
+    border-color: #a0aec0;
+}
+
+.grid-btn.magic {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 2px 4px rgba(118, 75, 162, 0.3);
+}
+
+.grid-btn.magic:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.grid-btn.analyze {
+    background: #48bb78;
+    color: white;
+    border: none;
+}
+
+.grid-btn.analyze:hover {
+    background: #38a169;
+}
+
+.smart-grid-container-scroll {
+    overflow-x: auto;
+    max-height: 400px;
+}
+
+.smart-grid-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.smart-grid-table th {
+    text-align: left;
+    background: #f8fafc;
+    padding: 8px 12px;
+    border-right: 1px solid #edf2f7;
+    border-bottom: 2px solid #e2e8f0;
+    color: #718096;
+    font-weight: 600;
+    font-size: 0.8rem;
+    position: sticky;
+    top: 0;
+}
+
+.smart-grid-table td {
+    border-right: 1px solid #edf2f7;
+    border-bottom: 1px solid #edf2f7;
+    padding: 0;
+}
+
+.smart-grid-table input {
+    width: 100%;
+    border: none;
+    padding: 8px 12px;
+    outline: none;
+    font-family: inherit;
+    background: transparent;
+}
+
+.smart-grid-table input:focus {
+    background: #ebf8ff;
+    box-shadow: inset 0 0 0 2px #4299e1;
+}
+
+.magic-cell {
+    background: #faf5ff !important;
+    color: #553c9a;
+}
+
+.add-row-btn {
+    padding: 12px;
+    background: none;
+    border: none;
+    border-top: 1px solid #e2e8f0;
+    color: #718096;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-align: left;
+}
+
+.add-row-btn:hover {
+    background: #f7fafc;
+    color: #4a5568;
+}
+
+/* Analysis Overlay */
+.analysis-overlay {
+    background: linear-gradient(to right, #e6fffa, #ebf8ff);
+    border-bottom: 1px solid #b2f5ea;
+    padding: 12px 16px;
+    font-size: 0.9rem;
+    color: #2c7a7b;
+    animation: slideDown 0.3s ease-out;
+    display: flex;
+    align-items: flex-start;
+}
+
+.analysis-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.analysis-close {
+    margin-left: auto;
+    cursor: pointer;
+    font-size: 1.2rem;
+    opacity: 0.6;
+}
+
+.analysis-close:hover {
+    opacity: 1;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-10px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
