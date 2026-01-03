@@ -49,13 +49,17 @@ export class TauriWebSocketProvider {
         })
 
         // Log connection errors
-        this.provider.on('connection-error', (error: Error) => {
+        this.provider.on('connection-error', (error: Event) => {
             console.error(`❌ WebSocket connection error:`, error)
         })
 
         // Log when connection closes
-        this.provider.on('connection-close', (event: CloseEvent) => {
-            console.log(`🔌 Connection closed (code: ${event.code}, reason: ${event.reason})`)
+        this.provider.on('connection-close', (event: CloseEvent | null) => {
+            if (event) {
+                console.log(`🔌 Connection closed (code: ${event.code}, reason: ${event.reason})`)
+            } else {
+                console.log(`🔌 Connection closed`)
+            }
         })
     }
 
