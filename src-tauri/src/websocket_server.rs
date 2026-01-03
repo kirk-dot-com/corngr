@@ -4,7 +4,11 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::RwLock;
-use tokio_tungstenite::{accept_async, tungstenite::Message};
+use tokio_tungstenite::{
+    accept_hdr_async,
+    tungstenite::handshake::server::{Request, Response},
+    tungstenite::Message,
+};
 use yrs::updates::decoder::Decode;
 use yrs::{Doc, ReadTxn, Transact};
 
@@ -66,14 +70,35 @@ impl CollabServer {
     ) -> Result<(), Box<dyn std::error::Error>> {
         println!("✅ New connection from: {}", addr);
 
-        let ws_stream = accept_async(stream).await?;
+        // Extract room name from HTTP request path during WebSocket handshake
+        let room_name_arc = Arc::new(RwLock::new("default".to_string()));
+        let room_name_clone = Arc::clone(&room_name_arc);
+
+        let ws_stream = accept_hdr_async(stream, move |req: &Request, mut response: Response| {
+            // Extract room name from URL path
+            // y-websocket connects to ws://host:port/roomname
+            let path = req.uri().path();
+            let extracted_room = path.trim_start_matches('/');
+
+            let mut room_guard = room_name_clone.blocking_write();
+            if !extracted_room.is_empty() {
+                *room_guard = extracted_room.to_string();
+                println!("📍 Room extracted from URL: {}", extracted_room);
+            } else {
+                println!("⚠️  No room in URL path, using 'default'");
+            }
+            drop(room_guard);
+
+            Ok(response)
+        })
+        .await?;
+
+        let room_name = room_name_arc.read().await.clone();
+
         let (mut ws_sender, mut ws_receiver) = ws_stream.split();
 
         // Channel for sending messages to this client
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Message>();
-
-        // Default room - in production, extract from URL or first message
-        let room_name = "default".to_string();
         let client_id = rand::random::<u64>();
 
         // Add client to room and get initial sync message
