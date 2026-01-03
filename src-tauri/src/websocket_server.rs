@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::RwLock;
+use tokio::sync::RwLock; // Used for rooms
 use tokio_tungstenite::{
     accept_hdr_async,
     tungstenite::handshake::server::{Request, Response},
@@ -120,7 +120,8 @@ impl CollabServer {
         println!("✅ New connection from: {}", addr);
 
         // Extract room name from HTTP request path during WebSocket handshake
-        let room_name_arc = Arc::new(RwLock::new("default".to_string()));
+        // use std::sync::Mutex to allow locking inside synchronous closure
+        let room_name_arc = Arc::new(std::sync::Mutex::new("default".to_string()));
         let room_name_clone = Arc::clone(&room_name_arc);
 
         let ws_stream = accept_hdr_async(stream, move |req: &Request, response: Response| {
@@ -129,7 +130,7 @@ impl CollabServer {
             let path = req.uri().path();
             let extracted_room = path.trim_start_matches('/');
 
-            let mut room_guard = room_name_clone.blocking_write();
+            let mut room_guard = room_name_clone.lock().unwrap();
             if !extracted_room.is_empty() {
                 *room_guard = extracted_room.to_string();
             } else {
@@ -141,7 +142,7 @@ impl CollabServer {
         })
         .await?;
 
-        let room_name = room_name_arc.read().await.clone();
+        let room_name = room_name_arc.lock().unwrap().clone();
 
         let (mut ws_sender, mut ws_receiver) = ws_stream.split();
 
