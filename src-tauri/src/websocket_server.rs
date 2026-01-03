@@ -5,12 +5,13 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::RwLock; // Used for rooms
+use tokio::sync::RwLock;
 use tokio_tungstenite::{
     accept_hdr_async,
     tungstenite::handshake::server::{Request, Response},
     tungstenite::Message,
 };
+use y_sync::sync::{Message as YSyncMessage, SyncMessage};
 use yrs::updates::decoder::Decode;
 use yrs::{Doc, ReadTxn, StateVector, Transact};
 
@@ -120,13 +121,10 @@ impl CollabServer {
         println!("✅ New connection from: {}", addr);
 
         // Extract room name from HTTP request path during WebSocket handshake
-        // use std::sync::Mutex to allow locking inside synchronous closure
         let room_name_arc = Arc::new(std::sync::Mutex::new("default".to_string()));
         let room_name_clone = Arc::clone(&room_name_arc);
 
         let ws_stream = accept_hdr_async(stream, move |req: &Request, response: Response| {
-            // Extract room name from URL path
-            // y-websocket connects to ws://host:port/roomname
             let path = req.uri().path();
             let extracted_room = path.trim_start_matches('/');
 
@@ -145,22 +143,17 @@ impl CollabServer {
         let room_name = room_name_arc.lock().unwrap().clone();
 
         let (mut ws_sender, mut ws_receiver) = ws_stream.split();
-
-        // Channel for sending messages to this client
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Message>();
         let client_id = rand::random::<u64>();
 
-        // Add client to room and get initial sync message
         let sync_message = self
             .add_client_to_room(&room_name, client_id, tx.clone())
             .await?;
 
-        // Send initial sync to client
         if let Some(msg) = sync_message {
             let _ = tx.send(Message::Binary(msg));
         }
 
-        // Spawn task to forward messages from tx channel to WebSocket
         let mut send_task = tokio::spawn(async move {
             while let Some(msg) = rx.recv().await {
                 if ws_sender.send(msg).await.is_err() {
@@ -169,13 +162,13 @@ impl CollabServer {
             }
         });
 
-        // Process incoming messages
+        // Loop: Receive messages
         loop {
             tokio::select! {
                 msg = ws_receiver.next() => {
                     match msg {
                         Some(Ok(Message::Binary(data))) => {
-                            // Broadcast binary message to all other clients in room
+                            // 1. Broadcast to others (raw protocol message)
                             if let Err(e) = self.broadcast_to_room(
                                 &room_name,
                                 data.clone(),
@@ -184,9 +177,18 @@ impl CollabServer {
                                 eprintln!("❌ Error broadcasting message: {}", e);
                             }
 
-                            // Also apply update to server's document and save
-                            if let Err(e) = self.apply_update_to_room(&room_name, &data).await {
-                                eprintln!("❌ Error applying update: {}", e);
+                            // 2. Snoop on updates to save to disk
+                            // Decode y-sync message
+                            if let Ok(y_msg) = YSyncMessage::decode(&data) {
+                                match y_msg {
+                                    YSyncMessage::Sync(SyncMessage::Update(update_data)) => {
+                                        // This is an update! Apply to server doc.
+                                        if let Err(e) = self.apply_update_to_room(&room_name, &update_data).await {
+                                            eprintln!("❌ Error applying update: {}", e);
+                                        }
+                                    }
+                                    _ => {} // Ignore Auth, Awareness, etc. for server-side doc state
+                                }
                             }
                         }
                         Some(Ok(Message::Close(_))) | None => {
@@ -207,7 +209,6 @@ impl CollabServer {
             }
         }
 
-        // Clean up: Remove client from room
         self.remove_client_from_room(&room_name, client_id).await;
 
         Ok(())
@@ -221,16 +222,25 @@ impl CollabServer {
         tx: tokio::sync::mpsc::UnboundedSender<Message>,
     ) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
         let mut rooms = self.rooms.write().await;
-
-        // Get or create room
         let room = rooms
             .entry(room_name.to_string())
             .or_insert_with(|| Room::new(room_name.to_string()));
 
-        // Add client to room
         room.clients.push(ClientConnection { client_id, tx });
 
-        // Get current document state for initial sync
+        // Get Sync Step 1 (or 2?)
+        // Actually, servers usually just wait for client to ask?
+        // But y-websocket text says: "Send sync step 1"
+        // Let's iterate using y-sync helper?
+        // For now, let's keep the existing logic which sends a raw update?
+        // Wait, line 186 in previous version: `txn.encode_diff_v1(&state_vector)`
+        // This generates an UPDATE.
+        // Sync protocol expects: `0` (Sync) `2` (Update) `len` `data`.
+        // If I send just `data`, the client might fail to decode it if it expects protocol?
+        // YES. My previous `Step 38` sent raw update without prefix.
+        // Client probably ignored it.
+
+        // I need to wrap it in SyncMessage::Update
         let txn = room.doc.transact();
         let state_vector = txn.state_vector();
         let update = txn.encode_diff_v1(&state_vector);
@@ -242,11 +252,13 @@ impl CollabServer {
             room.clients.len()
         );
 
-        Ok(if update.is_empty() {
-            None
+        if !update.is_empty() {
+            let msg = SyncMessage::Update(update).encode_v1();
+            // msg is Vec<u8> with prefix
+            Ok(Some(msg))
         } else {
-            Some(update)
-        })
+            Ok(None)
+        }
     }
 
     /// Broadcast a message to all clients in a room except sender
@@ -283,9 +295,7 @@ impl CollabServer {
             let mut txn = room.doc.transact_mut();
             txn.apply_update(yrs::Update::decode_v1(update)?);
 
-            // Trigger save
-            // Note: In production, you might want to debounce this or use a separate thread
-            drop(txn); // Drop transaction before saving
+            drop(txn);
             room.save();
         }
 
@@ -306,7 +316,6 @@ impl CollabServer {
                 room.clients.len()
             );
 
-            // Remove room if empty?
             if room.clients.is_empty() {
                 rooms.remove(room_name);
                 println!("🗑️  Room '{}' unloaded (no clients)", room_name);
