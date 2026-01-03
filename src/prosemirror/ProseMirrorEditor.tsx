@@ -17,6 +17,7 @@ import { createBlockIdPlugin } from './BlockIdPlugin';
 import { CollaboratorCursor } from '../components/collaboration/CollaboratorCursor';
 import { SlashCommandMenu, CommandItem } from '../components/editor/SlashCommandMenu';
 import { createSlashCommandPlugin } from '../components/editor/plugins/SlashCommandPlugin';
+import { marketplaceStore } from '../stores/MarketplaceStore'; // Import Store
 import './editor.css';
 import './cursor.css';
 
@@ -43,6 +44,22 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
     const viewRef = useRef<EditorView | null>(null);
     const [currentView, setCurrentView] = useState<EditorView | null>(null);
 
+    // Marketplace State
+    const [installedCapabilities, setInstalledCapabilities] = useState<string[]>([]);
+
+    useEffect(() => {
+        // Subscribe to capability changes
+        const updateCaps = () => {
+            const caps: string[] = [];
+            marketplaceStore.getProducts().forEach(p => {
+                if (p.installed) caps.push(...p.capabilities);
+            });
+            setInstalledCapabilities(caps);
+        };
+        updateCaps();
+        return marketplaceStore.subscribe(updateCaps);
+    }, []);
+
     // Slash Command State
     const [slashState, setSlashState] = useState<{
         active: boolean;
@@ -59,77 +76,90 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
     });
 
     // Define Commands
-    const commands: CommandItem[] = useMemo(() => [
-        {
-            id: 'text',
-            label: 'Text',
-            icon: '📝',
-            description: 'Just start writing with plain text.',
-            action: (view) => {
-                const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.paragraph.create());
-                view.dispatch(tr);
+    const commands: CommandItem[] = useMemo(() => {
+        const baseCommands: CommandItem[] = [
+            {
+                id: 'text',
+                label: 'Text',
+                icon: '📝',
+                description: 'Just start writing with plain text.',
+                action: (view) => {
+                    const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.paragraph.create());
+                    view.dispatch(tr);
+                }
+            },
+            {
+                id: 'h1',
+                label: 'Heading 1',
+                icon: 'H1',
+                description: 'Big section heading.',
+                action: (view) => {
+                    const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.heading.create({ level: 1 }));
+                    view.dispatch(tr);
+                }
+            },
+            {
+                id: 'h2',
+                label: 'Heading 2',
+                icon: 'H2',
+                description: 'Medium section heading.',
+                action: (view) => {
+                    const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.heading.create({ level: 2 }));
+                    view.dispatch(tr);
+                }
+            },
+            {
+                id: 'bullet_list',
+                label: 'Bullet List',
+                icon: '•',
+                description: 'Create a simple bulleted list.',
+                action: (view) => {
+                    const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.bullet_list.create(null, corngrSchema.nodes.list_item.create(null, corngrSchema.nodes.paragraph.create())));
+                    view.dispatch(tr);
+                }
+            },
+            {
+                id: 'code_block',
+                label: 'Code Block',
+                icon: '💻',
+                description: 'Capture a code snippet.',
+                action: (view) => {
+                    const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.code_block.create());
+                    view.dispatch(tr);
+                }
             }
-        },
-        {
-            id: 'h1',
-            label: 'Heading 1',
-            icon: 'H1',
-            description: 'Big section heading.',
-            action: (view) => {
-                const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.heading.create({ level: 1 }));
-                view.dispatch(tr);
-            }
-        },
-        {
-            id: 'h2',
-            label: 'Heading 2',
-            icon: 'H2',
-            description: 'Medium section heading.',
-            action: (view) => {
-                const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.heading.create({ level: 2 }));
-                view.dispatch(tr);
-            }
-        },
-        {
-            id: 'h3',
-            label: 'Heading 3',
-            icon: 'H3',
-            description: 'Small section heading.',
-            action: (view) => {
-                const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.heading.create({ level: 3 }));
-                view.dispatch(tr);
-            }
-        },
-        {
-            id: 'bullet_list',
-            label: 'Bullet List',
-            icon: '•',
-            description: 'Create a simple bulleted list.',
-            action: (view) => {
-                const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.bullet_list.create(null, corngrSchema.nodes.list_item.create(null, corngrSchema.nodes.paragraph.create())));
-                view.dispatch(tr);
-            }
-        },
-        {
-            id: 'code_block',
-            label: 'Code Block',
-            icon: '💻',
-            description: 'Capture a code snippet.',
-            action: (view) => {
-                const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.code_block.create());
-                view.dispatch(tr);
-            }
-        },
-        {
-            id: 'marketplace_caps',
-            label: 'Marketplace Capabilities',
-            icon: '🛒',
-            description: 'Browse installed blocks...',
-            action: (view) => {
-                console.log("Open marketplace placeholder");
-            }
+        ];
+
+        // Dynamic Commands based on Capabilities
+        if (installedCapabilities.includes('block:symptom')) {
+            baseCommands.push({
+                id: 'symptom_triage',
+                label: 'Details: Symptom Check',
+                icon: '🩺',
+                description: 'Insert a medical triage block.',
+                action: (view) => {
+                    // Start of Mock implementation
+                    const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.paragraph.create(null, view.state.schema.text("Patient reports [SYMPTOM] duration [DURATION]...")));
+                    view.dispatch(tr);
+                }
+            });
         }
-    ], [slashState.range]);
+
+        if (installedCapabilities.includes('block:clause')) {
+            baseCommands.push({
+                id: 'legal_clause',
+                label: 'Legal: Liability Clause',
+                icon: '⚖️',
+                description: 'Insert standard liability wrapper.',
+                action: (view) => {
+                    const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.code_block.create(null, view.state.schema.text("SECTION 5.1: LIMITATION OF LIABILITY\nThe Provider shall not be liable for...")));
+                    view.dispatch(tr);
+                }
+            });
+        }
+
+        return baseCommands;
+    }, [slashState.range, installedCapabilities]);
 
     // Filter commands
     const filteredCommands = useMemo(() => {
