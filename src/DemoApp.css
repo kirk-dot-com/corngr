@@ -470,7 +470,7 @@ select:focus {
 
 /* Responsive */
 @media (max-width: 1024px) {
-    . demo-content {
+    .demo-content {
         flex-direction: column;
         overflow-y: auto;
     }

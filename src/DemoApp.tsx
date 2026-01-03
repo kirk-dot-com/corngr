@@ -39,9 +39,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     realtime: {
         params: {
             eventsPerSecond: 10,
-        },
-        // Force use of browser native WebSocket
-        websocket: (typeof window !== 'undefined' && window.WebSocket) ? window.WebSocket : undefined
+        }
     }
 });
 
@@ -81,7 +79,7 @@ export const DemoApp: React.FC = () => {
     // [Phase 6] New Collaboration UI State
     const [showPerfTest, setShowPerfTest] = useState(false);
     const [showActiveUsers, setShowActiveUsers] = useState(true);
-    const [followingUserId, setFollowingUserId] = useState<number | null>(null);
+    const [_followingUserId, setFollowingUserId] = useState<number | null>(null);
 
     const handleGlobalCreateConfirm = async (title: string) => {
         const effectiveTitle = title.trim() || 'Untitled Document';
@@ -435,7 +433,7 @@ export const DemoApp: React.FC = () => {
                         editorView={editorView}
                         appMode={appMode}
                         onBlockSelect={setSelectedBlockId}
-                        editorContainerRef={editorContainerRef}
+                        editorContainerRef={editorContainerRef as React.RefObject<HTMLDivElement>}
                     />
                 )}
                 {(view === 'split' || view === 'slides') && (
