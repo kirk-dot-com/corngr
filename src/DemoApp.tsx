@@ -4,13 +4,13 @@ import { UserContext } from './security/UserContext';
 import { MetadataStore } from './metadata/MetadataStore';
 import { WorkspaceLayout } from './components/layout/WorkspaceLayout';
 import { SideNav } from './components/layout/SideNav';
-import { TopBar } from './components/AppHeader'; // Refactored Header
+import { TopBar } from './components/AppHeader';
 import { ProseMirrorEditor } from './prosemirror/ProseMirrorEditor';
 import { SlideRenderer } from './components/slides/SlideRenderer';
 import { GovernanceDashboard } from './components/governance/GovernanceDashboard';
 import { MarketplaceSidebar } from './components/MarketplaceSidebar';
-import { MetadataPanel } from './components/metadata/MetadataPanel';
-import { HelpModal } from './components/HelpModal';
+import { MetadataPanel } from './components/MetadataPanel';
+import { HelpPanel } from './components/HelpPanel';
 import './DemoApp.css';
 import { User } from './security/types';
 
@@ -24,7 +24,7 @@ export const DemoApp: React.FC = () => {
         name: 'Local User',
         role: 'editor',
         color: '#3b82f6',
-        attributes: {}
+        attributes: { role: 'editor' }
     });
 
     const [appMode, setAppMode] = useState<'editor' | 'slides' | 'split' | 'governance'>('split');
@@ -56,14 +56,14 @@ export const DemoApp: React.FC = () => {
                     }
                     rightPanel={
                         (showMarketplace) ? (
-                            <MarketplaceSidebar onImportBlock={(blockData) => { /* Mock or future logic */ }} />
+                            <MarketplaceSidebar onImportBlock={(blockData) => { console.log(blockData); }} />
                         ) : (showMetadataPanel && metadataStore) ? (
                             <MetadataPanel store={metadataStore} onClose={() => setShowMetadataPanel(false)} />
                         ) : null
                     }
                     modals={
                         <>
-                            {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+                            <HelpPanel isOpen={showHelp} onClose={() => setShowHelp(false)} />
                         </>
                     }
                     yDoc={yDoc}

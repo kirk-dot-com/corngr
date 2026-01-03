@@ -1,7 +1,7 @@
 import React, { ReactNode } from 'react';
 import './WorkspaceLayout.css';
 import { SidecarPanel } from './SidecarPanel';
-import { sidecarStore } from '../stores/SidecarStore';
+import { sidecarStore } from '../../stores/SidecarStore'; // Corrected Path
 import * as Y from 'yjs';
 
 interface WorkspaceLayoutProps {
