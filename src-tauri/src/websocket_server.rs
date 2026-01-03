@@ -2,7 +2,7 @@ use futures_util::{SinkExt, StreamExt};
 use std::collections::HashMap;
 use std::fs;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::RwLock;
@@ -34,8 +34,13 @@ impl Room {
                 data.len()
             );
             let mut txn = doc.transact_mut();
-            if let Err(e) = txn.apply_update(yrs::Update::decode_v1(&data).unwrap()) {
-                eprintln!("❌ Failed to apply snapshot for room '{}': {}", name, e);
+            match yrs::Update::decode_v1(&data) {
+                Ok(update) => {
+                    txn.apply_update(update);
+                }
+                Err(e) => {
+                    eprintln!("❌ Failed to decode snapshot for room '{}': {}", name, e);
+                }
             }
         }
         Self {
@@ -51,8 +56,6 @@ impl Room {
         let update = txn.encode_state_as_update_v1(&state_vector);
         if let Err(e) = save_snapshot(&self.name, &update) {
             eprintln!("❌ Failed to save snapshot for room '{}': {}", self.name, e);
-        } else {
-            // println!("💾 Saved snapshot for room '{}'", self.name); // Too verbose for every keypress
         }
     }
 }
@@ -129,7 +132,6 @@ impl CollabServer {
             let mut room_guard = room_name_clone.blocking_write();
             if !extracted_room.is_empty() {
                 *room_guard = extracted_room.to_string();
-                // println!("📍 Room extracted from URL: {}", extracted_room);
             } else {
                 println!("⚠️  No room in URL path, using 'default'");
             }
@@ -282,7 +284,7 @@ impl CollabServer {
 
             // Trigger save
             // Note: In production, you might want to debounce this or use a separate thread
-            drop(txn); // Drop transaction before saving to avoid deadlocks/conflicts if save uses doc
+            drop(txn); // Drop transaction before saving
             room.save();
         }
 
@@ -304,9 +306,6 @@ impl CollabServer {
             );
 
             // Remove room if empty?
-            // For persistence, we might want to keep the room in memory for a while,
-            // or just drop it since we saved to disk.
-            // Dropping it frees memory. Recreating it loads from disk.
             if room.clients.is_empty() {
                 rooms.remove(room_name);
                 println!("🗑️  Room '{}' unloaded (no clients)", room_name);
