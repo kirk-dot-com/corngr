@@ -159,6 +159,38 @@ export const corngrSchema = new Schema({
             }
         },
 
+        // [Sprint 5.5] Smart Data Grid (Data Island)
+        'smart_grid': {
+            attrs: {
+                gridId: {}
+            },
+            group: 'block',
+            atom: true,
+            isolating: true,
+            selectable: true,
+            draggable: true,
+            parseDOM: [{
+                tag: 'div[data-type="smart_grid"]',
+                getAttrs(dom) {
+                    const el = dom as HTMLElement;
+                    return {
+                        gridId: el.getAttribute('data-grid-id')
+                    };
+                }
+            }],
+            toDOM(node) {
+                return [
+                    'div',
+                    {
+                        'data-type': 'smart_grid',
+                        'data-grid-id': node.attrs.gridId,
+                        class: 'smart-grid-container'
+                    },
+                    0
+                ];
+            }
+        },
+
         text: {
             group: 'inline'
         }
@@ -253,4 +285,13 @@ export function createHeading(level: number, text: string): PMNode {
         { level },
         text ? corngrSchema.text(text) : null
     );
+}
+
+/**
+ * Helper to create a smart grid
+ */
+export function createSmartGrid(gridId: string): PMNode {
+    return corngrSchema.nodes.smart_grid.create({
+        gridId
+    });
 }
