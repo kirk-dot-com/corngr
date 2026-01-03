@@ -3,6 +3,7 @@ import * as Y from 'yjs';
 import { EditorView } from 'prosemirror-view';
 import { User, Role } from './security/types';
 import { TauriSecureNetwork } from './security/TauriSecureNetwork';
+import { TauriWebSocketProvider } from './providers/TauriWebSocketProvider';
 import { PerformanceMonitor } from './components/PerformanceMonitor';
 import { MarketplaceSidebar, MarketplaceBlock } from './components/MarketplaceSidebar';
 import { GovernanceDashboard } from './components/governance/GovernanceDashboard';
@@ -33,6 +34,9 @@ import { PresenceNotifications } from './components/collaboration/PresenceNotifi
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config/SupabaseConfig';
 
+// Feature Flag: Toggle between Supabase and Tauri WebSocket providers
+const USE_TAURI_WEBSOCKET = true; // Set to false to use Supabase
+
 // [Phase 4] Explicitly configure Realtime to use native WebSocket
 // This prevents fallback to REST which breaks real-time sync
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -58,6 +62,7 @@ export const DemoApp: React.FC = () => {
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const [editorView, setEditorView] = useState<EditorView | null>(null);
     const [secureNetwork, setSecureNetwork] = useState<TauriSecureNetwork | null>(null);
+    const [wsProvider, setWsProvider] = useState<TauriWebSocketProvider | null>(null);
 
     // Security State
     const [currentUser, setCurrentUser] = useState<User>(USERS.admin);
@@ -206,22 +211,71 @@ export const DemoApp: React.FC = () => {
             attributes: currentUser.attributes
         };
 
-        const bridge = new TauriSecureNetwork(cDoc, networkUser, supabase, currentDocId);
-        const awareness = bridge.getSyncProvider().awareness;
-        awareness.setLocalStateField('user', {
-            name: session.user.email || 'Anonymous',
-            color: '#667eea'
-        });
+        if (USE_TAURI_WEBSOCKET) {
+            // NEW: Tauri WebSocket Provider
+            console.log('🚀 Using Tauri WebSocket Provider');
+            const provider = new TauriWebSocketProvider(currentDocId, cDoc);
+            const awareness = provider.awareness;
 
-        setSecureNetwork(bridge);
-        (window as any).tauriNetwork = bridge;
+            awareness.setLocalStateField('user', {
+                name: session.user.email || 'Anonymous',
+                color: '#667eea',
+                id: session.user.id
+            });
 
-        return () => {
-            // [Phase 6] Cleanup Network
-            console.log('🧹 Cleaning up TauriSecureNetwork...');
-            bridge.destroy();
-            cDoc.destroy();
-        };
+            setWsProvider(provider);
+            (window as any).tauriNetwork = provider;
+
+            // Create minimal compatibility layer for secureNetwork
+            const compatBridge: any = {
+                getSyncProvider: () => provider.getSyncProvider(),
+                updateUser: (user: User) => {
+                    awareness.setLocalStateField('user', {
+                        name: `${user.attributes.role} (You)`,
+                        color: user.attributes.role === 'admin' ? '#ff4b2b' : '#667eea',
+                        id: session.user.id
+                    });
+                },
+                save: async () => {
+                    // Auto-save via Supabase
+                    const update = Y.encodeStateAsUpdate(cDoc);
+                    const base64 = btoa(String.fromCharCode(...update));
+                    await supabase.from('documents').update({
+                        content: base64,
+                        updated_at: new Date().toISOString()
+                    }).eq('id', currentDocId);
+                    console.log('💾 Document saved to Supabase');
+                },
+                destroy: () => provider.destroy(),
+                getMetadataStore: () => ({ set: () => { }, get: () => ({}) }), // Minimal stub
+                getReferenceStore: () => ({ addReference: () => { } }) // Minimal stub
+            };
+            setSecureNetwork(compatBridge);
+
+            return () => {
+                console.log('🧹 Cleaning up TauriWebSocketProvider...');
+                provider.destroy();
+                cDoc.destroy();
+            };
+        } else {
+            // LEGACY: Supabase Provider
+            console.log('📡 Using Supabase Provider (legacy)');
+            const bridge = new TauriSecureNetwork(cDoc, networkUser, supabase, currentDocId);
+            const awareness = bridge.getSyncProvider().awareness;
+            awareness.setLocalStateField('user', {
+                name: session.user.email || 'Anonymous',
+                color: '#667eea'
+            });
+
+            setSecureNetwork(bridge);
+            (window as any).tauriNetwork = bridge;
+
+            return () => {
+                console.log('🧹 Cleaning up TauriSecureNetwork...');
+                bridge.destroy();
+                cDoc.destroy();
+            };
+        }
     }, [session, currentDocId]);
 
     // [Phase 6.5] Fetch Title when DocId changes
