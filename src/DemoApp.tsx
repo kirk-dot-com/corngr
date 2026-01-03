@@ -2,22 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as Y from 'yjs';
 import { EditorView } from 'prosemirror-view';
 import { User, Role } from './security/types';
-// Remove TauriSecureNetwork
+
 import { TauriWebSocketProvider } from './providers/TauriWebSocketProvider';
 import { PerformanceMonitor } from './components/PerformanceMonitor';
 import { MarketplaceSidebar, MarketplaceBlock } from './components/MarketplaceSidebar';
 import { GovernanceDashboard } from './components/governance/GovernanceDashboard';
 import { MetadataPanel } from './components/MetadataPanel';
-// Remove PerformanceStressTest
+
 import { generateUUID, BlockMetadata } from './yjs/schema';
 import './DemoApp.css';
 
-// Remove DocumentList (Supabase dependent)
 import { HelpPanel } from './components/HelpPanel';
 import { InputModal } from './components/InputModal';
 import { CommandPalette, CommandAction } from './components/CommandPalette';
 import { ModeIndicator } from './components/ModeIndicator';
-import { AppHeader } from './components/AppHeader';
+import { AppHeader } from './components/AppHeader'; // Now TopBar style
 import { EditorPanel } from './components/editor/EditorPanel';
 import { SlidesPanel } from './components/editor/SlidesPanel';
 import { CollaborationPerformanceTest } from './components/collaboration/CollaborationPerformanceTest';
@@ -26,6 +25,10 @@ import { PresenceNotifications } from './components/collaboration/PresenceNotifi
 
 import { MetadataStore } from './metadata/MetadataStore';
 import { GlobalReferenceStore } from './security/GlobalReferenceStore';
+
+// Layout Components
+import { WorkspaceLayout } from './components/layout/WorkspaceLayout';
+import { SideNav, ViewMode } from './components/layout/SideNav';
 
 // Mock Users
 const USERS: Record<Role, User> = {
@@ -44,7 +47,7 @@ export const DemoApp: React.FC = () => {
     // Phase 1 Architecture:
     const [clientDoc, setClientDoc] = useState<Y.Doc | null>(null);
 
-    const [view, setView] = useState<'split' | 'editor' | 'slides' | 'governance'>('split');
+    const [view, setView] = useState<ViewMode>('split');
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const [editorView, setEditorView] = useState<EditorView | null>(null);
 
@@ -127,9 +130,6 @@ export const DemoApp: React.FC = () => {
     const handleSave = async () => {
         setIsSaving(true);
         console.log("💾 Triggering Save on Server...");
-        // In Yjs WebSocket, data is auto-synced.
-        // We could send a custom message or just rely on sync.
-        // For visual feedback:
         setTimeout(() => setIsSaving(false), 800);
     };
 
@@ -200,8 +200,7 @@ export const DemoApp: React.FC = () => {
             clientDoc.transact(() => {
                 const content = clientDoc.getArray('content');
                 if (content.length > 0) {
-                    // Simple mutation for testing
-                    // (omitted complex logic for brevity)
+                    // Simple mutation
                 }
             });
         }, 50);
@@ -281,38 +280,79 @@ export const DemoApp: React.FC = () => {
 
     if (!clientDoc) return <div className="demo-app loading"><div className="loading-spinner"><h1>Connecting to Local Cloud...</h1></div></div>;
 
+    // --- Layout Composition ---
+
+    const rightPanelContent = showMarketplace ? (
+        <MarketplaceSidebar
+            onImportBlock={handleImportBlock}
+            onClose={() => setShowMarketplace(false)}
+        />
+    ) : showMetadataPanel ? (
+        <MetadataPanel
+            selectedBlockId={selectedBlockId}
+            metadataStore={metadataStore}
+            user={currentUser}
+            onClose={() => setShowMetadataPanel(false)}
+            onSave={handleSave}
+        />
+    ) : null;
+
     return (
-        <div className="demo-app">
+        <WorkspaceLayout
+            sideNav={
+                <SideNav
+                    currentView={view}
+                    currentUser={currentUser}
+                    onViewChange={setView}
+                    onRoleChange={() => {
+                        const roles: Role[] = ['admin', 'editor', 'viewer'];
+                        const nextIdx = (roles.indexOf(currentUser.attributes.role) + 1) % roles.length;
+                        setCurrentUser(USERS[roles[nextIdx]]);
+                    }}
+                />
+            }
+            topBar={
+                <AppHeader
+                    currentDocTitle={currentDocTitle}
+                    isSaving={isSaving}
+                    activeUserCount={activeUserCount}
+                    awareness={wsProvider?.awareness}
+                    showMarketplace={showMarketplace}
+                    showMetadataPanel={showMetadataPanel}
+                    onShowCommandPalette={() => setShowCommandPalette(true)}
+                    onShowCreateModal={() => setShowInputModal(true)}
+                    onToggleMarketplace={() => { setShowMarketplace(!showMarketplace); if (!showMarketplace) setShowMetadataPanel(false); }}
+                    onToggleMetadataPanel={() => { setShowMetadataPanel(!showMetadataPanel); if (!showMetadataPanel) setShowMarketplace(false); }}
+                    onToggleHelp={() => setShowHelp(!showHelp)}
+                    onSave={handleSave}
+                />
+            }
+            rightPanel={rightPanelContent}
+            modals={
+                <>
+                    <HelpPanel isOpen={showHelp} onClose={() => setShowHelp(false)} />
+                    <InputModal
+                        isOpen={showInputModal}
+                        title="Create New Document"
+                        placeholder="Untitled Document"
+                        confirmLabel="Create"
+                        onCancel={() => setShowInputModal(false)}
+                        onConfirm={handleGlobalCreateConfirm}
+                    />
+                    <CommandPalette
+                        isOpen={showCommandPalette}
+                        onClose={() => setShowCommandPalette(false)}
+                        actions={commandActions}
+                    />
+                    <ModeIndicator mode={appMode} />
+                </>
+            }
+        >
+            {/* Main Content Area */}
+            {/* Performance Monitor is typically absolute or top, keep it for now */}
             <PerformanceMonitor yDoc={clientDoc} />
 
-            <AppHeader
-                currentDocId={currentDocId}
-                currentDocTitle={currentDocTitle}
-                currentView={view}
-                autoMutate={autoMutate}
-                showMarketplace={showMarketplace}
-                showMetadataPanel={showMetadataPanel}
-                showHelp={showHelp}
-                isSaving={isSaving}
-                activeUserCount={activeUserCount}
-                currentRole={currentUser.attributes.role}
-                awareness={wsProvider?.awareness}
-                onBack={() => { /* No Dashboard for now */ }}
-                onViewChange={setView}
-                onToggleAutoMutate={() => setAutoMutate(!autoMutate)}
-                onInsertTransclusion={insertGlobalTransclusion}
-                onInjectMassiveData={injectMassiveData}
-                onRunStressTest={handleStressTest}
-                onToggleMarketplace={() => setShowMarketplace(!showMarketplace)}
-                onToggleMetadataPanel={() => setShowMetadataPanel(!showMetadataPanel)}
-                onToggleHelp={() => setShowHelp(!showHelp)}
-                onSave={handleSave}
-                onRoleChange={(role) => setCurrentUser(USERS[role])}
-                onShowCommandPalette={() => setShowCommandPalette(true)}
-                onShowCreateModal={() => setShowInputModal(true)}
-            />
-
-            <div className={`demo-content view-${view}`}>
+            <div className={`demo-content view-${view}`} style={{ height: '100%', overflow: 'hidden' }}>
                 {(view === 'split' || view === 'editor') && (
                     <EditorPanel
                         yDoc={clientDoc}
@@ -321,7 +361,7 @@ export const DemoApp: React.FC = () => {
                         awareness={wsProvider?.awareness || null}
                         editorView={editorView}
                         appMode={appMode}
-                        onBlockSelect={setSelectedBlockId}
+                        onBlockSelect={(id) => { setSelectedBlockId(id); if (id && !showMetadataPanel && !showMarketplace) setShowMetadataPanel(true); }}
                         editorContainerRef={editorContainerRef as React.RefObject<HTMLDivElement>}
                     />
                 )}
@@ -329,78 +369,14 @@ export const DemoApp: React.FC = () => {
                     <SlidesPanel yDoc={clientDoc} user={currentUser} />
                 )}
                 {view === 'governance' && (
-                    <div className="governance-panel">
+                    <div className="governance-panel" style={{ padding: '20px', overflow: 'auto', height: '100%' }}>
                         <GovernanceDashboard metadataStore={metadataStore} yDoc={clientDoc} />
                     </div>
                 )}
-                {showMetadataPanel && (
-                    <MetadataPanel
-                        selectedBlockId={selectedBlockId}
-                        metadataStore={metadataStore}
-                        user={currentUser}
-                        onClose={() => setShowMetadataPanel(false)}
-                        onSave={handleSave}
-                    />
-                )}
             </div>
 
-            {showMarketplace && (
-                <MarketplaceSidebar
-                    onImportBlock={handleImportBlock}
-                    onClose={() => setShowMarketplace(false)}
-                />
-            )}
-
-            <footer className="demo-footer">
-                <div className="status-indicator">
-                    <span className="status-dot"></span>
-                    <span>Tauri Local Link Active</span>
-                </div>
-                {/* Removed Exit button since there is no Auth */}
-            </footer>
-
-            <HelpPanel isOpen={showHelp} onClose={() => setShowHelp(false)} />
-            <InputModal
-                isOpen={showInputModal}
-                title="Create New Document"
-                placeholder="Untitled Document"
-                confirmLabel="Create"
-                onCancel={() => setShowInputModal(false)}
-                onConfirm={handleGlobalCreateConfirm}
-            />
-            <CommandPalette
-                isOpen={showCommandPalette}
-                onClose={() => setShowCommandPalette(false)}
-                actions={commandActions}
-            />
-
-            <ModeIndicator mode={appMode} />
-
-            {/* [Phase 6] New Collaboration Components */}
-            {wsProvider && (
-                <>
-                    {showPerfTest && (
-                        <CollaborationPerformanceTest
-                            awareness={wsProvider.awareness}
-                            doc={clientDoc}
-                        />
-                    )}
-                    {showActiveUsers && (
-                        <ActiveUsersList
-                            awareness={wsProvider.awareness}
-                            localClientId={wsProvider.awareness.clientID}
-                            onFollowUser={setFollowingUserId}
-                        />
-                    )}
-                    <PresenceNotifications
-                        awareness={wsProvider.awareness}
-                        localClientId={wsProvider.awareness.clientID}
-                    />
-                </>
-            )}
-
-            {/* Toggle buttons for collaboration features */}
-            <div className="collab-controls">
+            {/* Collab Controls (Floating) */}
+            <div className="collab-controls" style={{ bottom: '20px', left: '80px', zIndex: 50 }}>
                 <button
                     className={`collab-toggle-btn ${showPerfTest ? 'active' : ''}`}
                     onClick={() => setShowPerfTest(!showPerfTest)}
@@ -408,14 +384,15 @@ export const DemoApp: React.FC = () => {
                 >
                     📊
                 </button>
-                <button
-                    className={`collab-toggle-btn ${showActiveUsers ? 'active' : ''}`}
-                    onClick={() => setShowActiveUsers(!showActiveUsers)}
-                    title="Toggle Active Users"
-                >
-                    👥
-                </button>
             </div>
-        </div>
+
+            {/* [Phase 6] New Collaboration Components (Hidden/Floating) */}
+            {wsProvider && showPerfTest && (
+                <CollaborationPerformanceTest
+                    awareness={wsProvider.awareness}
+                    doc={clientDoc}
+                />
+            )}
+        </WorkspaceLayout>
     );
 };
