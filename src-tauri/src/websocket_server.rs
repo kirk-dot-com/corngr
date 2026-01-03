@@ -74,7 +74,7 @@ impl CollabServer {
         let room_name_arc = Arc::new(RwLock::new("default".to_string()));
         let room_name_clone = Arc::clone(&room_name_arc);
 
-        let ws_stream = accept_hdr_async(stream, move |req: &Request, mut response: Response| {
+        let ws_stream = accept_hdr_async(stream, move |req: &Request, response: Response| {
             // Extract room name from URL path
             // y-websocket connects to ws://host:port/roomname
             let path = req.uri().path();
