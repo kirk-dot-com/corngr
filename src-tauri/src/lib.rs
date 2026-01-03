@@ -684,8 +684,15 @@ fn get_mock_blocks() -> Vec<Block> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
+
+    // Initialize WebSocket server state
+    let server_state = Arc::new(RwLock::new(tauri_commands::CollabServerState::new()));
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(server_state.clone())
         .setup(|app| {
             use tauri::{Emitter, Listener};
             let handle = app.handle().clone();
@@ -701,6 +708,21 @@ pub fn run() {
                 let _ = handle_awareness.emit("awareness-update-remote", event.payload());
             });
 
+            // 3. Auto-start WebSocket collaboration server
+            let server_state_clone = server_state.clone();
+            tauri::async_runtime::spawn(async move {
+                println!("🚀 Auto-starting WebSocket collaboration server...");
+                match tauri_commands::start_websocket_server(
+                    3030,
+                    tauri::State::from(server_state_clone.clone()),
+                )
+                .await
+                {
+                    Ok(msg) => println!("✅ {}", msg),
+                    Err(e) => eprintln!("❌ Failed to start WebSocket server: {}", e),
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -711,7 +733,12 @@ pub fn run() {
             reset_secure_document,
             fetch_external_block,
             request_capability_token,
-            revoke_capability_token
+            revoke_capability_token,
+            // WebSocket collaboration commands
+            tauri_commands::start_websocket_server,
+            tauri_commands::stop_websocket_server,
+            tauri_commands::get_server_status,
+            tauri_commands::list_active_rooms,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
