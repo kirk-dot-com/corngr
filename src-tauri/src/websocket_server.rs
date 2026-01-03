@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::RwLock;
 use tokio_tungstenite::{accept_async, tungstenite::Message};
+use yrs::updates::decoder::Decode;
 use yrs::{Doc, ReadTxn, Transact};
 
 /// A room contains a shared Yjs document and all connected clients

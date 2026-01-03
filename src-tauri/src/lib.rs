@@ -712,14 +712,15 @@ pub fn run() {
             let server_state_clone = server_state.clone();
             tauri::async_runtime::spawn(async move {
                 println!("🚀 Auto-starting WebSocket collaboration server...");
-                match tauri_commands::start_websocket_server(
-                    3030,
-                    tauri::State::from(server_state_clone.clone()),
-                )
-                .await
-                {
-                    Ok(msg) => println!("✅ {}", msg),
-                    Err(e) => eprintln!("❌ Failed to start WebSocket server: {}", e),
+                let server = Arc::new(websocket_server::CollabServer::new(3030));
+                let server_clone = Arc::clone(&server);
+
+                let mut state_lock = server_state_clone.write().await;
+                state_lock.server = Some(server);
+                drop(state_lock);
+
+                if let Err(e) = server_clone.start().await {
+                    eprintln!("❌ WebSocket server error: {}", e);
                 }
             });
 
