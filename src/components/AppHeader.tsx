@@ -1,189 +1,128 @@
 import React from 'react';
-import { ViewControls } from './ViewControls';
-import { DevTools } from './DevTools';
 import { PresenceAvatars } from './collaboration/PresenceAvatars';
-import { Role } from '../security/types';
-
-type ViewMode = 'split' | 'editor' | 'slides' | 'governance';
 
 interface AppHeaderProps {
-    currentDocId: string | null;
     currentDocTitle: string;
-    currentView: ViewMode;
-    autoMutate: boolean;
-    showMarketplace: boolean;
-    showMetadataPanel: boolean;
-    showHelp: boolean;
     isSaving: boolean;
     activeUserCount: number;
-    currentRole: Role;
-    awareness?: any; // Yjs Awareness for presence
-    onBack: () => void;
-    onViewChange: (view: ViewMode) => void;
-    onToggleAutoMutate: () => void;
-    onInsertTransclusion: () => void;
-    onInjectMassiveData: () => void;
-    onRunStressTest: () => void;
+    awareness?: any; // Yjs Awareness
+    showMarketplace: boolean;
+    showMetadataPanel: boolean;
+
+    onShowCommandPalette: () => void;
+    onShowCreateModal: () => void;
     onToggleMarketplace: () => void;
     onToggleMetadataPanel: () => void;
     onToggleHelp: () => void;
-    onSave: () => Promise<void>;
-    onRoleChange: (role: Role) => void;
-    onShowCommandPalette: () => void;
-    onShowCreateModal: () => void;
+    onSave: () => void;
 }
 
 /**
- * AppHeader - Main application header with navigation and controls
+ * AppHeader (TopBar)
  * 
- * Contains:
- * - Branding and document context
- * - Command palette launcher
- * - View mode controls
- * - Dev tools
- * - User/role selector
- * - Active user indicator
- * 
- * Phase 5: Polish - Extracted from DemoApp for better component organization
+ * Simplified for the Unified Workspace Layout.
+ * Handles Document Context, Search Trigger, and Utility Toggles.
  */
 export const AppHeader: React.FC<AppHeaderProps> = ({
-    currentDocId,
     currentDocTitle,
-    currentView,
-    autoMutate,
-    showMarketplace,
-    showMetadataPanel,
-    showHelp,
     isSaving,
     activeUserCount,
-    currentRole,
     awareness,
-    onBack,
-    onViewChange,
-    onToggleAutoMutate,
-    onInsertTransclusion,
-    onInjectMassiveData,
-    onRunStressTest,
+    showMarketplace,
+    showMetadataPanel,
+    onShowCommandPalette,
+    onShowCreateModal,
     onToggleMarketplace,
     onToggleMetadataPanel,
     onToggleHelp,
     onSave,
-    onRoleChange,
-    onShowCommandPalette,
-    onShowCreateModal
 }) => {
     return (
-        <header className="demo-header">
-            <div className="header-content">
-                {currentDocId && (
-                    <button
-                        onClick={onBack}
-                        className="view-btn back-btn"
-                        title="Back to Dashboard"
-                    >
-                        ⬅
-                    </button>
-                )}
-                <div className="branding-stack">
-                    <div className="branding">
-                        <h1>🌽 Corngr Phase 6</h1>
-                        <p className="tagline">Real-Time Collaboration</p>
-                    </div>
-                    {currentDocTitle && (
-                        <div className="doc-context-line">
-                            <span className="label">DOCUMENT:</span>
-                            <span className="title-text">{currentDocTitle}</span>
-                        </div>
-                    )}
+        <header className="app-top-bar" style={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'space-between' }}>
+            {/* Left: Document Context */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ fontWeight: 600, fontSize: '1.1rem', color: '#1a202c' }}>{currentDocTitle || 'Untitled Document'}</div>
+                <div style={{ fontSize: '0.8rem', color: '#718096', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {isSaving ? <span style={{ color: '#ed8936' }}>☁️ Syncing...</span> : <span style={{ color: '#48bb78' }}>✓ Saved</span>}
                 </div>
             </div>
 
-            <div className="view-controls">
-                <button
-                    onClick={onShowCommandPalette}
-                    className="view-btn omni-btn"
-                    title="Open Command Palette (⌘K)"
-                >
-                    🔍 Omni
-                </button>
-                <div className="divider"></div>
+            {/* Center: Omni Search */}
+            <button
+                onClick={onShowCommandPalette}
+                style={{
+                    background: '#f7fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    color: '#a0aec0',
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    width: '320px',
+                    textAlign: 'left',
+                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)'
+                }}
+            >
+                🔍 Search or type command... (⌘K)
+            </button>
 
-                <button
-                    onClick={onShowCreateModal}
-                    className="view-btn primary"
-                >
-                    ➕ New Document
-                </button>
-                <div className="divider"></div>
-
-                <ViewControls
-                    currentView={currentView}
-                    onViewChange={onViewChange}
-                />
-                <div className="divider"></div>
-
-                <DevTools
-                    autoMutate={autoMutate}
-                    onToggleAutoMutate={onToggleAutoMutate}
-                    onInsertTransclusion={onInsertTransclusion}
-                    onInjectMassiveData={onInjectMassiveData}
-                    onRunStressTest={onRunStressTest}
-                />
-                <div className="divider"></div>
-
-                <button
-                    className={`view-btn ${showMarketplace ? 'active' : ''}`}
-                    onClick={onToggleMarketplace}
-                >
-                    🛒 Market
-                </button>
-                <button
-                    className={`view-btn ${showMetadataPanel ? 'active' : ''}`}
-                    onClick={onToggleMetadataPanel}
-                >
-                    🏷️ Meta
-                </button>
-                <div className="divider"></div>
-
-                <button
-                    className={`view-btn ${isSaving ? 'active' : ''}`}
-                    onClick={onSave}
-                    disabled={isSaving}
-                >
-                    {isSaving ? '☁️ Syncing...' : '💾 Save'}
-                </button>
-                <div className="divider"></div>
-
-                <select
-                    value={currentRole}
-                    onChange={(e) => onRoleChange(e.target.value as Role)}
-                    className="role-select"
-                >
-                    <option value="admin">👮 Admin</option>
-                    <option value="editor">✏️ Editor</option>
-                    <option value="viewer">👀 Viewer</option>
-                </select>
-
-                <button
-                    className={`view-btn ${showHelp ? 'active' : ''}`}
-                    onClick={onToggleHelp}
-                >
-                    ❓ Help
-                </button>
-
-                <div className="active-users-indicator">
-                    <div className="status-dot online"></div>
-                    <span>{activeUserCount} Active</span>
-                </div>
-
-                {/* Phase 6: Show presence avatars */}
+            {/* Right: Actions & Presence */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {/* Presence */}
                 {awareness && (
-                    <PresenceAvatars
-                        awareness={awareness}
-                        localClientId={awareness.clientID}
-                    />
+                    <div style={{ marginRight: '16px', display: 'flex', alignItems: 'center' }}>
+                        <PresenceAvatars awareness={awareness} localClientId={awareness.clientID} />
+                        <span style={{ fontSize: '0.8rem', color: '#718096', marginLeft: '6px' }}>{activeUserCount}</span>
+                    </div>
                 )}
+
+                <ActionBtn onClick={onShowCreateModal} title="New Document" icon="➕" />
+                <Divider />
+
+                <ActionBtn
+                    onClick={onToggleMarketplace}
+                    title="Marketplace"
+                    icon="🛒"
+                    active={showMarketplace}
+                />
+                <ActionBtn
+                    onClick={onToggleMetadataPanel}
+                    title="Metadata Panel"
+                    icon="🏷️"
+                    active={showMetadataPanel}
+                />
+                <ActionBtn
+                    onClick={onToggleHelp}
+                    title="Help"
+                    icon="❓"
+                />
             </div>
         </header>
     );
 };
+
+const ActionBtn: React.FC<{ onClick: () => void, title: string, icon: string, active?: boolean }> = ({ onClick, title, icon, active }) => (
+    <button
+        onClick={onClick}
+        title={title}
+        style={{
+            background: active ? '#ebf8ff' : 'transparent',
+            border: 'none',
+            fontSize: '1.2rem',
+            cursor: 'pointer',
+            padding: '8px',
+            borderRadius: '6px',
+            transition: 'all 0.2s',
+            color: active ? '#3182ce' : '#4a5568',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+        }}
+    >
+        {icon}
+    </button>
+);
+
+const Divider = () => (
+    <div style={{ width: '1px', height: '24px', background: '#e2e8f0', margin: '0 8px' }}></div>
+);
