@@ -9,36 +9,49 @@
 -- ========================================
 
 -- Step 1: Enable Realtime replication on the documents table
-ALTER PUBLICATION supabase_realtime ADD TABLE documents;
+-- (Skip if already enabled)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'documents'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE documents;
+  END IF;
+END $$;
 
 -- Step 2: Enable RLS on documents table (if not already enabled)
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 
 -- Step 3: Policy - Allow authenticated users to read all documents
 -- (Required for Realtime subscriptions)
-CREATE POLICY IF NOT EXISTS "Allow authenticated users to read documents"
+DROP POLICY IF EXISTS "Allow authenticated users to read documents" ON documents;
+CREATE POLICY "Allow authenticated users to read documents"
 ON documents FOR SELECT
 TO authenticated
 USING (true);
 
 -- Step 4: Policy - Allow authenticated users to insert their own documents
-CREATE POLICY IF NOT EXISTS "Allow authenticated users to insert documents"
+DROP POLICY IF EXISTS "Allow authenticated users to insert documents" ON documents;
+CREATE POLICY "Allow authenticated users to insert documents"
 ON documents FOR INSERT
 TO authenticated
-WITH CHECK (auth.uid() = owner_id);
+WITH CHECK (auth.uid()::text = owner_id::text);
 
 -- Step 5: Policy - Allow authenticated users to update their own documents
-CREATE POLICY IF NOT EXISTS "Allow authenticated users to update own documents"
+DROP POLICY IF EXISTS "Allow authenticated users to update own documents" ON documents;
+CREATE POLICY "Allow authenticated users to update own documents"
 ON documents FOR UPDATE
 TO authenticated
-USING (auth.uid() = owner_id)
-WITH CHECK (auth.uid() = owner_id);
+USING (auth.uid()::text = owner_id::text)
+WITH CHECK (auth.uid()::text = owner_id::text);
 
 -- Step 6: Policy - Allow authenticated users to delete their own documents
-CREATE POLICY IF NOT EXISTS "Allow authenticated users to delete own documents"
+DROP POLICY IF EXISTS "Allow authenticated users to delete own documents" ON documents;
+CREATE POLICY "Allow authenticated users to delete own documents"
 ON documents FOR DELETE
 TO authenticated
-USING (auth.uid() = owner_id);
+USING (auth.uid()::text = owner_id::text);
 
 -- ========================================
 -- Verification Queries
