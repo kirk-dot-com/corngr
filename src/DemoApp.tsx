@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useYjs } from './yjs/YjsProvider';
 import { UserContext } from './security/UserContext';
 import { MetadataStore } from './metadata/MetadataStore';
@@ -11,20 +11,20 @@ import { GovernanceDashboard } from './components/governance/GovernanceDashboard
 import { MarketplaceSidebar } from './components/MarketplaceSidebar';
 import { MetadataPanel } from './components/metadata/MetadataPanel';
 import { HelpModal } from './components/HelpModal';
-import { GlobalReferenceStore } from './stores/GlobalReferenceStore';
 import './DemoApp.css';
+import { User } from './security/types';
 
 // Initialize Global Stores
 const metadataStore = new MetadataStore();
-const globalRefStore = new GlobalReferenceStore();
 
 export const DemoApp: React.FC = () => {
-    const { doc: yDoc, connected, provider } = useYjs();
-    const [user, setUser] = useState<{ id: string, name: string, role: 'editor' | 'auditor' | 'viewer', color: string } | null>({
+    const { doc: yDoc, provider } = useYjs();
+    const [user, setUser] = useState<User | null>({
         id: 'local-user',
         name: 'Local User',
         role: 'editor',
-        color: '#3b82f6'
+        color: '#3b82f6',
+        attributes: {}
     });
 
     const [appMode, setAppMode] = useState<'editor' | 'slides' | 'split' | 'governance'>('split');
@@ -56,7 +56,7 @@ export const DemoApp: React.FC = () => {
                     }
                     rightPanel={
                         (showMarketplace) ? (
-                            <MarketplaceSidebar />
+                            <MarketplaceSidebar onImportBlock={(blockData) => { /* Mock or future logic */ }} />
                         ) : (showMetadataPanel && metadataStore) ? (
                             <MetadataPanel store={metadataStore} onClose={() => setShowMetadataPanel(false)} />
                         ) : null
@@ -108,7 +108,6 @@ export const DemoApp: React.FC = () => {
                         <div className="view-container">
                             <GovernanceDashboard
                                 metadataStore={metadataStore}
-                                currentUser={user}
                             />
                         </div>
                     )}
