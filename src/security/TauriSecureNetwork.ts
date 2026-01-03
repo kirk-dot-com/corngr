@@ -45,6 +45,10 @@ export class TauriSecureNetwork {
     private supabase: SupabaseClient | null = null;
     private channel: any = null; // Supabase Realtime Channel (Phase 6)
     private docId: string;
+    private isConnected: boolean = false;
+    private reconnectAttempts: number = 0;
+    private maxReconnectAttempts: number = 5;
+    private awarenessCleanupInterval: any = null;
 
     constructor(clientDoc: Y.Doc, user: User, supabaseClient: SupabaseClient | null = null, docId: string = 'doc_default') {
         this.clientDoc = clientDoc;
@@ -74,6 +78,13 @@ export class TauriSecureNetwork {
      */
     public destroy() {
         console.log(`🔌 Destroying TauriSecureNetwork for ${this.docId}...`);
+
+        // Clear awareness cleanup interval
+        if (this.awarenessCleanupInterval) {
+            clearInterval(this.awarenessCleanupInterval);
+            this.awarenessCleanupInterval = null;
+        }
+
         if (this.channel && this.supabase) {
             this.supabase.removeChannel(this.channel);
             this.channel = null;
@@ -143,15 +154,80 @@ export class TauriSecureNetwork {
             })
 
             .subscribe((status: string, err: any) => {
-                if (err) console.error('Real-Time Connection Error:', err);
+                if (err) {
+                    console.error('Real-Time Connection Error:', err);
+                    this.isConnected = false;
+                    this.handleConnectionError();
+                    return;
+                }
+
                 console.log(`📡 Real-Time Subscription Status: ${status}`);
+
                 if (status === 'SUBSCRIBED') {
+                    this.isConnected = true;
+                    this.reconnectAttempts = 0;
                     // Start tracking local awareness through Supabase
                     this.initAwarenessBridging();
                     // [Phase 6] Broadcast Y.Doc updates to other clients
                     this.initYjsBroadcasting();
+                    // Start awareness cleanup for stale cursors
+                    this.initAwarenessCleanup();
+                } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+                    this.isConnected = false;
+                    this.handleConnectionError();
                 }
             });
+    }
+
+    /**
+     * [Phase 6] Handle connection errors with exponential backoff retry
+     */
+    private handleConnectionError() {
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            console.error('❌ Max reconnection attempts reached. Please refresh the page.');
+            return;
+        }
+
+        this.reconnectAttempts++;
+        const backoffDelay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+
+        console.log(`🔄 Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${backoffDelay}ms...`);
+
+        setTimeout(() => {
+            if (!this.isConnected && this.supabase) {
+                this.subscribeToRealtimeUpdates();
+            }
+        }, backoffDelay);
+    }
+
+    /**
+     * [Phase 6] Cleanup stale awareness states for disconnected users
+     */
+    private initAwarenessCleanup() {
+        // Clean up stale cursors every 30 seconds
+        this.awarenessCleanupInterval = setInterval(() => {
+            if (!this.syncProvider?.awareness) return;
+
+            const states = this.syncProvider.awareness.getStates();
+            const now = Date.now();
+            const staleClients: number[] = [];
+
+            states.forEach((state: any, clientId: number) => {
+                const lastActivity = state.cursor?.lastActivity || 0;
+                // Remove cursors inactive for more than 60 seconds
+                if (now - lastActivity > 60000) {
+                    staleClients.push(clientId);
+                }
+            });
+
+            if (staleClients.length > 0) {
+                console.log(`🧹 Cleaning up ${staleClients.length} stale cursors`);
+                // Remove stale awareness states
+                staleClients.forEach(clientId => {
+                    this.syncProvider.awareness.setLocalStateField('cursor', null);
+                });
+            }
+        }, 30000);
     }
 
     /**
@@ -183,6 +259,10 @@ export class TauriSecureNetwork {
             const changedClients = added.concat(updated).concat(removed);
 
             if (changedClients.length === 0) return;
+            if (!this.isConnected) {
+                console.warn('⚠️ Not connected, awareness update queued');
+                return;
+            }
 
             const update = encodeAwarenessUpdate(this.syncProvider.awareness, changedClients);
             const updateBase64 = this.toBase64(update);
@@ -195,11 +275,30 @@ export class TauriSecureNetwork {
             };
 
             if (this.channel) {
-                this.channel.track(payload);
+                // Retry logic for failed presence updates
+                this.trackPresenceWithRetry(payload);
             } else {
                 console.error('❌ No channel available for tracking!');
             }
         });
+    }
+
+    /**
+     * [Phase 6] Track presence with retry logic
+     */
+    private async trackPresenceWithRetry(payload: any, retries: number = 3) {
+        for (let i = 0; i < retries; i++) {
+            try {
+                await this.channel.track(payload);
+                return; // Success
+            } catch (e) {
+                console.warn(`⚠️ Failed to track presence (attempt ${i + 1}/${retries}):`, e);
+                if (i < retries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+                }
+            }
+        }
+        console.error('❌ Failed to track presence after all retries');
     }
 
     private applyCloudUpdate(contentBase64: string) {
