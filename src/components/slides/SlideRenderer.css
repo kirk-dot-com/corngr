@@ -1,0 +1,25 @@
+.slide-renderer {
+    height: 100%;
+    width: 100%;
+    background: #1a202c;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.slide-content {
+    max-width: 800px;
+    width: 100%;
+    padding: 2rem;
+    text-align: center;
+}
+
+.slide-block {
+    background: #2d3748;
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: left;
+    font-family: monospace;
+}
