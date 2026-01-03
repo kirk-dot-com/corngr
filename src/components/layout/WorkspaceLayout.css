@@ -1,146 +1,130 @@
-.workspace-layout {
+.workspace-container {
     display: flex;
-    width: 100vw;
     height: 100vh;
-    background-color: #f5f5f7;
-    /* Apple-like light gray */
-    color: #333;
+    width: 100vw;
+    overflow: hidden;
+    background: #0f172a;
+    color: #e2e8f0;
+}
+
+.workspace-sidenav {
+    width: 60px;
+    flex-shrink: 0;
+    border-right: 1px solid #1e293b;
+    background: #0f172a;
+    z-index: 20;
+}
+
+.workspace-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
     overflow: hidden;
 }
 
-/* --- Side Navigation --- */
+.workspace-topbar {
+    height: 48px;
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.workspace-canvas {
+    flex: 1;
+    overflow: hidden;
+    /* Each view manages its own scroll */
+    position: relative;
+    background: #0f172a;
+}
+
+.workspace-right-panel {
+    width: 320px;
+    border-left: 1px solid #1e293b;
+    background: white;
+    z-index: 15;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Side Navigation Styles (should technically be in SideNav.css but shared here for layout) */
 .side-nav {
-    width: 60px;
-    height: 100%;
-    background-color: #1a202c;
-    /* Dark sidebar */
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 20px;
-    padding-bottom: 20px;
-    flex-shrink: 0;
-    z-index: 100;
+    padding: 12px 0;
+    height: 100%;
+    gap: 16px;
 }
 
 .nav-item {
     width: 40px;
     height: 40px;
-    border-radius: 12px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 1.25rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 12px;
     cursor: pointer;
-    transition: all 0.2s ease;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 1.2rem;
-    border: none;
-    background: transparent;
+    transition: all 0.2s;
 }
 
 .nav-item:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: white;
+    background: rgba(255, 255, 255, 0.05);
+    color: #e2e8f0;
 }
 
 .nav-item.active {
-    background-color: #3b82f6;
-    /* Accent Blue */
-    color: white;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    background: rgba(59, 130, 246, 0.1);
+    color: #60a5fa;
 }
 
 .nav-spacer {
-    flex-grow: 1;
+    flex: 1;
 }
 
 .user-profile-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: #4a5568;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
     font-size: 0.9rem;
-    cursor: pointer;
+    font-weight: bold;
     border: 2px solid transparent;
 }
 
 .user-profile-icon.admin {
-    border-color: #ff4b2b;
-    background: #331515;
+    border-color: #ef4444;
+    color: #ef4444;
 }
 
 .user-profile-icon.editor {
-    border-color: #667eea;
-    background: #1a2040;
+    border-color: #3b82f6;
+    color: #3b82f6;
 }
 
 .user-profile-icon.viewer {
-    border-color: #38a169;
-    background: #102a1b;
+    border-color: #10b981;
+    color: #10b981;
 }
 
-/* --- Main Workspace Area --- */
-.workspace-area {
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
+/* View Containers */
+.view-container {
     height: 100%;
-    position: relative;
-    overflow: hidden;
+    width: 100%;
 }
 
-.top-bar-container {
-    height: 50px;
-    border-bottom: 1px solid #e2e8f0;
-    background-color: white;
+.split-view {
     display: flex;
-    align-items: center;
-    padding: 0 20px;
-    flex-shrink: 0;
-}
-
-.content-area {
-    flex-grow: 1;
-    overflow: hidden;
-    position: relative;
-    background-color: #f7fafc;
-}
-
-/* --- Utility Panel (Right) --- */
-.utility-panel {
-    width: 320px;
     height: 100%;
-    background-color: white;
-    border-left: 1px solid #e2e8f0;
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    transition: width 0.3s ease;
-    overflow-y: auto;
+    width: 100%;
 }
 
-.utility-panel.collapsed {
-    width: 0;
-    border-left: none;
+.split-pane {
+    flex: 1;
+    overflow: hidden;
+    border-right: 1px solid #1e293b;
 }
 
-/* Scrollbar refinement */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #cbd5e0;
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-track {
-    background: transparent;
+.split-pane:last-child {
+    border-right: none;
 }
