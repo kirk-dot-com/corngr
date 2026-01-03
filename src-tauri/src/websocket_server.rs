@@ -5,8 +5,7 @@ use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::RwLock;
 use tokio_tungstenite::{accept_async, tungstenite::Message};
-use y_sync::sync::{Error as SyncError, Message as SyncMessage, MessageReader};
-use yrs::{Doc, StateVector, Update};
+use yrs::{Doc, ReadTxn, Transact};
 
 /// A room contains a shared Yjs document and all connected clients
 pub struct Room {
@@ -72,9 +71,19 @@ impl CollabServer {
         // Channel for sending messages to this client
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Message>();
 
-        // Room name will be extracted from the first message (sync step 1)
-        let mut room_name: Option<String> = None;
+        // Default room - in production, extract from URL or first message
+        let room_name = "default".to_string();
         let client_id = rand::random::<u64>();
+
+        // Add client to room and get initial sync message
+        let sync_message = self
+            .add_client_to_room(&room_name, client_id, tx.clone())
+            .await?;
+
+        // Send initial sync to client
+        if let Some(msg) = sync_message {
+            let _ = tx.send(Message::Binary(msg));
+        }
 
         // Spawn task to forward messages from tx channel to WebSocket
         let mut send_task = tokio::spawn(async move {
@@ -91,14 +100,18 @@ impl CollabServer {
                 msg = ws_receiver.next() => {
                     match msg {
                         Some(Ok(Message::Binary(data))) => {
-                            // Parse Yjs sync message
-                            if let Err(e) = self.handle_yjs_message(
-                                &data,
-                                &mut room_name,
+                            // Broadcast binary message to all other clients in room
+                            if let Err(e) = self.broadcast_to_room(
+                                &room_name,
+                                data.clone(),
                                 client_id,
-                                &tx,
                             ).await {
-                                eprintln!("❌ Error handling Yjs message: {}", e);
+                                eprintln!("❌ Error broadcasting message: {}", e);
+                            }
+
+                            // Also apply update to server's document
+                            if let Err(e) = self.apply_update_to_room(&room_name, &data).await {
+                                eprintln!("❌ Error applying update: {}", e);
                             }
                         }
                         Some(Ok(Message::Close(_))) | None => {
@@ -120,73 +133,18 @@ impl CollabServer {
         }
 
         // Clean up: Remove client from room
-        if let Some(room) = room_name {
-            self.remove_client_from_room(&room, client_id).await;
-        }
+        self.remove_client_from_room(&room_name, client_id).await;
 
         Ok(())
     }
 
-    /// Handle a Yjs sync protocol message
-    async fn handle_yjs_message(
-        &self,
-        data: &[u8],
-        room_name: &mut Option<String>,
-        client_id: u64,
-        tx: &tokio::sync::mpsc::UnboundedSender<Message>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut decoder = MessageReader::new(data);
-
-        // Read sync message type
-        let message = decoder.read()?;
-
-        match message {
-            SyncMessage::Sync(sync_msg) => {
-                // Handle sync message (SyncStep1, SyncStep2, or Update)
-                match sync_msg {
-                    y_sync::sync::SyncMessage::SyncStep1(sv) => {
-                        // Client is requesting initial sync
-                        // Extract room name from somewhere (you may need to modify protocol)
-                        // For now, use a default room
-                        let room = room_name.get_or_insert_with(|| "default".to_string());
-
-                        self.handle_sync_step1(room, sv, client_id, tx).await?;
-                    }
-                    y_sync::sync::SyncMessage::SyncStep2(update) => {
-                        if let Some(room) = room_name.as_ref() {
-                            self.handle_sync_step2(room, update).await?;
-                        }
-                    }
-                    y_sync::sync::SyncMessage::Update(update) => {
-                        if let Some(room) = room_name.as_ref() {
-                            self.broadcast_update(room, update, client_id).await?;
-                        }
-                    }
-                }
-            }
-            SyncMessage::Awareness(awareness_update) => {
-                // Broadcast awareness update to all clients in the room
-                if let Some(room) = room_name.as_ref() {
-                    self.broadcast_awareness(room, &awareness_update, client_id)
-                        .await?;
-                }
-            }
-            _ => {
-                // Custom messages or other types
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Handle SyncStep1: Client requests document state
-    async fn handle_sync_step1(
+    /// Add a client to a room and return initial sync message
+    async fn add_client_to_room(
         &self,
         room_name: &str,
-        state_vector: StateVector,
         client_id: u64,
-        tx: &tokio::sync::mpsc::UnboundedSender<Message>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+        tx: tokio::sync::mpsc::UnboundedSender<Message>,
+    ) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
         let mut rooms = self.rooms.write().await;
 
         // Get or create room
@@ -196,19 +154,12 @@ impl CollabServer {
         });
 
         // Add client to room
-        room.clients.push(ClientConnection {
-            client_id,
-            tx: tx.clone(),
-        });
+        room.clients.push(ClientConnection { client_id, tx });
 
-        // Send SyncStep2 with current document state
-        let update = room.doc.encode_state_as_update_v1(&state_vector);
-        let sync_step2 = y_sync::sync::SyncMessage::SyncStep2(Update::decode_v1(&update)?);
-
-        let mut encoder = Vec::new();
-        SyncMessage::Sync(sync_step2).encode(&mut encoder);
-
-        tx.send(Message::Binary(encoder))?;
+        // Get current document state for initial sync
+        let txn = room.doc.transact();
+        let state_vector = txn.state_vector();
+        let update = txn.encode_diff_v1(&state_vector);
 
         println!(
             "📥 Client {} joined room '{}' ({} clients)",
@@ -217,44 +168,24 @@ impl CollabServer {
             room.clients.len()
         );
 
-        Ok(())
+        Ok(if update.is_empty() {
+            None
+        } else {
+            Some(update)
+        })
     }
 
-    /// Handle SyncStep2: Apply client's document state
-    async fn handle_sync_step2(
+    /// Broadcast a message to all clients in a room except sender
+    async fn broadcast_to_room(
         &self,
         room_name: &str,
-        update: Update,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let rooms = self.rooms.read().await;
-
-        if let Some(room) = rooms.get(room_name) {
-            let txn = room.doc.transact_mut();
-            txn.apply_update(update)?;
-        }
-
-        Ok(())
-    }
-
-    /// Broadcast document update to all clients in a room (except sender)
-    async fn broadcast_update(
-        &self,
-        room_name: &str,
-        update: Update,
+        data: Vec<u8>,
         sender_id: u64,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let rooms = self.rooms.read().await;
 
         if let Some(room) = rooms.get(room_name) {
-            // Apply update to server's document
-            let txn = room.doc.transact_mut();
-            txn.apply_update(update.clone())?;
-            drop(txn);
-
-            // Broadcast to all clients except sender
-            let mut encoder = Vec::new();
-            SyncMessage::Sync(y_sync::sync::SyncMessage::Update(update)).encode(&mut encoder);
-            let msg = Message::Binary(encoder);
+            let msg = Message::Binary(data);
 
             for client in &room.clients {
                 if client.client_id != sender_id {
@@ -266,25 +197,17 @@ impl CollabServer {
         Ok(())
     }
 
-    /// Broadcast awareness update to all clients
-    async fn broadcast_awareness(
+    /// Apply an update to the room's document
+    async fn apply_update_to_room(
         &self,
         room_name: &str,
-        awareness_update: &y_sync::awareness::Update,
-        sender_id: u64,
+        update: &[u8],
     ) -> Result<(), Box<dyn std::error::Error>> {
         let rooms = self.rooms.read().await;
 
         if let Some(room) = rooms.get(room_name) {
-            let mut encoder = Vec::new();
-            SyncMessage::Awareness(awareness_update.clone()).encode(&mut encoder);
-            let msg = Message::Binary(encoder);
-
-            for client in &room.clients {
-                if client.client_id != sender_id {
-                    let _ = client.tx.send(msg.clone());
-                }
-            }
+            let mut txn = room.doc.transact_mut();
+            txn.apply_update(yrs::Update::decode_v1(update)?);
         }
 
         Ok(())
