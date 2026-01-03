@@ -222,10 +222,7 @@ export class TauriSecureNetwork {
 
             if (staleClients.length > 0) {
                 console.log(`🧹 Cleaning up ${staleClients.length} stale cursors`);
-                // Remove stale awareness states
-                staleClients.forEach(clientId => {
-                    this.syncProvider.awareness.setLocalStateField('cursor', null);
-                });
+                // TODO: Implement proper stale cursor removal via awareness API
             }
         }, 30000);
     }

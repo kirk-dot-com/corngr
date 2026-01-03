@@ -32,7 +32,7 @@ export const PresenceNotifications: React.FC<PresenceNotificationsProps> = ({
         // Track known clients to detect joins/leaves
         const knownClients = new Set<number>();
         const states = awareness.getStates();
-        states.forEach((_, clientId) => {
+        states.forEach((_state: any, clientId: number) => {
             if (clientId !== localClientId) {
                 knownClients.add(clientId);
             }
