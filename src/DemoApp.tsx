@@ -40,11 +40,27 @@ export const DemoApp: React.FC = () => {
         }
     }, [yDoc]);
 
+    // Handle view change from SideNav
+    const handleViewChange = (mode: 'editor' | 'slides' | 'split' | 'governance') => {
+        setAppMode(mode);
+    };
+
     return (
         <UserContext.Provider value={{ user, setUser }}>
             <div className="demo-app">
                 <WorkspaceLayout
-                    sideNav={<SideNav currentView={appMode} onNavigate={setAppMode} currentRole={user?.role || 'editor'} onJoinRole={() => { }} />}
+                    sideNav={
+                        <SideNav
+                            currentView={appMode}
+                            currentUser={user!}
+                            onViewChange={handleViewChange}
+                            onRoleChange={() => {
+                                // Simple role toggle for demo
+                                const newRole = user?.role === 'editor' ? 'auditor' : 'editor';
+                                setUser(u => u ? { ...u, role: newRole, attributes: { ...u.attributes, role: newRole } } : null);
+                            }}
+                        />
+                    }
                     topBar={
                         <TopBar
                             title="Project Alpha"
@@ -56,9 +72,14 @@ export const DemoApp: React.FC = () => {
                     }
                     rightPanel={
                         (showMarketplace) ? (
-                            <MarketplaceSidebar onImportBlock={(blockData) => { console.log(blockData); }} />
+                            <MarketplaceSidebar onClose={() => setShowMarketplace(false)} />
                         ) : (showMetadataPanel && metadataStore) ? (
-                            <MetadataPanel store={metadataStore} onClose={() => setShowMetadataPanel(false)} />
+                            <MetadataPanel
+                                selectedBlockId={selectedBlockId}
+                                metadataStore={metadataStore}
+                                user={user!}
+                                onClose={() => setShowMetadataPanel(false)}
+                            />
                         ) : null
                     }
                     modals={
@@ -66,7 +87,7 @@ export const DemoApp: React.FC = () => {
                             <HelpPanel isOpen={showHelp} onClose={() => setShowHelp(false)} />
                         </>
                     }
-                    yDoc={yDoc}
+                    yDoc={yDoc} // Pass yDoc to Layout for Sidecar
                 >
                     {/* VIEW ROUTING */}
                     {appMode === 'editor' && (
@@ -108,6 +129,7 @@ export const DemoApp: React.FC = () => {
                         <div className="view-container">
                             <GovernanceDashboard
                                 metadataStore={metadataStore}
+                                yDoc={yDoc}
                             />
                         </div>
                     )}

@@ -1,5 +1,6 @@
 import { BlockMetadata } from '../yjs/schema';
 import { Observable } from 'lib0/observable';
+import * as Y from 'yjs';
 
 /**
  * Shadow Metadata Store for Phase 2
@@ -127,6 +128,14 @@ export class MetadataStore extends Observable<any> {
      */
     getBlockIds(): string[] {
         return Array.from(this.metadata.keys());
+    }
+
+    /**
+     * Initialize store from YDoc
+     */
+    initialize(yDoc: Y.Doc) {
+        // Stub for initialization logic if needed
+        console.log('MetadataStore initialized with YDoc');
     }
 
     /**
