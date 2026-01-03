@@ -1,5 +1,4 @@
-import { Action } from "../security/types"; // Re-using generic types if useful, or define local
-
+// Sidecar Store
 type Role = 'user' | 'assistant' | 'system';
 
 export interface ChatMessage {

@@ -17,10 +17,9 @@ export const TopBar: React.FC<TopBarProps> = ({
     title = 'Untitled Doc',
     onToggleMarketplace,
     onToggleMetadata,
-    onToggleHelp,
-    metadataStore
+    onToggleHelp
 }) => {
-    const { provider, connected, users } = useYjs();
+    const { connected, users } = useYjs();
     const { user } = React.useContext(UserContext);
     const [status, setStatus] = React.useState('Offline');
 
@@ -29,7 +28,8 @@ export const TopBar: React.FC<TopBarProps> = ({
     useEffect(() => {
         const update = () => setSidecarOpen(sidecarStore.isOpen);
         update();
-        return sidecarStore.subscribe(update);
+        const unsubscribe = sidecarStore.subscribe(update);
+        return () => { unsubscribe(); };
     }, []);
 
     React.useEffect(() => {
@@ -67,7 +67,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                             {u.name[0]}
                         </div>
                     ))}
-                    <div className="avatar self" title="You ({user?.name})" style={{ background: user?.color }}>
+                    <div className="avatar self" title={`You (${user?.name})`} style={{ background: user?.color }}>
                         {user?.name?.[0]}
                     </div>
                 </div>

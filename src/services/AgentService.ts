@@ -1,7 +1,5 @@
 import * as Y from 'yjs';
 import { sidecarStore } from '../stores/SidecarStore';
-import { createSmartGrid } from '../prosemirror/schema';
-import { corngrSchema } from '../prosemirror/schema';
 
 // Mock AI Service that "thinks" and interacts with the doc
 class AgentService {
@@ -85,7 +83,7 @@ class AgentService {
     }
 
     // --- API: Grid Analysis (Called from SmartGridComponent) ---
-    async analyzeGrid(gridId: string, yDoc: Y.Doc) {
+    async analyzeGrid(_gridId: string, _yDoc: Y.Doc) {
         return new Promise<{ insight: string }>((resolve) => {
             setTimeout(() => {
                 resolve({
