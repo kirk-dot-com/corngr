@@ -2,7 +2,7 @@
     position: absolute;
     pointer-events: none;
     z-index: 100;
-    transition: top 0.15s ease-out, left 0.15s ease-out;
+    transition: opacity 0.3s ease, transform 0.2s ease;
 }
 
 .collaborator-cursor::before {
@@ -11,41 +11,89 @@
     width: 2px;
     height: 20px;
     background-color: currentColor;
-    border-left: 2px solid;
     border-color: inherit;
+    border-left: 2px solid;
 }
 
 .collaborator-cursor-label {
     position: absolute;
     top: -24px;
     left: 0;
-    padding: 2px 6px;
+    padding: 3px 8px;
     border-radius: 4px;
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 500;
     color: white;
     white-space: nowrap;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-    font-family: 'Outfit', sans-serif;
-    animation: fadeIn 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(4px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.collaborator-cursor-label:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Selection range (if we want to show selected text later) */
+/* Idle cursor fade */
+.collaborator-cursor.cursor-idle {
+    opacity: 0.5;
+}
+
+.collaborator-cursor.cursor-idle .collaborator-cursor-label {
+    opacity: 0.7;
+}
+
+/* Selection highlight */
 .collaborator-selection {
     position: absolute;
     pointer-events: none;
-    opacity: 0.3;
-    mix-blend-mode: multiply;
+    z-index: 99;
+    border-radius: 2px;
+    transition: all 0.2s ease;
+}
+
+/* Typing indicator */
+.typing-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 4px;
+}
+
+.typing-dot {
+    width: 3px;
+    height: 3px;
+    background-color: white;
+    border-radius: 50%;
+    animation: typing-bounce 1.4s infinite;
+}
+
+.typing-dot:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing-bounce {
+
+    0%,
+    60%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.7;
+    }
+
+    30% {
+        transform: translateY(-4px);
+        opacity: 1;
+    }
 }
