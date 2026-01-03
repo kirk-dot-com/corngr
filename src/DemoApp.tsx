@@ -2,21 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as Y from 'yjs';
 import { EditorView } from 'prosemirror-view';
 import { User, Role } from './security/types';
+import './DemoApp.css';
 
 import { TauriWebSocketProvider } from './providers/TauriWebSocketProvider';
 import { PerformanceMonitor } from './components/PerformanceMonitor';
-import { MarketplaceSidebar, MarketplaceBlock } from './components/MarketplaceSidebar';
+import { MarketplaceSidebar } from './components/MarketplaceSidebar';
 import { GovernanceDashboard } from './components/governance/GovernanceDashboard';
 import { MetadataPanel } from './components/MetadataPanel';
 
-import { generateUUID, BlockMetadata } from './yjs/schema';
-import './DemoApp.css';
+import { generateUUID } from './yjs/schema';
 
 import { HelpPanel } from './components/HelpPanel';
 import { InputModal } from './components/InputModal';
 import { CommandPalette, CommandAction } from './components/CommandPalette';
 import { ModeIndicator } from './components/ModeIndicator';
-import { AppHeader } from './components/AppHeader'; // Now TopBar style
+import { AppHeader } from './components/AppHeader';
 import { EditorPanel } from './components/editor/EditorPanel';
 import { SlidesPanel } from './components/editor/SlidesPanel';
 import { CollaborationPerformanceTest } from './components/collaboration/CollaborationPerformanceTest';
@@ -25,6 +25,7 @@ import { PresenceNotifications } from './components/collaboration/PresenceNotifi
 
 import { MetadataStore } from './metadata/MetadataStore';
 import { GlobalReferenceStore } from './security/GlobalReferenceStore';
+import { marketplaceStore } from './stores/MarketplaceStore'; // Import store
 
 // Layout Components
 import { WorkspaceLayout } from './components/layout/WorkspaceLayout';
@@ -122,6 +123,13 @@ export const DemoApp: React.FC = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
+    // Subscribe to Marketplace Store just to re-render if needed (optional if only editor needs it)
+    useEffect(() => {
+        return marketplaceStore.subscribe(() => {
+            // Trigger update? Not strictly necessary if editor subscribes, but good for global UI state
+        });
+    }, []);
+
     const handleStressTest = async () => {
         alert("Stress Test temporarily disabled during architecture cleanup.");
     };
@@ -207,46 +215,8 @@ export const DemoApp: React.FC = () => {
         return () => clearInterval(interval);
     }, [autoMutate, clientDoc]);
 
-    const injectMassiveData = () => {
-        if (!clientDoc) return;
-        const newBlocks: any[] = [];
-        for (let i = 0; i < 1000; i++) {
-            newBlocks.push({
-                id: `perf-block-${i}-${Date.now()}`,
-                type: 'paragraph',
-                data: {
-                    text: `Performance Test Block #${i} - ${Math.random().toString(36)}`,
-                    metadata: { slideIndex: 3 + Math.floor(i / 10) }
-                },
-                created: new Date().toISOString(),
-                modified: new Date().toISOString()
-            });
-        }
-        clientDoc.transact(() => {
-            const content = clientDoc.getArray('content');
-            content.insert(content.length, newBlocks as any);
-        });
-    };
-
-    const handleImportBlock = (mBlock: MarketplaceBlock) => {
-        if (!clientDoc) return;
-        const blockId = generateUUID();
-        const metadata: BlockMetadata = {
-            ...mBlock.data.metadata,
-            provenance: { authorId: mBlock.author, sourceId: mBlock.id, timestamp: new Date().toISOString() }
-        };
-        metadataStore.set(blockId, metadata); // Use local store
-        const fragment = clientDoc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
-        clientDoc.transact(() => {
-            const nodeName = mBlock.type === 'heading1' ? 'heading' : 'paragraph';
-            const newNode = new Y.XmlElement(nodeName);
-            newNode.setAttribute('blockId', blockId);
-            if (mBlock.type === 'heading1') newNode.setAttribute('level', '1');
-            const textNode = new Y.XmlText(mBlock.data.text);
-            newNode.insert(0, [textNode]);
-            fragment.push([newNode]);
-        });
-        setShowMarketplace(false);
+    const handleImportBlock = (/* legacy */) => {
+        // Logic removed as functionality moved to Slash Commands via Marketplace installation
     };
 
     const insertGlobalTransclusion = () => {
@@ -284,7 +254,6 @@ export const DemoApp: React.FC = () => {
 
     const rightPanelContent = showMarketplace ? (
         <MarketplaceSidebar
-            onImportBlock={handleImportBlock}
             onClose={() => setShowMarketplace(false)}
         />
     ) : showMetadataPanel ? (
@@ -349,7 +318,6 @@ export const DemoApp: React.FC = () => {
             }
         >
             {/* Main Content Area */}
-            {/* Performance Monitor is typically absolute or top, keep it for now */}
             <PerformanceMonitor yDoc={clientDoc} />
 
             <div className={`demo-content view-${view}`} style={{ height: '100%', overflow: 'hidden' }}>
@@ -375,7 +343,6 @@ export const DemoApp: React.FC = () => {
                 )}
             </div>
 
-            {/* Collab Controls (Floating) */}
             <div className="collab-controls" style={{ bottom: '20px', left: '80px', zIndex: 50 }}>
                 <button
                     className={`collab-toggle-btn ${showPerfTest ? 'active' : ''}`}
@@ -386,7 +353,6 @@ export const DemoApp: React.FC = () => {
                 </button>
             </div>
 
-            {/* [Phase 6] New Collaboration Components (Hidden/Floating) */}
             {wsProvider && showPerfTest && (
                 <CollaborationPerformanceTest
                     awareness={wsProvider.awareness}
