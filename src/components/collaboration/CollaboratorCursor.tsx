@@ -88,7 +88,7 @@ export const CollaboratorCursor: React.FC<CollaboratorCursorProps> = ({
             awareness.off('change', updateCursors);
             clearInterval(idleCheckInterval);
         };
-    }, [editorView, awareness, localClientId, cursors]);
+    }, [editorView, awareness, localClientId]);
 
     if (!editorView) return null;
 
