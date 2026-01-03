@@ -693,7 +693,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(server_state.clone())
-        .setup(|app| {
+        .setup(move |app| {
             use tauri::{Emitter, Listener};
             let handle = app.handle().clone();
 
