@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { TauriSecureNetwork } from '../../security/TauriSecureNetwork';
+import { MetadataStore } from '../../metadata/MetadataStore';
 import { getAllBlocks } from '../../yjs/schema';
 import * as Y from 'yjs';
 import './GovernanceDashboard.css';
 
 interface GovernanceDashboardProps {
-    network: TauriSecureNetwork;
+    metadataStore: MetadataStore;
     yDoc: Y.Doc;
 }
 
@@ -18,10 +18,9 @@ interface GovernanceDashboardProps {
  * - Security Classification Distribution
  * - Audit Log Simulation
  */
-export const GovernanceDashboard: React.FC<GovernanceDashboardProps> = ({ network, yDoc }) => {
+export const GovernanceDashboard: React.FC<GovernanceDashboardProps> = ({ metadataStore, yDoc }) => {
     const [search, setSearch] = useState('');
     const blocks = useMemo(() => getAllBlocks(yDoc), [yDoc]);
-    const metadataStore = network.getMetadataStore();
 
     const stats = useMemo(() => {
         const counts = { public: 0, internal: 0, confidential: 0, restricted: 0 };

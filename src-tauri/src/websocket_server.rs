@@ -1,6 +1,8 @@
 use futures_util::{SinkExt, StreamExt};
 use std::collections::HashMap;
+use std::fs;
 use std::net::SocketAddr;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::RwLock;
@@ -10,12 +12,49 @@ use tokio_tungstenite::{
     tungstenite::Message,
 };
 use yrs::updates::decoder::Decode;
-use yrs::{Doc, ReadTxn, Transact};
+use yrs::{Doc, ReadTxn, StateVector, Transact};
+
+const STORAGE_DIR: &str = ".corngr/storage";
 
 /// A room contains a shared Yjs document and all connected clients
 pub struct Room {
+    pub name: String,
     pub doc: Doc,
     pub clients: Vec<ClientConnection>,
+}
+
+impl Room {
+    fn new(name: String) -> Self {
+        let doc = Doc::new();
+        // Try to load existing data
+        if let Ok(data) = load_snapshot(&name) {
+            println!(
+                "💾 Loaded snapshot for room '{}' ({} bytes)",
+                name,
+                data.len()
+            );
+            let mut txn = doc.transact_mut();
+            if let Err(e) = txn.apply_update(yrs::Update::decode_v1(&data).unwrap()) {
+                eprintln!("❌ Failed to apply snapshot for room '{}': {}", name, e);
+            }
+        }
+        Self {
+            name,
+            doc,
+            clients: Vec::new(),
+        }
+    }
+
+    fn save(&self) {
+        let txn = self.doc.transact();
+        let state_vector = StateVector::default(); // Full state
+        let update = txn.encode_state_as_update_v1(&state_vector);
+        if let Err(e) = save_snapshot(&self.name, &update) {
+            eprintln!("❌ Failed to save snapshot for room '{}': {}", self.name, e);
+        } else {
+            // println!("💾 Saved snapshot for room '{}'", self.name); // Too verbose for every keypress
+        }
+    }
 }
 
 /// Represents a connected WebSocket client
@@ -32,6 +71,13 @@ pub struct CollabServer {
 
 impl CollabServer {
     pub fn new(port: u16) -> Self {
+        // Ensure storage directory exists
+        if let Err(e) = fs::create_dir_all(STORAGE_DIR) {
+            eprintln!("❌ Failed to create storage directory: {}", e);
+        } else {
+            println!("📂 Storage directory ready: {}", STORAGE_DIR);
+        }
+
         Self {
             rooms: Arc::new(RwLock::new(HashMap::new())),
             port,
@@ -83,7 +129,7 @@ impl CollabServer {
             let mut room_guard = room_name_clone.blocking_write();
             if !extracted_room.is_empty() {
                 *room_guard = extracted_room.to_string();
-                println!("📍 Room extracted from URL: {}", extracted_room);
+                // println!("📍 Room extracted from URL: {}", extracted_room);
             } else {
                 println!("⚠️  No room in URL path, using 'default'");
             }
@@ -135,7 +181,7 @@ impl CollabServer {
                                 eprintln!("❌ Error broadcasting message: {}", e);
                             }
 
-                            // Also apply update to server's document
+                            // Also apply update to server's document and save
                             if let Err(e) = self.apply_update_to_room(&room_name, &data).await {
                                 eprintln!("❌ Error applying update: {}", e);
                             }
@@ -174,10 +220,9 @@ impl CollabServer {
         let mut rooms = self.rooms.write().await;
 
         // Get or create room
-        let room = rooms.entry(room_name.to_string()).or_insert_with(|| Room {
-            doc: Doc::new(),
-            clients: Vec::new(),
-        });
+        let room = rooms
+            .entry(room_name.to_string())
+            .or_insert_with(|| Room::new(room_name.to_string()));
 
         // Add client to room
         room.clients.push(ClientConnection { client_id, tx });
@@ -229,11 +274,16 @@ impl CollabServer {
         room_name: &str,
         update: &[u8],
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let rooms = self.rooms.read().await;
+        let mut rooms = self.rooms.write().await;
 
-        if let Some(room) = rooms.get(room_name) {
+        if let Some(room) = rooms.get_mut(room_name) {
             let mut txn = room.doc.transact_mut();
             txn.apply_update(yrs::Update::decode_v1(update)?);
+
+            // Trigger save
+            // Note: In production, you might want to debounce this or use a separate thread
+            drop(txn); // Drop transaction before saving to avoid deadlocks/conflicts if save uses doc
+            room.save();
         }
 
         Ok(())
@@ -253,10 +303,13 @@ impl CollabServer {
                 room.clients.len()
             );
 
-            // Remove room if empty
+            // Remove room if empty?
+            // For persistence, we might want to keep the room in memory for a while,
+            // or just drop it since we saved to disk.
+            // Dropping it frees memory. Recreating it loads from disk.
             if room.clients.is_empty() {
                 rooms.remove(room_name);
-                println!("🗑️  Room '{}' removed (no clients)", room_name);
+                println!("🗑️  Room '{}' unloaded (no clients)", room_name);
             }
         }
     }
@@ -274,4 +327,16 @@ impl CollabServer {
 
         stats
     }
+}
+
+// --- Persistence Helpers ---
+
+fn save_snapshot(room_name: &str, data: &[u8]) -> std::io::Result<()> {
+    let path = Path::new(STORAGE_DIR).join(format!("{}.bin", room_name));
+    fs::write(path, data)
+}
+
+fn load_snapshot(room_name: &str) -> std::io::Result<Vec<u8>> {
+    let path = Path::new(STORAGE_DIR).join(format!("{}.bin", room_name));
+    fs::read(path)
 }
