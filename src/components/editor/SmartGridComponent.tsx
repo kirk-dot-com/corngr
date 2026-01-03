@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import * as Y from 'yjs';
+import { agentService } from '../../services/AgentService';
+import { sidecarStore } from '../../stores/SidecarStore';
 import './SmartGridComponent.css';
 
 interface SmartGridProps {
@@ -91,31 +93,63 @@ export const SmartGridComponent: React.FC<SmartGridProps> = ({ gridId, yDoc }) =
     };
 
     const handleAddColumn = (type: 'text' | 'magic') => {
+        const name = type === 'magic' ? prompt("Enter AI Prompt for Column (e.g. 'Categorize Item')") : 'New Column';
+        if (type === 'magic' && !name) return;
+
         gridMap.doc?.transact(() => {
             const yCols = gridMap.get('columns') as Y.Array<GridColumn>;
             const newColId = 'c' + Date.now();
             yCols.push([{
                 id: newColId,
-                name: type === 'magic' ? '✨ New Insight' : 'New Column',
+                name: name || 'Column',
                 type,
                 width: 150
             }]);
+
+            // If magic, trigger agent to populate immediately (mock)
+            if (type === 'magic') {
+                populateMagicColumn(newColId, name || '', yCols.length - 1);
+            }
         });
     };
 
-    // AI Mocks
-    const handleAnalyzeGrid = () => {
+    const populateMagicColumn = async (colId: string, prompt: string, colIndex: number) => {
+        // In real app, this would queue a job. Here we iterate and mock.
+        sidecarStore.setThinking(true);
+        const yRows = gridMap.get('rows') as Y.Array<GridRow>;
+
+        for (let i = 0; i < yRows.length; i++) {
+            const row = yRows.get(i);
+            const val = await agentService.fillMagicColumn(prompt, row.cells);
+            handleUpdateCell(row.id, colId, val);
+        }
+        sidecarStore.setThinking(false);
+    };
+
+    // AI Analysis via AgentService
+    const handleAnalyzeGrid = async () => {
         setAnalyzing(true);
-        // Mock Z-Axis Analysis
-        setTimeout(() => {
+        sidecarStore.setThinking(true);
+        try {
+            const result = await agentService.analyzeGrid(gridId, yDoc);
+
             gridMap.doc?.transact(() => {
                 const analysisMap = new Y.Map();
                 gridMap.set('analysis', analysisMap);
-                analysisMap.set('insight', "⚠️ Correlation Detected: Hardware costs are 40% higher in Q1 compared to average. Consider deferring purchases.");
+                analysisMap.set('insight', result.insight);
                 analysisMap.set('timestamp', new Date().toISOString());
             });
+
+            // Notify via Sidecar as well
+            sidecarStore.addMessage('assistant', `I've analyzed the grid. ${result.insight}`);
+            sidecarStore.toggle(true);
+
+        } catch (e) {
+            console.error(e);
+        } finally {
             setAnalyzing(false);
-        }, 1500);
+            sidecarStore.setThinking(false);
+        }
     };
 
     return (
