@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { EditorState, Plugin, Transaction } from 'prosemirror-state';
+import { EditorState, Plugin } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { Awareness } from 'y-protocols/awareness';
 import { history } from 'prosemirror-history';
 import { keymap } from 'prosemirror-keymap';
 import { baseKeymap } from 'prosemirror-commands';
-import { ySyncPlugin, yCursorPlugin, yUndoPlugin, undo as yUndo, redo as yRedo } from 'y-prosemirror';
+import { ySyncPlugin, yUndoPlugin, undo as yUndo, redo as yRedo } from 'y-prosemirror';
 import * as Y from 'yjs';
 import { corngrSchema, createSmartGrid } from './schema';
 import { formatValue } from '../yjs/schema';
@@ -58,7 +58,8 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
             setInstalledCapabilities(caps);
         };
         updateCaps();
-        return marketplaceStore.subscribe(updateCaps);
+        const unsubscribe = marketplaceStore.subscribe(updateCaps);
+        return () => { unsubscribe(); };
     }, []);
 
     // Slash Command State
@@ -135,7 +136,6 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                 icon: '📐',
                 description: 'Embed an AI-powered spreadsheet.',
                 action: (view) => {
-                    // Generate ID and create Node
                     const gridId = Math.random().toString(36).substr(2, 9);
                     const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, createSmartGrid(gridId));
                     view.dispatch(tr);
@@ -271,7 +271,6 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
 
         const slashPlugin = createSlashCommandPlugin({
             onOpen: (query, range, coords) => {
-                // Adjust coords for absolute positioning if needed
                 setSlashState(prev => ({ ...prev, active: true, query, range, coords, selectedIndex: 0 }));
             },
             onClose: () => {
@@ -338,9 +337,6 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                     dom.className = 'corngr-smart-grid-mount';
                     const gridId = node.attrs.gridId;
 
-                    // Render using creatingRoot is redundant inside NodeView if not carefully handled
-                    // But we use it here for simplicity. 
-                    // In production, we might want a portal system, but this is fine for now.
                     import('react-dom/client').then(({ createRoot }) => {
                         const root = createRoot(dom);
                         root.render(<SmartGridComponent gridId={gridId} yDoc={yDoc} />);
