@@ -29,3 +29,11 @@ rand = "0.8"
 hex = "0.4"
 lazy_static = "1.4"
 
+# WebSocket Server Dependencies
+tokio = { version = "1.35", features = ["full"] }
+tokio-tungstenite = "0.21"
+yrs = "0.17"
+y-sync = "0.4"
+futures-util = "0.3"
+
+

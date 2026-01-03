@@ -7,6 +7,10 @@ use std::path::Path;
 use std::sync::Mutex;
 use uuid::Uuid;
 
+// WebSocket Collaboration Modules
+pub mod tauri_commands;
+pub mod websocket_server;
+
 // [Phase 5] Token Revocation System
 lazy_static::lazy_static! {
     static ref REVOKED_TOKENS: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
