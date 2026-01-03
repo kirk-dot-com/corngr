@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { EditorState, Plugin } from 'prosemirror-state';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { EditorState, Plugin, Transaction } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { Awareness } from 'y-protocols/awareness';
 import { history } from 'prosemirror-history';
@@ -15,8 +15,10 @@ import { createFilterPlugin } from './FilterPlugin';
 import { createGutterPlugin } from './GutterPlugin';
 import { createBlockIdPlugin } from './BlockIdPlugin';
 import { CollaboratorCursor } from '../components/collaboration/CollaboratorCursor';
+import { SlashCommandMenu, CommandItem } from '../components/editor/SlashCommandMenu';
+import { createSlashCommandPlugin } from '../components/editor/plugins/SlashCommandPlugin';
 import './editor.css';
-import './cursor.css'; // y-prosemirror cursor styles
+import './cursor.css';
 
 interface ProseMirrorEditorProps {
     yDoc: Y.Doc;
@@ -28,9 +30,6 @@ interface ProseMirrorEditorProps {
     appMode?: 'draft' | 'audit' | 'presentation';
 }
 
-/**
- * ProseMirror editor component bound to Yjs
- */
 export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
     yDoc,
     user,
@@ -44,28 +43,149 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
     const viewRef = useRef<EditorView | null>(null);
     const [currentView, setCurrentView] = useState<EditorView | null>(null);
 
+    // Slash Command State
+    const [slashState, setSlashState] = useState<{
+        active: boolean;
+        query: string;
+        coords: { top: number; left: number };
+        range: { from: number; to: number };
+        selectedIndex: number;
+    }>({
+        active: false,
+        query: '',
+        coords: { top: 0, left: 0 },
+        range: { from: 0, to: 0 },
+        selectedIndex: 0
+    });
+
+    // Define Commands
+    const commands: CommandItem[] = useMemo(() => [
+        {
+            id: 'text',
+            label: 'Text',
+            icon: '📝',
+            description: 'Just start writing with plain text.',
+            action: (view) => {
+                const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.paragraph.create());
+                view.dispatch(tr);
+            }
+        },
+        {
+            id: 'h1',
+            label: 'Heading 1',
+            icon: 'H1',
+            description: 'Big section heading.',
+            action: (view) => {
+                const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.heading.create({ level: 1 }));
+                view.dispatch(tr);
+            }
+        },
+        {
+            id: 'h2',
+            label: 'Heading 2',
+            icon: 'H2',
+            description: 'Medium section heading.',
+            action: (view) => {
+                const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.heading.create({ level: 2 }));
+                view.dispatch(tr);
+            }
+        },
+        {
+            id: 'h3',
+            label: 'Heading 3',
+            icon: 'H3',
+            description: 'Small section heading.',
+            action: (view) => {
+                const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.heading.create({ level: 3 }));
+                view.dispatch(tr);
+            }
+        },
+        {
+            id: 'bullet_list',
+            label: 'Bullet List',
+            icon: '•',
+            description: 'Create a simple bulleted list.',
+            action: (view) => {
+                const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.bullet_list.create(null, corngrSchema.nodes.list_item.create(null, corngrSchema.nodes.paragraph.create())));
+                view.dispatch(tr);
+            }
+        },
+        {
+            id: 'code_block',
+            label: 'Code Block',
+            icon: '💻',
+            description: 'Capture a code snippet.',
+            action: (view) => {
+                const tr = view.state.tr.replaceWith(slashState.range.from, slashState.range.to, corngrSchema.nodes.code_block.create());
+                view.dispatch(tr);
+            }
+        },
+        {
+            id: 'marketplace_caps',
+            label: 'Marketplace Capabilities',
+            icon: '🛒',
+            description: 'Browse installed blocks...',
+            action: (view) => {
+                console.log("Open marketplace placeholder");
+            }
+        }
+    ], [slashState.range]);
+
+    // Filter commands
+    const filteredCommands = useMemo(() => {
+        return commands.filter(c => c.label.toLowerCase().includes(slashState.query.toLowerCase()));
+    }, [commands, slashState.query]);
+
+    // Ref to hold stable state for callbacks
+    const stateRef = useRef({ slashState, filteredCommands });
+    stateRef.current = { slashState, filteredCommands };
+
+    function handleSlashKeyDown(event: KeyboardEvent): boolean {
+        const { slashState, filteredCommands } = stateRef.current;
+        const count = filteredCommands.length;
+
+        if (event.key === 'ArrowUp') {
+            const nextIndex = (slashState.selectedIndex + count - 1) % count;
+            setSlashState(s => ({ ...s, selectedIndex: nextIndex }));
+            return true;
+        }
+        if (event.key === 'ArrowDown') {
+            const nextIndex = (slashState.selectedIndex + 1) % count;
+            setSlashState(s => ({ ...s, selectedIndex: nextIndex }));
+            return true;
+        }
+        if (event.key === 'Enter') {
+            if (filteredCommands[slashState.selectedIndex]) {
+                const cmd = filteredCommands[slashState.selectedIndex];
+                if (viewRef.current) {
+                    cmd.action(viewRef.current);
+                }
+            }
+            return true;
+        }
+        if (event.key === 'Escape') {
+            setSlashState(s => ({ ...s, active: false }));
+            return true;
+        }
+        return false;
+    }
+
     useEffect(() => {
         if (!editorRef.current) return;
 
         // Get or create the shared Yjs fragment
         const yXmlFragment = yDoc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
 
-        // Variable decoration plugin - updates variable displays when values change
+        // Variable decoration plugin
         const variablePlugin = new Plugin({
             state: {
-                init() {
-                    return null;
-                },
-                apply(_tr) {
-                    return null;
-                }
+                init() { return null; },
+                apply(_tr) { return null; }
             },
             view(editorView) {
-                // Listen to content array changes to update variable values
                 const content = yDoc.getArray('content');
 
                 const updateVariables = () => {
-                    // Get all variable blocks from Yjs
                     const variables = new Map();
                     for (let i = 0; i < content.length; i++) {
                         const block = content.get(i) as Y.Map<any>;
@@ -82,28 +202,21 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                         }
                     }
 
-                    // Update the DOM directly for variable nodes
                     editorView.dom.querySelectorAll('span[data-variable]').forEach(el => {
                         const blockId = el.getAttribute('data-block-id');
                         if (blockId && variables.has(blockId)) {
                             const varData = variables.get(blockId);
                             const formatted = formatValue(varData.value, varData.format);
-
-                            // Update attributes
                             el.setAttribute('data-value', varData.value);
                             el.setAttribute('data-format', varData.format);
-
-                            // Update displayed text
                             el.textContent = `{{${varData.name}}}`;
-
-                            // Add tooltip with actual value
                             el.setAttribute('title', formatted);
                         }
                     });
                 };
 
                 content.observe(updateVariables);
-                updateVariables(); // Initial update
+                updateVariables();
 
                 return {
                     destroy() {
@@ -113,16 +226,26 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
             }
         });
 
-        // Create editor state
+        const slashPlugin = createSlashCommandPlugin({
+            onOpen: (query, range, coords) => {
+                setSlashState(prev => ({ ...prev, active: true, query, range, coords, selectedIndex: 0 }));
+            },
+            onClose: () => {
+                setSlashState(prev => ({ ...prev, active: false }));
+            },
+            onKeyDown: (event) => {
+                return handleSlashKeyDown(event);
+            }
+        });
+
         const state = EditorState.create({
             schema: corngrSchema,
             plugins: [
-                createBlockIdPlugin(), // Must come before ySyncPlugin to ensure IDs are assigned before sync
+                createBlockIdPlugin(),
                 ySyncPlugin(yXmlFragment),
-                // yCursorPlugin disabled - using custom CollaboratorCursor component instead
-                // ...(awareness ? [yCursorPlugin(awareness)] : []),
                 yUndoPlugin(),
                 variablePlugin,
+                slashPlugin,
                 ...(metadataStore && user ? [createFilterPlugin(metadataStore, user)] : []),
                 ...(metadataStore ? [createGutterPlugin(metadataStore, appMode)] : []),
                 history(),
@@ -135,7 +258,6 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
             ]
         });
 
-        // Create editor view
         const view = new EditorView(editorRef.current, {
             state,
             attributes: {
@@ -146,13 +268,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                 'inline-reference': (node, _view, _getPos) => {
                     const dom = document.createElement('span');
                     dom.className = 'corngr-inline-reference-mount';
-
-                    // We need the network to resolve references
-                    // This is a bit tricky as network is in DemoApp
-                    // But we can assume the component tree has access or pass it via props
-                    // FOR NOW: We'll look for it in the window or use a global (Phase 3 strategy)
                     const network = (window as any).tauriNetwork;
-
                     if (network) {
                         import('../components/TransclusionRenderer').then(({ TransclusionRenderer }) => {
                             import('react-dom/client').then(({ createRoot }) => {
@@ -167,7 +283,6 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                             });
                         });
                     }
-
                     return {
                         dom,
                         stopEvent: () => true,
@@ -180,8 +295,6 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
         viewRef.current = view;
         setCurrentView(view);
 
-        // Phase 6: Cursor tracking for collaboration
-        // Use transaction listener instead of dynamic plugin to avoid y-prosemirror conflicts
         if (awareness) {
             const updateCursor = () => {
                 const { selection } = view.state;
@@ -190,11 +303,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                     head: selection.head
                 });
             };
-
-            // Initial cursor position
             updateCursor();
-
-            // Listen to editor updates (this is safe and doesn't conflict with y-prosemirror)
             const handleTransaction = () => {
                 requestAnimationFrame(() => {
                     if (viewRef.current) {
@@ -206,14 +315,10 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                     }
                 });
             };
-
-            // Add DOM event listener for clicks and selections
             view.dom.addEventListener('click', handleTransaction);
             view.dom.addEventListener('keyup', handleTransaction);
         }
 
-        // Phase 2.3: Selection tracking for MetadataPanel
-        // Use DOM event listener instead of setProps to avoid breaking y-prosemirror
         if (onBlockSelect) {
             const handleSelection = () => {
                 const { selection } = view.state;
@@ -221,7 +326,6 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                     onBlockSelect(null);
                     return;
                 }
-
                 const node = view.state.doc.nodeAt(selection.from);
                 if (node && node.attrs.blockId) {
                     onBlockSelect(node.attrs.blockId);
@@ -229,12 +333,9 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                     onBlockSelect(null);
                 }
             };
-
-            // Add direct DOM event listener instead of using setProps
             view.dom.addEventListener('mouseup', handleSelection);
         }
 
-        // Cleanup
         return () => {
             view.destroy();
             viewRef.current = null;
@@ -244,7 +345,21 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
     return (
         <div className={`prosemirror-editor-container ${appMode}-mode`}>
             <div ref={editorRef} className="prosemirror-editor" />
-            {/* Phase 6: Cursor overlays for remote collaborators */}
+
+            {slashState.active && (
+                <SlashCommandMenu
+                    items={filteredCommands}
+                    query={slashState.query}
+                    coords={slashState.coords}
+                    selectedIndex={slashState.selectedIndex}
+                    onSelect={(item) => {
+                        if (viewRef.current) item.action(viewRef.current);
+                        setSlashState(prev => ({ ...prev, active: false }));
+                    }}
+                    onClose={() => setSlashState(prev => ({ ...prev, active: false }))}
+                />
+            )}
+
             {awareness && currentView && (
                 <CollaboratorCursor
                     editorView={currentView}
@@ -256,13 +371,8 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
     );
 };
 
-/**
- * Get the current EditorView instance (for testing/debugging)
- */
 export function getEditorView(container: HTMLElement): EditorView | null {
     const editorDiv = container.querySelector('.prosemirror-editor');
     if (!editorDiv) return null;
-
-    // EditorView stores reference on DOM element
     return (editorDiv as any).editorView || null;
 }
