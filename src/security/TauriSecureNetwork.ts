@@ -91,8 +91,6 @@ export class TauriSecureNetwork {
 
         console.log(`📡 Subscribing to Real-Time Room (${this.docId})...`);
 
-        let receiveCount = 0; // Counter to track received messages
-
         // Simplified channel - just use broadcast without special config
         this.channel = this.supabase.channel(`room:${this.docId}`);
 
@@ -124,7 +122,7 @@ export class TauriSecureNetwork {
                     });
                 });
             })
-            .on('presence', { event: 'join' }, ({ key, newPresences }: any) => {
+            .on('presence', { event: 'join' }, ({ newPresences }: any) => {
                 // [Phase 6] New user joined - apply their awareness
                 const localClientId = this.syncProvider.awareness.clientID;
 
@@ -140,7 +138,7 @@ export class TauriSecureNetwork {
                     }
                 });
             })
-            .on('presence', { event: 'leave' }, ({ key, leftPresences }: any) => {
+            .on('presence', { event: 'leave' }, () => {
                 // [Phase 6] User left - awareness will automatically clean up
             })
 
