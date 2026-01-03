@@ -99,21 +99,16 @@ export class TauriSecureNetwork {
         this.channel
             .on('broadcast', { event: 'yjs-update' }, ({ payload }: { payload: any }) => {
                 // [Phase 6] Receive Y.Doc updates from other clients via broadcast
-                receiveCount++;
-                console.log(`📡 [${receiveCount}] Received Y.Doc update via broadcast (${payload.update?.length || 0} chars base64)`);
                 if (payload.update) {
                     const update = this.fromBase64(payload.update);
-                    console.log(`   ↳ Decoded to ${update.length} bytes, applying to Y.Doc...`);
                     // Mark as 'remote' to prevent re-broadcasting
                     Y.applyUpdate(this.clientDoc, update, 'remote');
-                    console.log(`   ✅ Applied remote update`);
                 }
             })
             .on('presence', { event: 'sync' }, () => {
                 // [Phase 6] Initial sync - apply all current presence states
                 const presenceState = this.channel.presenceState();
                 const localClientId = this.syncProvider.awareness.clientID;
-                console.log('👥 Presence SYNC:', presenceState, 'Local ClientID:', localClientId);
 
                 Object.values(presenceState).forEach((presences: any) => {
                     presences.forEach((p: any) => {
@@ -121,10 +116,9 @@ export class TauriSecureNetwork {
                         if (p.clientId !== localClientId && p.awarenessUpdate) {
                             try {
                                 const update = this.fromBase64(p.awarenessUpdate);
-                                console.log(`🔍 [SYNC] Applying Remote Awareness from client ${p.clientId} (user: ${p.user_id}), Size: ${update.length}`);
                                 applyAwarenessUpdate(this.syncProvider.awareness, update, 'remote');
                             } catch (e) {
-                                console.error(`❌ Failed to apply awareness update from ${p.user_id}:`, e);
+                                console.error(`❌ Failed to apply awareness update:`, e);
                             }
                         }
                     });
@@ -133,30 +127,21 @@ export class TauriSecureNetwork {
             .on('presence', { event: 'join' }, ({ key, newPresences }: any) => {
                 // [Phase 6] New user joined - apply their awareness
                 const localClientId = this.syncProvider.awareness.clientID;
-                console.log(`👋💡 Client JOINED:`, { key, newPresences, localClientId });
-                console.log(`👋💡 Presence structure:`, JSON.stringify(newPresences, null, 2));
 
                 newPresences.forEach((p: any) => {
-                    console.log(`  ClientID: ${p.clientId}, User: ${p.user_id}, Has awarenessUpdate: ${!!p.awarenessUpdate}, Keys: ${Object.keys(p).join(', ')}`);
-
                     // FIXED: Compare clientId instead of user_id
                     if (p.clientId !== localClientId && p.awarenessUpdate) {
                         try {
                             const update = this.fromBase64(p.awarenessUpdate);
-                            console.log(`🔍 [JOIN] Applying Awareness from client ${p.clientId} (user: ${p.user_id})`);
                             applyAwarenessUpdate(this.syncProvider.awareness, update, 'remote');
                         } catch (e) {
                             console.error(`❌ Failed to apply awareness from new client:`, e);
                         }
-                    } else {
-                        console.log(`⏭️ Skipping: selfClient=${p.clientId === localClientId}, hasUpdate=${!!p.awarenessUpdate}`);
                     }
                 });
             })
             .on('presence', { event: 'leave' }, ({ key, leftPresences }: any) => {
-                // [Phase 6] User left - remove their awareness
-                console.log(`👋 User LEFT:`, key);
-                // Awareness will automatically clean up when we stop receiving updates
+                // [Phase 6] User left - awareness will automatically clean up
             })
 
             .subscribe((status: string, err: any) => {
@@ -175,24 +160,17 @@ export class TauriSecureNetwork {
      * [Phase 6] Bridging Y.Doc updates to Supabase Realtime Broadcast
      */
     private initYjsBroadcasting() {
-        let broadcastCount = 0;
-
         this.clientDoc.on('update', (update: Uint8Array, origin: any) => {
             // Don't broadcast updates that came from another client
             if (origin === 'remote') return;
 
             const updateBase64 = this.toBase64(update);
             if (this.channel) {
-                broadcastCount++;
-
-                // Send returns immediately - the actual status is not synchronously available
                 this.channel.send({
                     type: 'broadcast',
                     event: 'yjs-update',
                     payload: { update: updateBase64 }
                 });
-
-                console.log(`📡 [${broadcastCount}] Broadcasting Y.Doc update (${update.length} bytes, ${updateBase64.length} chars base64)`);
             }
         });
     }
@@ -201,46 +179,29 @@ export class TauriSecureNetwork {
      * [Phase 6] Bridging Yjs Awareness updates to Supabase Presence
      */
     private initAwarenessBridging() {
-        console.log('🔌 Initializing Awareness Bridging...');
         const localClientId = this.syncProvider.awareness.clientID;
-        console.log(`   Local Client ID: ${localClientId}`);
 
         this.syncProvider.awareness.on('update', ({ added, updated, removed }: any) => {
             const changedClients = added.concat(updated).concat(removed);
-            console.log(`🔔 Awareness Update Event:`, { added, updated, removed, changedClients });
 
-            if (changedClients.length === 0) {
-                console.log('⏭️ No changed clients, skipping track');
-                return;
-            }
+            if (changedClients.length === 0) return;
 
             const update = encodeAwarenessUpdate(this.syncProvider.awareness, changedClients);
             const updateBase64 = this.toBase64(update);
 
             const payload = {
                 user_id: this.user.id,
-                clientId: localClientId, // ADD: Yjs client ID for distinguishing tabs
+                clientId: localClientId, // Yjs client ID for distinguishing tabs
                 awarenessUpdate: updateBase64,
                 online_at: new Date().toISOString(),
             };
 
-            console.log(`📤 Tracking Presence:`, {
-                user_id: payload.user_id,
-                clientId: payload.clientId,
-                awarenessUpdateLength: updateBase64.length,
-                online_at: payload.online_at,
-                changedClients
-            });
-
             if (this.channel) {
                 this.channel.track(payload);
-                console.log('✅ channel.track() called');
             } else {
                 console.error('❌ No channel available for tracking!');
             }
         });
-
-        console.log('✅ Awareness bridging initialized');
     }
 
     private applyCloudUpdate(contentBase64: string) {
