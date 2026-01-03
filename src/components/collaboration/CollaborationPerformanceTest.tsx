@@ -64,7 +64,7 @@ export const CollaborationPerformanceTest: React.FC<CollaborationPerformanceTest
         };
 
         // Track document updates
-        const docHandler = (update: Uint8Array, origin: any) => {
+        const docHandler = (_update: Uint8Array, origin: any) => {
             if (origin !== 'remote') return; // Only count remote updates
 
             documentCount++;
