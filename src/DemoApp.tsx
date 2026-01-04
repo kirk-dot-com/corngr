@@ -33,7 +33,7 @@ const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, docId, o
     const [showMetadataPanel, setShowMetadataPanel] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
-    const { toasts, dismissToast, success, error, info } = useToast();
+    const { toasts, dismissToast, success } = useToast();
 
     // Initialize MetadataStore with Y.Doc
     useEffect(() => {

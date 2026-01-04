@@ -45,7 +45,8 @@ function showModal(title: string, message: string, showCancel: boolean = false):
 export function createGutterPlugin(
     metadataStore: MetadataStore,
     appMode: 'draft' | 'audit' | 'presentation',
-    onBlockSelect?: (blockId: string | null) => void
+    onBlockSelect?: (blockId: string | null) => void,
+    onToast?: (message: string) => void
 ): Plugin {
     return new Plugin({
         props: {
@@ -105,8 +106,10 @@ export function createGutterPlugin(
                                         if (node.attrs.blockId) {
                                             metadataStore.set(node.attrs.blockId, newMetadata as any);
 
-                                            // Visual feedback (optional: could add a toast here if we had a toast system)
-                                            console.log(`Block ${node.attrs.blockId} signed & sealed.`);
+                                            // Show toast notification
+                                            if (onToast) {
+                                                onToast(`Block signed & sealed successfully 🔒`);
+                                            }
                                         }
                                         // The view will re-render decorations on next update
                                         view.dispatch(view.state.tr);

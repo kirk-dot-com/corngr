@@ -28,6 +28,7 @@ interface ProseMirrorEditorProps {
     metadataStore: MetadataStore | null;
     awareness?: Awareness | null;
     onBlockSelect?: (blockId: string | null) => void;
+    onToast?: (message: string) => void;
     editorId?: string;
     appMode?: 'draft' | 'audit' | 'presentation';
 }
@@ -38,6 +39,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
     metadataStore,
     awareness,
     onBlockSelect,
+    onToast,
     editorId = 'editor',
     appMode = 'draft'
 }) => {
@@ -290,7 +292,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                 variablePlugin,
                 slashPlugin,
                 ...(metadataStore && user ? [createFilterPlugin(metadataStore, user)] : []),
-                ...(metadataStore ? [createGutterPlugin(metadataStore, appMode, onBlockSelect)] : []),
+                ...(metadataStore ? [createGutterPlugin(metadataStore, appMode, onBlockSelect, onToast)] : []),
                 history(),
                 keymap({
                     'Mod-z': yUndo,
