@@ -138,9 +138,14 @@ impl CollabServer {
             let path = uri.path();
             let query = uri.query().unwrap_or("");
 
-            // Extract room name from path
+            println!("🔍 DEBUG: Full URI: {}", uri);
+            println!("🔍 DEBUG: Path: {}", path);
+            println!("🔍 DEBUG: Query: {}", query);
+
+            // Extract room name from path (remove leading slash and any trailing slashes)
             let extracted_room = path
                 .trim_start_matches('/')
+                .trim_end_matches('/')
                 .split('?')
                 .next()
                 .unwrap_or("default");
@@ -158,24 +163,34 @@ impl CollabServer {
             let mut user_id = "anonymous".to_string();
             let mut user_role = "viewer".to_string(); // Default to most restrictive
 
-            // Parse query string
+            // Parse query string - handle URL-encoded values
             for param in query.split('&') {
+                let param = param.trim_end_matches('/'); // Remove trailing slash
                 if let Some((key, value)) = param.split_once('=') {
+                    let decoded_value = urlencoding::decode(value)
+                        .unwrap_or_else(|_| value.into())
+                        .to_string()
+                        .trim_end_matches('/') // Remove any trailing slashes from values
+                        .to_string();
+
                     match key {
                         "userId" => {
-                            user_id = urlencoding::decode(value)
-                                .unwrap_or_else(|_| value.into())
-                                .to_string();
+                            user_id = decoded_value;
+                            println!("🔍 DEBUG: Extracted userId: {}", user_id);
                         }
                         "userRole" => {
-                            let role = urlencoding::decode(value)
-                                .unwrap_or_else(|_| value.into())
-                                .to_string();
                             // Validate role
-                            if role == "editor" || role == "auditor" || role == "viewer" {
-                                user_role = role;
+                            if decoded_value == "editor"
+                                || decoded_value == "auditor"
+                                || decoded_value == "viewer"
+                            {
+                                user_role = decoded_value.clone();
+                                println!("🔍 DEBUG: Extracted userRole: {}", user_role);
                             } else {
-                                println!("⚠️  Invalid role '{}', defaulting to 'viewer'", role);
+                                println!(
+                                    "⚠️  Invalid role '{}', defaulting to 'viewer'",
+                                    decoded_value
+                                );
                             }
                         }
                         _ => {}
@@ -188,8 +203,8 @@ impl CollabServer {
             drop(user_info_guard);
 
             println!(
-                "🔐 WebSocket auth: User '{}' with role '{}'",
-                user_id, user_role
+                "🔐 WebSocket auth: User '{}' with role '{}' connecting to room '{}'",
+                user_id, user_role, extracted_room
             );
 
             Ok(response)
