@@ -61,14 +61,34 @@ export function createGutterPlugin(
 
                                     if (isSealed) {
                                         // Verify
-                                        // TODO: Use verify_block_signature backend command
-                                        const timestamp = metadata?.provenance?.timestamp
-                                            ? new Date(metadata.provenance.timestamp).toLocaleString()
-                                            : 'N/A';
-                                        await showModal(
-                                            '🛡️ Block Verified',
-                                            `Block ID: ${blockIdentifier}\n\nSigner: ${metadata?.provenance?.authorId || 'Unknown'}\n\nTimestamp: ${timestamp}`
-                                        );
+                                        let message = 'Verifying signature...';
+                                        let title = '🛡️ Block Verification';
+
+                                        try {
+                                            const contentHash = await sha256(node.textContent);
+                                            const isValid = await invoke<boolean>('verify_block_signature', {
+                                                blockId: blockIdentifier,
+                                                contentHash,
+                                                signatureHex: metadata?.provenance?.signature
+                                            });
+
+                                            const timestamp = metadata?.provenance?.timestamp
+                                                ? new Date(metadata.provenance.timestamp).toLocaleString()
+                                                : 'N/A';
+
+                                            if (isValid) {
+                                                title = '✅ Signature Valid';
+                                                message = `Block ID: ${blockIdentifier}\n\nSigner: ${metadata?.provenance?.authorId || 'Unknown'}\nKey ID: ${metadata?.provenance?.sourceId || 'Unknown'}\nTimestamp: ${timestamp}\n\nThis block has NOT been modified since signing.`;
+                                            } else {
+                                                title = '⚠️ INVALID SIGNATURE';
+                                                message = `Block ID: ${blockIdentifier}\n\nINTEGRITY CHECK FAILED!\n\nThe content of this block has been modified after it was signed.\n\nExpected Hash: (Hidden)\nActual Hash: ${contentHash.substring(0, 8)}...`;
+                                            }
+                                        } catch (e) {
+                                            title = '❌ Verification Error';
+                                            message = `Could not verify signature: ${e}`;
+                                        }
+
+                                        await showModal(title, message);
                                     } else {
                                         // Sign
                                         if (!user) {
