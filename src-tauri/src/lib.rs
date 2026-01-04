@@ -413,6 +413,11 @@ fn sign_block(req: BlockSignatureRequest, user: User) -> Result<BlockSignature, 
 }
 
 #[tauri::command]
+fn get_audit_log(limit: Option<usize>) -> Result<Vec<audit_log::AuditEvent>, String> {
+    audit_log::read_log(limit.unwrap_or(100)).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn verify_block_signature(
     block_id: String,
     content_hash: String,
@@ -805,6 +810,7 @@ pub fn run() {
             revoke_capability_token,
             sign_block,
             verify_block_signature,
+            get_audit_log,
             // WebSocket collaboration commands
             tauri_commands::start_websocket_server,
             tauri_commands::stop_websocket_server,
@@ -1022,5 +1028,28 @@ mod tests {
             err.contains("Access Denied"),
             "Viewer should not be able to sign"
         );
+    }
+    #[test]
+    fn test_get_audit_log() {
+        // 1. Log an Event
+        let event = audit_log::AuditEvent {
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            user_id: "test-user".to_string(),
+            action: "TEST_LOG".to_string(),
+            resource_id: "test-res".to_string(),
+            details: "Testing audit log read".to_string(),
+            severity: "INFO".to_string(),
+        };
+        audit_log::log_event(event).expect("Writing log should work");
+
+        // 2. Read Log
+        let logs = get_audit_log(Some(10)).expect("Reading log should work");
+
+        // 3. Verify
+        assert!(logs.len() > 0, "Should have logs");
+        let found = logs.iter().any(|l| l.action == "TEST_LOG");
+        assert!(found, "Should find the logged test event");
+
+        println!("✅ Verified Audit Log Read: Found {} entries", logs.len());
     }
 }

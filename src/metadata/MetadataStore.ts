@@ -33,6 +33,22 @@ export class MetadataStore extends Observable<any> {
         return this.verificationStatus.get(blockId) || null;
     }
 
+    getVerificationStats(): Record<VerificationStatus, number> {
+        const stats: Record<VerificationStatus, number> = {
+            verified: 0,
+            tampered: 0,
+            unsigned: 0,
+            unknown: 0,
+            verifying: 0
+        };
+        for (const status of this.verificationStatus.values()) {
+            if (stats[status] !== undefined) {
+                stats[status]++;
+            }
+        }
+        return stats;
+    }
+
     /**
      * Store an ephemeral capability token [Sprint 4]
      */

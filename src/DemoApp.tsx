@@ -11,6 +11,7 @@ import { GovernanceDashboard } from './components/governance/GovernanceDashboard
 import { MarketplaceSidebar } from './components/MarketplaceSidebar';
 import { MetadataPanel } from './components/MetadataPanel';
 import { HelpPanel } from './components/HelpPanel';
+import { SecurityDashboard } from './components/security/SecurityDashboard';
 import { ToastContainer, useToast } from './components/Toast';
 import './DemoApp.css';
 import { User } from './security/types';
@@ -31,6 +32,7 @@ const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, docId, o
     const [appMode, setAppMode] = useState<'editor' | 'slides' | 'split' | 'governance'>('split');
     const [showMarketplace, setShowMarketplace] = useState(false);
     const [showMetadataPanel, setShowMetadataPanel] = useState(false);
+    const [showSecurity, setShowSecurity] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
     const { toasts, dismissToast, success } = useToast();
@@ -68,6 +70,7 @@ const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, docId, o
                             title={docTitle}
                             onToggleMarketplace={() => setShowMarketplace(!showMarketplace)}
                             onToggleMetadata={() => setShowMetadataPanel(!showMetadataPanel)}
+                            onToggleSecurity={() => setShowSecurity(!showSecurity)}
                             onToggleHelp={() => setShowHelp(true)}
                             metadataStore={metadataStore}
                             onDocChange={onDocChange}
@@ -87,6 +90,7 @@ const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, docId, o
                     }
                     modals={
                         <>
+                            <SecurityDashboard isOpen={showSecurity} onClose={() => setShowSecurity(false)} metadataStore={metadataStore} />
                             <HelpPanel isOpen={showHelp} onClose={() => setShowHelp(false)} />
                             <ToastContainer toasts={toasts} onDismiss={dismissToast} />
                         </>

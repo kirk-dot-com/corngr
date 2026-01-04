@@ -1,0 +1,236 @@
+.security-dashboard-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.security-dashboard-container {
+    width: 95%;
+    max-width: 1100px;
+    height: 85vh;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.dashboard-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #222;
+}
+
+.dashboard-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #e0e0e0;
+    font-weight: 600;
+}
+
+.close-btn {
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.close-btn:hover {
+    color: #fff;
+}
+
+.dashboard-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+.stats-panel {
+    width: 320px;
+    background: #1f1f1f;
+    border-right: 1px solid #333;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.stats-panel h3 {
+    margin: 0 0 10px 0;
+    font-size: 1.1rem;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.chart-container {
+    margin-bottom: 20px;
+}
+
+.stats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    color: #ccc;
+    font-size: 0.95rem;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+}
+
+.stat-item strong {
+    margin-left: auto;
+    color: #fff;
+    font-size: 1.1rem;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.logs-panel {
+    flex: 1;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.logs-panel h3 {
+    margin: 0 0 20px 0;
+    font-size: 1.1rem;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.logs-table-wrapper {
+    flex: 1;
+    overflow: auto;
+    border: 1px solid #333;
+    border-radius: 8px;
+    background: #151515;
+}
+
+.logs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.logs-table th {
+    background: #252525;
+    color: #888;
+    text-align: left;
+    padding: 12px 16px;
+    position: sticky;
+    top: 0;
+    font-weight: 600;
+    z-index: 10;
+    border-bottom: 1px solid #333;
+}
+
+.logs-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid #222;
+    color: #ccc;
+}
+
+.log-row:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.col-time {
+    white-space: nowrap;
+    color: #888;
+}
+
+.col-sev {
+    width: 80px;
+    text-align: center;
+}
+
+.col-action {
+    color: #667eea;
+    font-weight: 600;
+}
+
+.col-user {
+    color: #aaa;
+}
+
+.col-details {
+    color: #888;
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Badges */
+.badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.severity-info {
+    background: rgba(102, 126, 234, 0.2);
+    color: #667eea;
+}
+
+.severity-warn {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+}
+
+.severity-error {
+    background: rgba(244, 67, 54, 0.2);
+    color: #f44336;
+}
+
+.severity-critical {
+    background: #f44336;
+    color: #fff;
+}
+
+/* Dashboard Responsive */
+@media (max-width: 900px) {
+    .dashboard-content {
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    .stats-panel {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #333;
+    }
+}

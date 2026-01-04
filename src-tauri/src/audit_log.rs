@@ -1,9 +1,10 @@
 use chrono::Utc;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
-use std::fs::OpenOptions;
-use std::io::Write;
+use std::fs::{File, OpenOptions};
+use std::io::{BufRead, BufReader, Write};
 use std::sync::Mutex;
+use tauri::State;
 
 lazy_static! {
     static ref AUDIT_LOCK: Mutex<()> = Mutex::new(());
@@ -54,16 +55,46 @@ pub fn log_event(event: AuditEvent) {
     // 2. Append to persistent file
     let _lock = AUDIT_LOCK.lock().unwrap();
 
-    let file_path = "audit.jsonl";
-    let mut file = OpenOptions::new()
+    if let Err(e) = append_log(&event) {
+        eprintln!("CRITICAL: Failed to write to audit log: {}", e);
+    }
+}
+
+pub fn append_log(event: &AuditEvent) -> std::io::Result<()> {
+    let file = OpenOptions::new()
         .create(true)
         .append(true)
-        .open(file_path)
-        .expect("Failed to open audit log file");
+        .open("audit.jsonl")?;
 
-    if let Ok(json) = serde_json::to_string(&event) {
-        if let Err(e) = writeln!(file, "{}", json) {
-            eprintln!("CRITICAL: Failed to write to audit log: {}", e);
+    let mut writer = std::io::LineWriter::new(file);
+    let json = serde_json::to_string(event)?;
+    writeln!(writer, "{}", json)?;
+    Ok(())
+}
+
+pub fn read_log(limit: usize) -> std::io::Result<Vec<AuditEvent>> {
+    let file = File::open("audit.jsonl");
+    match file {
+        Ok(f) => {
+            let reader = BufReader::new(f);
+            let mut events = Vec::new();
+
+            // Read all lines, parse, then take last N
+            // Ideally we read from end, but for MVP reading all is fine (audit log small dev)
+            for line in reader.lines() {
+                if let Ok(l) = line {
+                    if let Ok(event) = serde_json::from_str::<AuditEvent>(&l) {
+                        events.push(event);
+                    }
+                }
+            }
+
+            events.reverse(); // Newest first
+            if events.len() > limit {
+                events.truncate(limit);
+            }
+            Ok(events)
         }
+        Err(_) => Ok(Vec::new()), // Return empty if no log file yet
     }
 }

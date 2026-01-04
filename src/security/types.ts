@@ -10,6 +10,15 @@ export interface User {
     attributes: UserAttributes; // Ensure nesting is correct for ABAC
 }
 
+export interface AuditEvent {
+    timestamp: string;
+    user_id: string;
+    action: string;
+    resource_id: string;
+    details: string;
+    severity: 'INFO' | 'WARN' | 'ERROR' | 'CRITICAL';
+}
+
 export interface Action {
     type: string;
     payload?: any;

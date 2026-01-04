@@ -9,6 +9,7 @@ interface TopBarProps {
     title?: string;
     onToggleMarketplace?: () => void;
     onToggleMetadata?: () => void;
+    onToggleSecurity?: () => void;
     onToggleHelp?: () => void;
     metadataStore?: MetadataStore;
     onDocChange?: (id: string, title?: string) => void;
@@ -18,6 +19,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     title = 'Untitled Doc',
     onToggleMarketplace,
     onToggleMetadata,
+    onToggleSecurity,
     onToggleHelp,
     onDocChange
 }) => {
@@ -132,6 +134,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 <ActionBtn icon="✨" label="Ask AI" active={isSidecarOpen} onClick={() => sidecarStore.toggle()} />
                 <ActionBtn icon="🛍️" label="Extensions" onClick={onToggleMarketplace} />
                 <ActionBtn icon="ⓘ" label="Metadata" onClick={onToggleMetadata} />
+                <ActionBtn icon="🛡️" label="Security" onClick={onToggleSecurity} />
                 <ActionBtn icon="?" label="Help" onClick={onToggleHelp} />
 
             </div>
