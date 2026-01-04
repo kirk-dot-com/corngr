@@ -2,7 +2,13 @@ import { invoke } from '@tauri-apps/api/core';
 import { User } from '../security/types';
 import { sha256 } from '../utils/crypto';
 
-// ... (keep showModal)
+import { Plugin } from 'prosemirror-state';
+import { Decoration, DecorationSet } from 'prosemirror-view';
+import { MetadataStore } from '../metadata/MetadataStore';
+async function showModal(title: string, body: string) {
+    // Fallback for browser (plugin-dialog not installed)
+    alert(`${title}\n\n${body}`);
+}
 
 // Helper function to calculate SHA-256 hash
 // (Moved to shared util, import above)
