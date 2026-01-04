@@ -20,12 +20,15 @@ interface BlockSignature {
     algorithm: string;
 }
 
+export type VerificationStatus = 'verified' | 'tampered' | 'unsigned' | 'unknown' | 'verifying';
+
 export function createGutterPlugin(
     metadataStore: MetadataStore,
     appMode: 'draft' | 'audit' | 'presentation',
     onBlockSelect?: (blockId: string | null) => void,
     onToast?: (message: string) => void,
-    user?: User | null
+    user?: User | null,
+    verificationResults?: Record<string, VerificationStatus>
 ): Plugin {
     return new Plugin({
         props: {
@@ -52,11 +55,29 @@ export function createGutterPlugin(
                                 indicator.title = isSealed ? 'Block Sealed' : 'Draft / Unverified';
                                 dom.appendChild(indicator);
                             } else if (appMode === 'draft') {
+                                // Check verification status
+                                const status = verificationResults && verificationResults[blockIdentifier];
+
                                 // Sign Button
                                 const signBtn = document.createElement('button');
                                 signBtn.className = `gutter-btn ${isSealed ? 'active' : ''}`;
-                                signBtn.innerHTML = isSealed ? '🔒' : '🔏';
-                                signBtn.title = isSealed ? 'Sealed Block (Click to verify)' : 'Sign & Seal Block';
+
+                                if (status === 'tampered') {
+                                    signBtn.innerHTML = '⚠️';
+                                    signBtn.className += ' status-tampered';
+                                    signBtn.title = 'SECURITY WARNING: Block content has been modified since signing!';
+                                } else if (status === 'verifying') {
+                                    signBtn.innerHTML = '⌛';
+                                    signBtn.className += ' status-verifying';
+                                    signBtn.title = 'Verifying signature...';
+                                } else if (status === 'verified') {
+                                    signBtn.innerHTML = '🔒'; // Or ✅
+                                    signBtn.className += ' status-verified';
+                                    signBtn.title = 'Verified: Signature matches content';
+                                } else {
+                                    signBtn.innerHTML = isSealed ? '🔒' : '🔏';
+                                    signBtn.title = isSealed ? 'Sealed Block (Click to verify)' : 'Sign & Seal Block';
+                                }
 
                                 signBtn.onclick = async (e) => {
                                     e.preventDefault();
