@@ -10,3 +10,5 @@
 {"timestamp":"2026-01-04T05:38:23.843796+00:00","user_id":"local-user","action":"WS_CONNECT","resource_id":"doc_default","details":"Role: editor","severity":"INFO"}
 {"timestamp":"2026-01-04T05:38:23.968104+00:00","user_id":"local-user","action":"WS_CONNECT","resource_id":"doc_default","details":"Role: editor","severity":"INFO"}
 {"timestamp":"2026-01-04T05:38:24.021728+00:00","user_id":"local-user","action":"WS_CONNECT","resource_id":"doc_default","details":"Role: editor","severity":"INFO"}
+{"timestamp":"2026-01-04T05:38:45.043603+00:00","user_id":"local-user","action":"WS_CONNECT","resource_id":"doc_default","details":"Role: editor","severity":"INFO"}
+{"timestamp":"2026-01-04T05:38:45.138290+00:00","user_id":"local-user","action":"WS_CONNECT","resource_id":"doc_default","details":"Role: editor","severity":"INFO"}
