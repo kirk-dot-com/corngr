@@ -19,6 +19,7 @@ import { SlashCommandMenu, CommandItem } from '../components/editor/SlashCommand
 import { createSlashCommandPlugin } from '../components/editor/plugins/SlashCommandPlugin';
 import { marketplaceStore } from '../stores/MarketplaceStore';
 import { SmartGridComponent } from '../components/editor/SmartGridComponent';
+import { useDocumentVerification } from '../hooks/useDocumentVerification';
 import './editor.css';
 import './cursor.css';
 
@@ -47,6 +48,9 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
     const viewRef = useRef<EditorView | null>(null);
     const [currentView, setCurrentView] = useState<EditorView | null>(null);
 
+    // Document Verification Hook
+    useDocumentVerification(currentView, metadataStore);
+
     // Marketplace State
     const [installedCapabilities, setInstalledCapabilities] = useState<string[]>([]);
 
@@ -63,6 +67,24 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
         const unsubscribe = marketplaceStore.subscribe(updateCaps);
         return () => { unsubscribe(); };
     }, []);
+
+    // Subscribe to verification events to refresh decorators
+    useEffect(() => {
+        if (!metadataStore || !currentView) return;
+
+        const handleVerificationUpdate = () => {
+            // Dispatch dummy transaction to force decoration update
+            if (currentView && !currentView.isDestroyed) {
+                const tr = currentView.state.tr.setMeta('verification', true);
+                currentView.dispatch(tr);
+            }
+        };
+
+        metadataStore.on('verification', handleVerificationUpdate);
+        return () => {
+            metadataStore.off('verification', handleVerificationUpdate);
+        };
+    }, [metadataStore, currentView]);
 
     // Slash Command State
     const [slashState, setSlashState] = useState<{

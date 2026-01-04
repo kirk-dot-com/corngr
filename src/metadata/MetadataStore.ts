@@ -2,6 +2,8 @@ import { BlockMetadata } from '../yjs/schema';
 import { Observable } from 'lib0/observable';
 import * as Y from 'yjs';
 
+export type VerificationStatus = 'verified' | 'tampered' | 'unsigned' | 'unknown' | 'verifying';
+
 /**
  * Shadow Metadata Store for Phase 2
  * 
@@ -10,11 +12,25 @@ import * as Y from 'yjs';
 export class MetadataStore extends Observable<any> {
     private metadata: Map<string, BlockMetadata>;
     private capabilityTokens: Map<string, any>; // [Sprint 4] Ephemeral Handshake Tokens
+    private verificationStatus: Map<string, VerificationStatus>; // [Phase 2] Ephemeral Verification Status
 
     constructor() {
         super();
         this.metadata = new Map();
         this.capabilityTokens = new Map();
+        this.verificationStatus = new Map();
+    }
+
+    setVerificationStatus(blockId: string, status: VerificationStatus): void {
+        this.verificationStatus.set(blockId, status);
+        // Emit specific event or general update?
+        // GutterPlugin needs to re-render. 
+        // We can emit 'verification' event.
+        this.emit('verification', [{ blockId, status }]);
+    }
+
+    getVerificationStatus(blockId: string): VerificationStatus | null {
+        return this.verificationStatus.get(blockId) || null;
     }
 
     /**

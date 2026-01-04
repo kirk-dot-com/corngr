@@ -4,7 +4,7 @@ import { sha256 } from '../utils/crypto';
 
 import { Plugin } from 'prosemirror-state';
 import { Decoration, DecorationSet } from 'prosemirror-view';
-import { MetadataStore } from '../metadata/MetadataStore';
+import { MetadataStore, VerificationStatus } from '../metadata/MetadataStore';
 async function showModal(title: string, body: string) {
     // Fallback for browser (plugin-dialog not installed)
     alert(`${title}\n\n${body}`);
@@ -20,15 +20,14 @@ interface BlockSignature {
     algorithm: string;
 }
 
-export type VerificationStatus = 'verified' | 'tampered' | 'unsigned' | 'unknown' | 'verifying';
+// export type VerificationStatus = ... (Removed, using Store type)
 
 export function createGutterPlugin(
     metadataStore: MetadataStore,
     appMode: 'draft' | 'audit' | 'presentation',
     onBlockSelect?: (blockId: string | null) => void,
     onToast?: (message: string) => void,
-    user?: User | null,
-    verificationResults?: Record<string, VerificationStatus>
+    user?: User | null
 ): Plugin {
     return new Plugin({
         props: {
@@ -55,8 +54,8 @@ export function createGutterPlugin(
                                 indicator.title = isSealed ? 'Block Sealed' : 'Draft / Unverified';
                                 dom.appendChild(indicator);
                             } else if (appMode === 'draft') {
-                                // Check verification status
-                                const status = verificationResults && verificationResults[blockIdentifier];
+                                // Check verification status from store
+                                const status = metadataStore.getVerificationStatus(blockIdentifier);
 
                                 // Sign Button
                                 const signBtn = document.createElement('button');

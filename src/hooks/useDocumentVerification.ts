@@ -7,7 +7,6 @@ import { sha256 } from '../utils/crypto';
 export type VerificationStatus = 'verified' | 'tampered' | 'unsigned' | 'unknown' | 'verifying';
 
 export function useDocumentVerification(editorView: EditorView | null, metadataStore: MetadataStore | null) {
-    const [verificationResults, setVerificationResults] = useState<Record<string, VerificationStatus>>({});
     const [isVerifying, setIsVerifying] = useState(false);
 
     useEffect(() => {
@@ -15,7 +14,6 @@ export function useDocumentVerification(editorView: EditorView | null, metadataS
 
         const verifyDoc = async () => {
             setIsVerifying(true);
-            const results: Record<string, VerificationStatus> = {};
             const promises: Promise<void>[] = [];
 
             editorView.state.doc.descendants((node) => {
@@ -27,7 +25,7 @@ export function useDocumentVerification(editorView: EditorView | null, metadataS
                 const signature = metadata?.provenance?.signature;
 
                 if (signature) {
-                    results[blockId] = 'verifying';
+                    metadataStore.setVerificationStatus(blockId, 'verifying');
 
                     const p = async () => {
                         try {
@@ -37,7 +35,9 @@ export function useDocumentVerification(editorView: EditorView | null, metadataS
                                 contentHash,
                                 signatureHex: signature
                             });
-                            results[blockId] = isValid ? 'verified' : 'tampered';
+
+                            const status = isValid ? 'verified' : 'tampered';
+                            metadataStore.setVerificationStatus(blockId, status);
 
                             if (!isValid) {
                                 console.warn(`🚨 Block ${blockId} verification FAILED`);
@@ -45,12 +45,12 @@ export function useDocumentVerification(editorView: EditorView | null, metadataS
                             }
                         } catch (e) {
                             console.error(`Verification error for ${blockId}:`, e);
-                            results[blockId] = 'unknown';
+                            metadataStore.setVerificationStatus(blockId, 'unknown');
                         }
                     };
                     promises.push(p());
                 } else {
-                    results[blockId] = 'unsigned';
+                    metadataStore.setVerificationStatus(blockId, 'unsigned');
                 }
 
                 // Do not descend into children of blocks (text nodes don't have blockIds)
@@ -59,11 +59,6 @@ export function useDocumentVerification(editorView: EditorView | null, metadataS
 
             if (promises.length > 0) {
                 await Promise.all(promises);
-            }
-
-            // Only update state if results actually exist
-            if (Object.keys(results).length > 0) {
-                setVerificationResults(results);
             }
             setIsVerifying(false); // Done
         };
@@ -76,5 +71,5 @@ export function useDocumentVerification(editorView: EditorView | null, metadataS
     // Ideally we want to run on Load. `editorView` is stable ref usually.
     // If we want to re-run on demand, we can expose a `refetch` function.
 
-    return { verificationResults, isVerifying };
+    return { isVerifying };
 }
