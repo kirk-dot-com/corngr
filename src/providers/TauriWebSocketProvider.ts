@@ -16,17 +16,61 @@ export class TauriWebSocketProvider {
     constructor(
         documentId: string,
         ydoc: Y.Doc,
+        user?: { id: string; role: string } | null,
         serverUrl: string = 'ws://localhost:3030'
     ) {
         this.documentId = documentId
         this.serverUrl = serverUrl
 
-        console.log(`🔌 Connecting to Tauri WebSocket server: ${serverUrl} (doc: ${documentId})`)
+        // IRAP COMPLIANCE: Include user authentication in WebSocket connection
+        // Note: y-websocket doesn't support custom headers, so we use URL params
+        // The server will extract these during the handshake
+        const userId = user?.id || 'anonymous'
+        const userRole = user?.role || 'viewer'
+
+        console.log(`🔌 Connecting to Tauri WebSocket server: ${serverUrl} (doc: ${documentId}, user: ${userId}, role: ${userRole})`)
+
+        // Create WebSocket with custom params that our server can read from headers
+        // We'll need to use a custom WebSocket constructor to add headers
+        const wsUrl = `${serverUrl}/${documentId}`
 
         this.provider = new WebsocketProvider(serverUrl, documentId, ydoc, {
-            connect: true,
+            connect: false,  // Don't auto-connect, we'll connect manually with headers
             // y-websocket will automatically handle awareness
         })
+
+        // Override the WebSocket connection to add authentication headers
+        // @ts-ignore - accessing private property
+        const originalConnect = this.provider.connect.bind(this.provider)
+        // @ts-ignore
+        this.provider.connect = () => {
+            // @ts-ignore - accessing private ws property
+            if (this.provider.ws) {
+                // @ts-ignore
+                this.provider.ws.close()
+            }
+
+            // Create WebSocket with custom headers
+            // Note: Browser WebSocket API doesn't support custom headers
+            // So we'll use a workaround: encode user info in the URL path
+            const authUrl = `${serverUrl}/${documentId}?userId=${encodeURIComponent(userId)}&userRole=${encodeURIComponent(userRole)}`
+
+            // @ts-ignore - creating custom WebSocket
+            const ws = new WebSocket(authUrl)
+
+            // Manually add headers by setting them before connection
+            // This is a workaround since browser WebSocket doesn't support headers
+            // Our server will need to extract from URL params instead
+
+            // @ts-ignore - assign custom ws
+            this.provider.ws = ws
+
+            // Call original connect logic
+            originalConnect()
+        }
+
+        // Now connect with authentication
+        this.provider.connect()
 
         this.setupEventHandlers()
     }
