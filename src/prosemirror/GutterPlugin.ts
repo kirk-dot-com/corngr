@@ -44,7 +44,8 @@ function showModal(title: string, message: string, showCancel: boolean = false):
  */
 export function createGutterPlugin(
     metadataStore: MetadataStore,
-    appMode: 'draft' | 'audit' | 'presentation'
+    appMode: 'draft' | 'audit' | 'presentation',
+    onBlockSelect?: (blockId: string | null) => void
 ): Plugin {
     return new Plugin({
         props: {
@@ -117,14 +118,20 @@ export function createGutterPlugin(
                                 const infoBtn = document.createElement('button');
                                 infoBtn.className = 'gutter-btn';
                                 infoBtn.innerHTML = 'ℹ️';
-                                infoBtn.title = 'View Block Lineage';
+                                infoBtn.title = 'View Block Metadata';
                                 infoBtn.onclick = async (e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    await showModal(
-                                        'ℹ️ Block Lineage',
-                                        `ID: ${blockIdentifier}\nType: ${node.type.name}\nProvenance: ${metadata?.provenance?.sourceId || 'Local'}`
-                                    );
+                                    // Open metadata panel if callback is provided
+                                    if (onBlockSelect && node.attrs.blockId) {
+                                        onBlockSelect(node.attrs.blockId);
+                                    } else {
+                                        // Fallback to modal if no callback
+                                        await showModal(
+                                            'ℹ️ Block Lineage',
+                                            `ID: ${blockIdentifier}\nType: ${node.type.name}\nProvenance: ${metadata?.provenance?.sourceId || 'Local'}`
+                                        );
+                                    }
                                 };
                                 dom.appendChild(infoBtn);
                             }
