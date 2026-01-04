@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BlockMetadata } from '../yjs/schema';
 import { MetadataStore } from '../metadata/MetadataStore';
 import { User } from '../security/types';
-import '../HelpPanel.css'; // Use shared panel styles
+import './HelpPanel.css'; // Use shared panel styles
 
 interface MetadataPanelProps {
     selectedBlockId: string | null;

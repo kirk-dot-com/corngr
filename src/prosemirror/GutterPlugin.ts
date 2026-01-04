@@ -83,40 +83,40 @@ export function createGutterPlugin(
                                     e.preventDefault();
                                     e.stopPropagation();
 
+                                    // Optimize: Instant Sign & Seal (Optimistic UI)
+                                    // Remove confirmation modal for better "flow"
                                     if (isSealed) {
+                                        // View Verification Details (keep modal for details)
                                         await showModal(
                                             '🛡️ Block Verified',
                                             `ID: ${blockIdentifier}\nSigner: ${metadata?.provenance?.authorId || 'Unknown'}\nTimestamp: ${metadata?.provenance?.timestamp}`
                                         );
                                     } else {
-                                        const proceed = await showModal(
-                                            '🔏 Sign & Seal Block',
-                                            'Sign this block with your Ed25519 identity?\n\nThis will freeze the content in Audit Mode.',
-                                            true // show cancel button
-                                        );
-                                        if (proceed) {
-                                            const newMetadata = {
-                                                ...metadata,
-                                                provenance: {
-                                                    ...metadata?.provenance,
-                                                    signature: 'ED25519_SIG_' + Math.random().toString(36).substring(7),
-                                                    authorId: 'Current User',
-                                                    timestamp: new Date().toISOString()
-                                                }
-                                            };
-                                            if (node.attrs.blockId) {
-                                                metadataStore.set(node.attrs.blockId, newMetadata as any);
+                                        // Instant Sign Action
+                                        const newMetadata = {
+                                            ...metadata,
+                                            provenance: {
+                                                ...metadata?.provenance,
+                                                signature: 'ED25519_SIG_' + Math.random().toString(36).substring(7),
+                                                authorId: 'Current User', // TODO: Get name from context
+                                                timestamp: new Date().toISOString()
                                             }
-                                            // The view will re-render decorations on next update
-                                            view.dispatch(view.state.tr);
+                                        };
+                                        if (node.attrs.blockId) {
+                                            metadataStore.set(node.attrs.blockId, newMetadata as any);
+
+                                            // Visual feedback (optional: could add a toast here if we had a toast system)
+                                            console.log(`Block ${node.attrs.blockId} signed & sealed.`);
                                         }
+                                        // The view will re-render decorations on next update
+                                        view.dispatch(view.state.tr);
                                     }
                                 };
                                 dom.appendChild(signBtn);
 
                                 // View Source / Info
                                 const infoBtn = document.createElement('button');
-                                infoBtn.className = 'gutter-btn';
+                                infoBtn.className = 'gutter-btn info-btn';
                                 infoBtn.innerHTML = 'ℹ️';
                                 infoBtn.title = 'View Block Metadata';
                                 infoBtn.onclick = async (e) => {

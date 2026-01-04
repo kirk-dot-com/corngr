@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { marketplaceStore, MarketplaceProduct } from '../stores/MarketplaceStore';
-import '../HelpPanel.css'; // Use shared panel styles
+import './HelpPanel.css'; // Use shared panel styles
 
 interface MarketplaceSidebarProps {
     onClose: () => void;

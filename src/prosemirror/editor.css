@@ -239,35 +239,60 @@
   opacity: 1;
 }
 
+/* Gutter Button Styling - Optimised for Clickability */
 .gutter-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(102, 126, 234, 0.15);
-  border: 1px solid rgba(102, 126, 234, 0.3);
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(102, 126, 234, 0.2);
   color: #667eea;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: 1.1rem;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .gutter-btn:hover {
-  background: rgba(102, 126, 234, 0.3);
+  background: rgba(102, 126, 234, 0.25);
   color: #fff;
-  border-color: rgba(102, 126, 234, 0.5);
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  border-color: rgba(102, 126, 234, 0.6);
+  transform: scale(1.05);
+  /* Slightly less aggressive scale */
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.gutter-btn:active {
+  transform: scale(0.95);
+  background: rgba(102, 126, 234, 0.15);
 }
 
 .gutter-btn.active {
-  background: linear-gradient(135deg, #4cd964 0%, #2ecc71 100%);
-  color: white;
-  border: none;
-  box-shadow: 0 4px 12px rgba(76, 217, 100, 0.4);
+  /* Sealed State */
+  background: rgba(76, 217, 100, 0.15);
+  color: #4cd964;
+  border-color: rgba(76, 217, 100, 0.4);
+  box-shadow: 0 0 10px rgba(76, 217, 100, 0.1);
+}
+
+.gutter-btn.active:hover {
+  background: rgba(76, 217, 100, 0.25);
+  border-color: rgba(76, 217, 100, 0.6);
+}
+
+.gutter-btn.info-btn {
+  color: #a0aec0;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.gutter-btn.info-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 /* Audit Mode Overrides */
