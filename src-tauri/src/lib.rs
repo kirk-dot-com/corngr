@@ -955,4 +955,71 @@ mod tests {
             "Invalid signature hex should fail"
         );
     }
+
+    #[test]
+    fn test_block_signature_flow() {
+        // 1. Setup User and Request
+        let editor = User {
+            id: "editor-1".to_string(),
+            attributes: UserAttributes {
+                role: "editor".to_string(),
+                department: None,
+                clearance_level: None,
+            },
+        };
+
+        let req = BlockSignatureRequest {
+            block_id: "block-123".to_string(),
+            content_hash: "hash-of-content".to_string(),
+        };
+
+        // 2. Sign Block
+        let result = sign_block(req.clone(), editor.clone()).expect("Signing should succeed");
+
+        println!("📝 Block Signature: {:?}", result);
+        assert_eq!(result.algorithm, "Ed25519");
+        assert!(
+            result.signature.len() > 64,
+            "Signature should be substantial hex string"
+        );
+
+        // 3. Verify Valid Signature
+        let is_valid = verify_block_signature(
+            req.block_id.clone(),
+            req.content_hash.clone(),
+            result.signature.clone(),
+        )
+        .expect("Verification should run");
+
+        assert!(is_valid, "Signature should be valid for original content");
+
+        // 4. Verify Invalid Content (Tampering)
+        let is_valid_tampered = verify_block_signature(
+            req.block_id.clone(),
+            "different-hash".to_string(),
+            result.signature.clone(),
+        )
+        .expect("Verification should run");
+
+        assert!(
+            !is_valid_tampered,
+            "Signature should FAIL for tampered content"
+        );
+
+        // 5. Verify Read-Only Rejection
+        let viewer = User {
+            id: "viewer-1".to_string(),
+            attributes: UserAttributes {
+                role: "viewer".to_string(),
+                department: None,
+                clearance_level: None,
+            },
+        };
+
+        let err = sign_block(req, viewer).unwrap_err();
+        assert!(
+            err.contains("Access Denied"),
+            "Viewer should not be able to sign"
+        );
+    }
 }
