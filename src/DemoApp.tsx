@@ -152,8 +152,14 @@ export const DemoApp: React.FC = () => {
     });
 
     const handleDocChange = (id: string, title: string = 'Untitled Doc') => {
-        setDocId(id);
-        setDocTitle(title);
+        if (id === '_CURRENT_') {
+            // Just update the title of the current doc
+            setDocTitle(title);
+        } else {
+            // Switch document
+            setDocId(id);
+            setDocTitle(title);
+        }
     };
 
     return (

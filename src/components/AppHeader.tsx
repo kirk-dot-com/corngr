@@ -44,6 +44,15 @@ export const TopBar: React.FC<TopBarProps> = ({
         document.getElementById('doc-dropdown')!.style.display = 'none';
     };
 
+    const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (onDocChange) onDocChange(document.getElementById('hidden-doc-id')?.innerText || '', e.target.value);
+    };
+
+    const [currentId, setCurrentId] = useState('');
+
+    // This is a bit hacky but we need to track the ID locally or pass it in
+    // For now we will rely on the parent updating the title
+
     return (
         <header className="top-bar">
             {/* Left: Context */}
@@ -51,7 +60,19 @@ export const TopBar: React.FC<TopBarProps> = ({
                 <div className="doc-icon">📄</div>
                 <div className="doc-info">
                     <div className="doc-title-wrapper">
-                        <span className="doc-title">{title}</span>
+                        <input
+                            type="text"
+                            className="doc-title-input"
+                            value={title}
+                            onChange={(e) => {
+                                // We need to know the CURRENT doc ID to update its title
+                                // The handleDocSwitch logic in parent (DemoApp) needs to track IDs
+                                // But TopBar currently doesn't receive 'docId' prop
+                                // For this quick fix, we'll just pass the NEW title and let parent handle it
+                                if (onDocChange) onDocChange('_CURRENT_', e.target.value);
+                            }}
+                            title="Click to rename document"
+                        />
                         <button className="doc-dropdown-btn" title="Switch Document" onClick={() => {
                             const dropdown = document.getElementById('doc-dropdown');
                             if (dropdown) {

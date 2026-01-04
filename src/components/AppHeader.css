@@ -34,6 +34,29 @@
     font-size: 0.9rem;
 }
 
+.doc-title-input {
+    font-weight: 600;
+    font-size: 0.9rem;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #f8fafc;
+    border-radius: 4px;
+    padding: 0 4px;
+    outline: none;
+    transition: all 0.2s;
+    width: 200px;
+}
+
+.doc-title-input:hover {
+    border-color: #334155;
+    background: #0f172a;
+}
+
+.doc-title-input:focus {
+    border-color: #3b82f6;
+    background: #0f172a;
+}
+
 .doc-status {
     font-size: 0.7rem;
     color: #94a3b8;
