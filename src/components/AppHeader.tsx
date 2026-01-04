@@ -11,13 +11,15 @@ interface TopBarProps {
     onToggleMetadata?: () => void;
     onToggleHelp?: () => void;
     metadataStore?: MetadataStore;
+    onDocChange?: (id: string, title?: string) => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
     title = 'Untitled Doc',
     onToggleMarketplace,
     onToggleMetadata,
-    onToggleHelp
+    onToggleHelp,
+    onDocChange
 }) => {
     const { connected, users } = useYjs();
     const { user } = React.useContext(UserContext);
@@ -37,6 +39,11 @@ export const TopBar: React.FC<TopBarProps> = ({
         else setStatus('Saved');
     }, [connected]);
 
+    const handleDocSwitch = (id: string, newTitle: string) => {
+        if (onDocChange) onDocChange(id, newTitle);
+        document.getElementById('doc-dropdown')!.style.display = 'none';
+    };
+
     return (
         <header className="top-bar">
             {/* Left: Context */}
@@ -53,17 +60,20 @@ export const TopBar: React.FC<TopBarProps> = ({
                         }}>▼</button>
                         <div id="doc-dropdown" className="doc-dropdown" style={{ display: 'none' }}>
                             <div className="doc-dropdown-header">Recent Documents</div>
-                            <button className="doc-item active">
+                            <button className="doc-item active" onClick={() => handleDocSwitch('doc_default', 'Project Alpha')}>
                                 📄 Project Alpha <span className="doc-badge">Current</span>
                             </button>
-                            <button className="doc-item">
+                            <button className="doc-item" onClick={() => handleDocSwitch('doc_sprint_q4', 'Sprint Planning Q4')}>
                                 📄 Sprint Planning Q4
                             </button>
-                            <button className="doc-item">
+                            <button className="doc-item" onClick={() => handleDocSwitch('doc_tech_spec', 'Technical Spec v2')}>
                                 📄 Technical Spec v2
                             </button>
                             <div className="doc-dropdown-divider"></div>
-                            <button className="doc-item create-new">
+                            <button className="doc-item create-new" onClick={() => {
+                                const newId = 'doc_' + Math.random().toString(36).substr(2, 9);
+                                handleDocSwitch(newId, 'Untitled Document');
+                            }}>
                                 ➕ Create New Document
                             </button>
                         </div>
@@ -87,11 +97,11 @@ export const TopBar: React.FC<TopBarProps> = ({
                 {/* Collaboration Avatars */}
                 <div className="presence-cluster">
                     {users.map(u => (
-                        <div key={u.id} className="avatar" title={u.name} style={{ background: u.color }}>
+                        <div key={u.id} className="avatar" title={`${u.name} (${u.role || 'viewer'})`} style={{ background: u.color }}>
                             {u.name[0]}
                         </div>
                     ))}
-                    <div className="avatar self" title={`You (${user?.name})`} style={{ background: user?.color }}>
+                    <div className="avatar self" title={`You (${user?.name}) - ${user?.role}`} style={{ background: user?.color }}>
                         {user?.name?.[0]}
                     </div>
                 </div>

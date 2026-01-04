@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useYjs } from './yjs/YjsProvider';
+import { useYjs, YjsProvider } from './yjs/YjsProvider';
 import { UserContext } from './security/UserContext';
 import { MetadataStore } from './metadata/MetadataStore';
 import { WorkspaceLayout } from './components/layout/WorkspaceLayout';
@@ -17,16 +17,16 @@ import { User } from './security/types';
 // Initialize Global Stores
 const metadataStore = new MetadataStore();
 
-export const DemoApp: React.FC = () => {
-    const { doc: yDoc, provider } = useYjs();
-    const [user, setUser] = useState<User | null>({
-        id: 'local-user',
-        name: 'Local User',
-        role: 'editor',
-        color: '#3b82f6',
-        attributes: { role: 'editor' }
-    });
+interface DemoAppContentProps {
+    user: User | null;
+    setUser: React.Dispatch<React.SetStateAction<User | null>>;
+    docId: string;
+    onDocChange: (id: string, title?: string) => void;
+    docTitle: string;
+}
 
+const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, docId, onDocChange, docTitle }) => {
+    const { doc: yDoc, provider } = useYjs();
     const [appMode, setAppMode] = useState<'editor' | 'slides' | 'split' | 'governance'>('split');
     const [showMarketplace, setShowMarketplace] = useState(false);
     const [showMetadataPanel, setShowMetadataPanel] = useState(false);
@@ -63,11 +63,12 @@ export const DemoApp: React.FC = () => {
                     }
                     topBar={
                         <TopBar
-                            title="Project Alpha"
+                            title={docTitle}
                             onToggleMarketplace={() => setShowMarketplace(!showMarketplace)}
                             onToggleMetadata={() => setShowMetadataPanel(!showMetadataPanel)}
                             onToggleHelp={() => setShowHelp(true)}
                             metadataStore={metadataStore}
+                            onDocChange={onDocChange}
                         />
                     }
                     rightPanel={
@@ -136,5 +137,34 @@ export const DemoApp: React.FC = () => {
                 </WorkspaceLayout>
             </div>
         </UserContext.Provider>
+    );
+};
+
+export const DemoApp: React.FC = () => {
+    const [docId, setDocId] = useState('doc_default');
+    const [docTitle, setDocTitle] = useState('Project Alpha');
+    const [user, setUser] = useState<User | null>({
+        id: 'local-user',
+        name: 'Local User',
+        role: 'editor',
+        color: '#3b82f6',
+        attributes: { role: 'editor' }
+    });
+
+    const handleDocChange = (id: string, title: string = 'Untitled Doc') => {
+        setDocId(id);
+        setDocTitle(title);
+    };
+
+    return (
+        <YjsProvider docId={docId} user={user}>
+            <DemoAppContent
+                user={user}
+                setUser={setUser}
+                docId={docId}
+                onDocChange={handleDocChange}
+                docTitle={docTitle}
+            />
+        </YjsProvider>
     );
 };

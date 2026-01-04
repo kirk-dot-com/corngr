@@ -6,6 +6,7 @@ interface UserPresence {
     id: string;
     name: string;
     color: string;
+    role: string;
     cursor?: { anchor: number, head: number } | null;
 }
 
@@ -23,14 +24,23 @@ const YjsContext = createContext<YjsContextType>({
     users: []
 });
 
-export const YjsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const YjsProvider: React.FC<{
+    children: React.ReactNode;
+    docId?: string;
+    user?: { id: string; name: string; color: string; role: string } | null;
+}> = ({ children, docId = 'doc_default', user }) => {
     const [doc] = useState(() => new Y.Doc());
     const [provider, setProvider] = useState<TauriWebSocketProvider | null>(null);
     const [connected, setConnected] = useState(false);
     const [users, setUsers] = useState<UserPresence[]>([]);
 
     useEffect(() => {
-        const wsProvider = new TauriWebSocketProvider('doc_default', doc);
+        // cleanup previous provider if it exists
+        if (provider) {
+            provider.destroy();
+        }
+
+        const wsProvider = new TauriWebSocketProvider(docId, doc);
         setProvider(wsProvider);
 
         const checkConnection = setInterval(() => {
@@ -39,6 +49,17 @@ export const YjsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         // Awareness updates
         const awareness = wsProvider.awareness;
+
+        // Set local user state
+        if (user) {
+            awareness.setLocalStateField('user', {
+                id: user.id,
+                name: user.name,
+                color: user.color,
+                role: user.role
+            });
+        }
+
         const updateAwareness = () => {
             const states = awareness.getStates();
             const activeUsers: UserPresence[] = [];
@@ -48,6 +69,7 @@ export const YjsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                         id: state.user.id || clientId.toString(),
                         name: state.user.name || 'Anonymous',
                         color: state.user.color || '#333',
+                        role: state.user.role || 'viewer',
                         cursor: state.cursor
                     });
                 }
@@ -62,7 +84,7 @@ export const YjsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             awareness.off('change', updateAwareness);
             wsProvider.destroy();
         };
-    }, [doc]);
+    }, [doc, docId, user?.role, user?.name]); // Re-connect if docId changes or user details change
 
     return (
         <YjsContext.Provider value={{ doc, provider, connected, users }}>
