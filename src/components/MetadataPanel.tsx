@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BlockMetadata } from '../yjs/schema';
 import { MetadataStore } from '../metadata/MetadataStore';
 import { User } from '../security/types';
-import './MetadataPanel.css';
+import '../HelpPanel.css'; // Use shared panel styles
 
 interface MetadataPanelProps {
     selectedBlockId: string | null;
@@ -12,16 +12,6 @@ interface MetadataPanelProps {
     onSave?: () => void;
 }
 
-/**
- * Metadata Panel UI Component
- * Phase 2.3: Allows admin/editor users to edit block metadata
- * 
- * Features:
- * - Classification dropdown
- * - ACL editor (add/remove users/roles)
- * - Lock toggle
- * - Provenance viewer (read-only)
- */
 export const MetadataPanel: React.FC<MetadataPanelProps> = ({
     selectedBlockId,
     metadataStore,
@@ -47,13 +37,18 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({
 
     if (!selectedBlockId) {
         return (
-            <div className="metadata-panel metadata-panel-empty">
-                <div className="panel-header">
-                    <h3>Metadata</h3>
-                    <button className="close-button" onClick={onClose}>✕</button>
-                </div>
-                <div className="panel-body">
-                    <p className="empty-message">Select a block to view/edit metadata</p>
+            <div className="help-panel-overlay">
+                <div className="help-panel-container">
+                    <div className="help-panel-header">
+                        <div className="help-panel-title">
+                            <span className="help-icon">ℹ️</span>
+                            <h2>Metadata</h2>
+                        </div>
+                        <button className="help-close-button" onClick={onClose}>✕</button>
+                    </div>
+                    <div className="help-panel-content">
+                        <p className="empty-message">Select a block to view/edit metadata</p>
+                    </div>
                 </div>
             </div>
         );
@@ -61,23 +56,28 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({
 
     if (!canEdit) {
         return (
-            <div className="metadata-panel metadata-panel-readonly">
-                <div className="panel-header">
-                    <h3>Metadata (Read-Only)</h3>
-                    <button className="close-button" onClick={onClose}>✕</button>
-                </div>
-                <div className="panel-body">
-                    <div className="metadata-field">
-                        <label>Classification</label>
-                        <div className="readonly-value">
-                            {metadata.classification || 'None'}
+            <div className="help-panel-overlay">
+                <div className="help-panel-container">
+                    <div className="help-panel-header">
+                        <div className="help-panel-title">
+                            <span className="help-icon">ℹ️</span>
+                            <h2>Metadata (Read-Only)</h2>
                         </div>
+                        <button className="help-close-button" onClick={onClose}>✕</button>
                     </div>
-                    {metadata.locked && (
+                    <div className="help-panel-content">
                         <div className="metadata-field">
-                            <span className="lock-badge">🔒 Locked</span>
+                            <label>Classification</label>
+                            <div className="readonly-value">
+                                {metadata.classification || 'None'}
+                            </div>
                         </div>
-                    )}
+                        {metadata.locked && (
+                            <div className="metadata-field">
+                                <span className="lock-badge">🔒 Locked</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         );
@@ -144,139 +144,143 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({
     };
 
     return (
-        <div className="metadata-panel">
-            <div className="panel-header">
-                <h3>Security Metadata</h3>
-                <button className="close-button" onClick={onClose}>✕</button>
-            </div>
-
-            <div className="panel-body">
-                <div className="block-info">
-                    <small>Block ID: <code>{selectedBlockId.substring(0, 8)}...</code></small>
+        <div className="help-panel-overlay">
+            <div className="help-panel-container">
+                <div className="help-panel-header">
+                    <div className="help-panel-title">
+                        <span className="help-icon">ℹ️</span>
+                        <h2>Security Metadata</h2>
+                    </div>
+                    <button className="help-close-button" onClick={onClose}>✕</button>
                 </div>
 
-                {/* Classification Selector */}
-                <div className="metadata-field">
-                    <label htmlFor="classification">Classification Level</label>
-                    <select
-                        id="classification"
-                        value={metadata.classification || ''}
-                        onChange={handleClassificationChange}
-                        className="classification-select"
-                    >
-                        <option value="">None (Public)</option>
-                        <option value="public">Public</option>
-                        <option value="internal">Internal</option>
-                        <option value="confidential">Confidential</option>
-                        <option value="restricted">Restricted</option>
-                    </select>
-                    <small className="field-hint">
-                        Determines minimum clearance level required to view
-                    </small>
-                </div>
-
-                {/* ACL Editor */}
-                <div className="metadata-field">
-                    <label htmlFor="acl">Access Control List (ACL)</label>
-
-                    <div className="acl-input-group">
-                        <input
-                            id="acl"
-                            type="text"
-                            value={aclInput}
-                            onChange={(e) => setAclInput(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && handleAddACL()}
-                            placeholder="User ID or role name"
-                            className="acl-input"
-                        />
-                        <button onClick={handleAddACL} className="add-button">
-                            Add
-                        </button>
+                <div className="help-panel-content">
+                    <div className="block-info">
+                        <small>Block ID: <code>{selectedBlockId.substring(0, 8)}...</code></small>
                     </div>
 
-                    <small className="field-hint">
-                        Specify user IDs or roles (e.g., "admin", "editor", "user-123")
-                    </small>
-
-                    {metadata.acl && metadata.acl.length > 0 && (
-                        <div className="acl-list">
-                            {metadata.acl.map((item, index) => (
-                                <div key={index} className="acl-item">
-                                    <span className="acl-value">{item}</span>
-                                    <button
-                                        onClick={() => handleRemoveACL(item)}
-                                        className="remove-button"
-                                        title="Remove"
-                                    >
-                                        ✕
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Lock Toggle (Admin Only) */}
-                {user.attributes.role === 'admin' && (
+                    {/* Classification Selector */}
                     <div className="metadata-field">
-                        <label className="checkbox-label">
-                            <input
-                                type="checkbox"
-                                checked={metadata.locked || false}
-                                onChange={handleLockToggle}
-                            />
-                            <span>🔒 Lock for editing (Admin only)</span>
-                        </label>
+                        <label htmlFor="classification">Classification Level</label>
+                        <select
+                            id="classification"
+                            value={metadata.classification || ''}
+                            onChange={handleClassificationChange}
+                            className="classification-select"
+                        >
+                            <option value="">None (Public)</option>
+                            <option value="public">Public</option>
+                            <option value="internal">Internal</option>
+                            <option value="confidential">Confidential</option>
+                            <option value="restricted">Restricted</option>
+                        </select>
                         <small className="field-hint">
-                            Locked blocks can only be edited by admins
+                            Determines minimum clearance level required to view
                         </small>
                     </div>
-                )}
 
-                {/* Provenance Viewer (Read-Only) */}
-                {metadata.provenance && (
-                    <div className="metadata-field provenance-field">
-                        <label>Data Provenance</label>
-                        <div className="provenance-info">
-                            <div>
-                                <strong>Source:</strong> {metadata.provenance.sourceId}
+                    {/* ACL Editor */}
+                    <div className="metadata-field">
+                        <label htmlFor="acl">Access Control List (ACL)</label>
+
+                        <div className="acl-input-group">
+                            <input
+                                id="acl"
+                                type="text"
+                                value={aclInput}
+                                onChange={(e) => setAclInput(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && handleAddACL()}
+                                placeholder="User ID or role name"
+                                className="acl-input"
+                            />
+                            <button onClick={handleAddACL} className="add-button">
+                                Add
+                            </button>
+                        </div>
+
+                        <small className="field-hint">
+                            Specify user IDs or roles (e.g., "admin", "editor", "user-123")
+                        </small>
+
+                        {metadata.acl && metadata.acl.length > 0 && (
+                            <div className="acl-list">
+                                {metadata.acl.map((item, index) => (
+                                    <div key={index} className="acl-item">
+                                        <span className="acl-value">{item}</span>
+                                        <button
+                                            onClick={() => handleRemoveACL(item)}
+                                            className="remove-button"
+                                            title="Remove"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                ))}
                             </div>
-                            <div>
-                                <strong>Author:</strong> {metadata.provenance.authorId}
-                            </div>
-                            <div>
-                                <strong>Modified:</strong>{' '}
-                                {new Date(metadata.provenance.timestamp).toLocaleString()}
+                        )}
+                    </div>
+
+                    {/* Lock Toggle (Admin Only) */}
+                    {user.attributes.role === 'admin' && (
+                        <div className="metadata-field">
+                            <label className="checkbox-label">
+                                <input
+                                    type="checkbox"
+                                    checked={metadata.locked || false}
+                                    onChange={handleLockToggle}
+                                />
+                                <span>🔒 Lock for editing (Admin only)</span>
+                            </label>
+                            <small className="field-hint">
+                                Locked blocks can only be edited by admins
+                            </small>
+                        </div>
+                    )}
+
+                    {/* Provenance Viewer (Read-Only) */}
+                    {metadata.provenance && (
+                        <div className="metadata-field provenance-field">
+                            <label>Data Provenance</label>
+                            <div className="provenance-info">
+                                <div>
+                                    <strong>Source:</strong> {metadata.provenance.sourceId}
+                                </div>
+                                <div>
+                                    <strong>Author:</strong> {metadata.provenance.authorId}
+                                </div>
+                                <div>
+                                    <strong>Modified:</strong>{' '}
+                                    {new Date(metadata.provenance.timestamp).toLocaleString()}
+                                </div>
                             </div>
                         </div>
+                    )}
+
+                    {/* Validation Warning */}
+                    {metadata.classification === 'restricted' && (!metadata.acl || metadata.acl.length === 0) && (
+                        <div className="validation-warning">
+                            ⚠️ Restricted classification requires at least one ACL entry
+                        </div>
+                    )}
+
+                    <div className="panel-footer-actions">
+                        <button
+                            onClick={handleReset}
+                            disabled={!hasChanges}
+                            className="secondary-button"
+                        >
+                            Reset
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            disabled={!hasChanges}
+                            className="primary-button"
+                        >
+                            Save Metadata
+                        </button>
                     </div>
-                )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="panel-footer">
-                <button
-                    onClick={handleReset}
-                    disabled={!hasChanges}
-                    className="secondary-button"
-                >
-                    Reset
-                </button>
-                <button
-                    onClick={handleSave}
-                    disabled={!hasChanges}
-                    className="primary-button"
-                >
-                    Save Metadata
-                </button>
-            </div>
-
-            {/* Validation Warning */}
-            {metadata.classification === 'restricted' && (!metadata.acl || metadata.acl.length === 0) && (
-                <div className="validation-warning">
-                    ⚠️ Restricted classification requires at least one ACL entry
                 </div>
-            )}
+            </div>
         </div>
     );
 };
