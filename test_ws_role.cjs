@@ -63,7 +63,8 @@ function testRole(role, expectSuccess) {
     });
 }
 
-// Install 'ws' first: npm install ws (or assume it's there?)
-// We might not have 'ws' installed in the user environment. 
-// We can use the browser subagent to run this logic? 
-// Or better, use the browser subagent to run a simple script page.
+// Run tests
+console.log("Starting WebSocket Role Tests...");
+setTimeout(() => testRole('auditor', false), 100);
+setTimeout(() => testRole('viewer', false), 3000);
+setTimeout(() => testRole('editor', true), 6000);
