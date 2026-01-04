@@ -22,12 +22,13 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc }) => {
                     let textContent = '';
 
                     // Extract text content recursively
-                    const extractText = (node: Y.XmlElement | Y.XmlText): string => {
+                    const extractText = (node: Y.XmlElement | Y.XmlText | Y.XmlHook): string => {
                         if (node instanceof Y.XmlText) {
                             return node.toString();
                         } else if (node instanceof Y.XmlElement) {
                             return node.toArray().map(child => extractText(child)).join('');
                         }
+                        // YXmlHook case - no text content
                         return '';
                     };
 
@@ -106,8 +107,12 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc }) => {
                         <div className="slide-number">Slide {slideIndex + 1}</div>
                         {slide.map((block, blockIndex) => {
                             if (block.type === 'heading') {
-                                const Tag = `h${block.level || 1}` as keyof JSX.IntrinsicElements;
-                                return <Tag key={blockIndex} className="slide-heading">{block.content}</Tag>;
+                                const level = block.level || 1;
+                                return React.createElement(
+                                    `h${level}`,
+                                    { key: blockIndex, className: 'slide-heading' },
+                                    block.content
+                                );
                             } else if (block.type === 'code') {
                                 return <pre key={blockIndex} className="slide-code"><code>{block.content}</code></pre>;
                             } else if (block.type === 'list') {

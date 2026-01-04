@@ -43,7 +43,31 @@ export const TopBar: React.FC<TopBarProps> = ({
             <div className="top-bar-left">
                 <div className="doc-icon">📄</div>
                 <div className="doc-info">
-                    <span className="doc-title">{title}</span>
+                    <div className="doc-title-wrapper">
+                        <span className="doc-title">{title}</span>
+                        <button className="doc-dropdown-btn" title="Switch Document" onClick={() => {
+                            const dropdown = document.getElementById('doc-dropdown');
+                            if (dropdown) {
+                                dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+                            }
+                        }}>▼</button>
+                        <div id="doc-dropdown" className="doc-dropdown" style={{ display: 'none' }}>
+                            <div className="doc-dropdown-header">Recent Documents</div>
+                            <button className="doc-item active">
+                                📄 Project Alpha <span className="doc-badge">Current</span>
+                            </button>
+                            <button className="doc-item">
+                                📄 Sprint Planning Q4
+                            </button>
+                            <button className="doc-item">
+                                📄 Technical Spec v2
+                            </button>
+                            <div className="doc-dropdown-divider"></div>
+                            <button className="doc-item create-new">
+                                ➕ Create New Document
+                            </button>
+                        </div>
+                    </div>
                     <span className="doc-status">{status}</span>
                 </div>
             </div>
