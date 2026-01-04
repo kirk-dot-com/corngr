@@ -88,9 +88,12 @@ export function createGutterPlugin(
                                     // Remove confirmation modal for better "flow"
                                     if (isSealed) {
                                         // View Verification Details (keep modal for details)
+                                        const timestamp = metadata?.provenance?.timestamp
+                                            ? new Date(metadata.provenance.timestamp).toLocaleString()
+                                            : 'N/A';
                                         await showModal(
                                             '🛡️ Block Verified',
-                                            `ID: ${blockIdentifier}\nSigner: ${metadata?.provenance?.authorId || 'Unknown'}\nTimestamp: ${metadata?.provenance?.timestamp}`
+                                            `Block ID: ${blockIdentifier}\n\nSigner: ${metadata?.provenance?.authorId || 'Unknown'}\n\nTimestamp: ${timestamp}`
                                         );
                                     } else {
                                         // Instant Sign Action
