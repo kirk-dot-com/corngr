@@ -58,6 +58,20 @@ pub struct CapabilityRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BlockSignatureRequest {
+    pub block_id: String,
+    pub content_hash: String, // SHA-256 of block content
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BlockSignature {
+    pub signature: String, // Hex-encoded Ed25519 signature
+    pub signer_id: String, // Public key fingerprint
+    pub timestamp: String, // RFC3339
+    pub algorithm: String, // "Ed25519"
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CapabilityToken {
     pub token_id: String,
     pub expires_at: String,
@@ -359,6 +373,59 @@ fn sign_token(token_id: &str) -> String {
     let signing_key = KeyManager::get_signing_key();
     let signature: Signature = signing_key.sign(token_id.as_bytes());
     hex::encode(signature.to_bytes())
+}
+
+#[tauri::command]
+fn sign_block(req: BlockSignatureRequest, user: User) -> Result<BlockSignature, String> {
+    // Only editors/admins can sign
+    if user.attributes.role == "viewer" || user.attributes.role == "auditor" {
+        return Err("Access Denied: Read-only users cannot sign blocks".into());
+    }
+
+    let signing_key = KeyManager::get_signing_key();
+    let public_key = signing_key.verifying_key();
+
+    // Sign the content: "block_id:content_hash"
+    // This binds the signature to both the specific block instance and its content
+    let message = format!("{}:{}", req.block_id, req.content_hash);
+    let signature: Signature = signing_key.sign(message.as_bytes());
+
+    // Generate signer ID (first 16 chars of public key hex)
+    let signer_id = hex::encode(public_key.to_bytes())[..16].to_string();
+
+    let result = BlockSignature {
+        signature: hex::encode(signature.to_bytes()),
+        signer_id,
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        algorithm: "Ed25519".to_string(),
+    };
+
+    // Audit log the signing event
+    // We haven't implemented persistent audit log yet (Phase 1.3), so just print for now
+    println!(
+        "🛡️  AUDIT: User '{}' - BLOCK_SIGNED - Block: {}",
+        user.id, req.block_id
+    );
+
+    Ok(result)
+}
+
+#[tauri::command]
+fn verify_block_signature(
+    block_id: String,
+    content_hash: String,
+    signature_hex: String,
+) -> Result<bool, String> {
+    let public_key = KeyManager::get_public_key();
+    let message = format!("{}:{}", block_id, content_hash);
+
+    if let Ok(sig_bytes) = hex::decode(&signature_hex) {
+        if let Ok(byte_array) = sig_bytes.try_into() {
+            let signature = Signature::from_bytes(&byte_array);
+            return Ok(public_key.verify(message.as_bytes(), &signature).is_ok());
+        }
+    }
+    Ok(false)
 }
 
 /**
@@ -735,6 +802,8 @@ pub fn run() {
             fetch_external_block,
             request_capability_token,
             revoke_capability_token,
+            sign_block,
+            verify_block_signature,
             // WebSocket collaboration commands
             tauri_commands::start_websocket_server,
             tauri_commands::stop_websocket_server,
