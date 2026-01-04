@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::sync::Mutex;
-use tauri::State;
 
 lazy_static! {
     static ref AUDIT_LOCK: Mutex<()> = Mutex::new(());

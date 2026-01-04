@@ -1040,7 +1040,7 @@ mod tests {
             details: "Testing audit log read".to_string(),
             severity: "INFO".to_string(),
         };
-        audit_log::log_event(event).expect("Writing log should work");
+        audit_log::log_event(event);
 
         // 2. Read Log
         let logs = get_audit_log(Some(10)).expect("Reading log should work");
