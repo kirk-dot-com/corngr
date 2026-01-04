@@ -1,3 +1,4 @@
+use crate::audit_log::{log_event, AuditEvent};
 use futures_util::{SinkExt, StreamExt};
 use std::collections::HashMap;
 use std::fs;
@@ -202,10 +203,13 @@ impl CollabServer {
             *user_info_guard = (user_id.clone(), user_role.clone());
             drop(user_info_guard);
 
-            println!(
-                "🔐 WebSocket auth: User '{}' with role '{}' connecting to room '{}'",
-                user_id, user_role, extracted_room
-            );
+            log_event(AuditEvent::new(
+                &user_id,
+                "WS_CONNECT",
+                extracted_room,
+                &format!("Role: {}", user_role),
+                "INFO",
+            ));
 
             Ok(response)
         })
@@ -278,11 +282,14 @@ impl CollabServer {
                                 );
                                 let _ = tx.send(Message::Text(error_msg));
 
-                                // TODO: Add audit log entry
-                                println!(
-                                    "🛡️  AUDIT: User '{}' ({}) - WRITE_REJECTED on room '{}'",
-                                    user_id, user_role, room_name
-                                );
+                                // Audit log entry
+                                log_event(AuditEvent::new(
+                                    &user_id,
+                                    "WRITE_REJECTED",
+                                    &room_name,
+                                    &format!("Role '{}' attempted write op", user_role),
+                                    "WARN",
+                                ));
 
                                 continue;  // Skip broadcasting and applying this update
                             }

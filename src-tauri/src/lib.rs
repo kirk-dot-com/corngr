@@ -8,6 +8,7 @@ use std::sync::Mutex;
 use uuid::Uuid;
 
 // WebSocket Collaboration Modules
+pub mod audit_log;
 pub mod tauri_commands;
 pub mod websocket_server;
 
@@ -401,10 +402,11 @@ fn sign_block(req: BlockSignatureRequest, user: User) -> Result<BlockSignature, 
     };
 
     // Audit log the signing event
-    // We haven't implemented persistent audit log yet (Phase 1.3), so just print for now
-    println!(
-        "🛡️  AUDIT: User '{}' - BLOCK_SIGNED - Block: {}",
-        user.id, req.block_id
+    audit_log(
+        &user.id,
+        "BLOCK_SIGNED",
+        &req.block_id,
+        "Ed25519 Signature Generated",
     );
 
     Ok(result)
@@ -497,14 +499,13 @@ fn verify_token(token_id: &str, signature_hex: &str) -> bool {
  * In a production system, this would write to a secure audit DB or immutable ledger.
  */
 fn audit_log(user_id: &str, action: &str, resource_id: &str, detail: &str) {
-    println!(
-        "🛡️  AUDIT [{}]: User {} performed {} on {}. Detail: {}",
-        chrono::Utc::now().to_rfc3339(),
+    audit_log::log_event(audit_log::AuditEvent::new(
         user_id,
         action,
         resource_id,
-        detail
-    );
+        detail,
+        "INFO",
+    ));
 }
 
 /**
