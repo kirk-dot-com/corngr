@@ -44,7 +44,15 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({
                             <span className="help-icon">ℹ️</span>
                             <h2>Metadata</h2>
                         </div>
-                        <button className="help-close-button" onClick={onClose}>✕</button>
+                        <button
+                            onClick={onClose}
+                            className="help-close-button"
+                            aria-label="Close metadata panel"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
                     <div className="help-panel-content">
                         <p className="empty-message">Select a block to view/edit metadata</p>
@@ -63,7 +71,15 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({
                             <span className="help-icon">ℹ️</span>
                             <h2>Metadata (Read-Only)</h2>
                         </div>
-                        <button className="help-close-button" onClick={onClose}>✕</button>
+                        <button
+                            onClick={onClose}
+                            className="help-close-button"
+                            aria-label="Close metadata panel"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
                     <div className="help-panel-content">
                         <div className="metadata-field">
@@ -151,7 +167,15 @@ export const MetadataPanel: React.FC<MetadataPanelProps> = ({
                         <span className="help-icon">ℹ️</span>
                         <h2>Security Metadata</h2>
                     </div>
-                    <button className="help-close-button" onClick={onClose}>✕</button>
+                    <button
+                        onClick={onClose}
+                        className="help-close-button"
+                        aria-label="Close metadata panel"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
 
                 <div className="help-panel-content">

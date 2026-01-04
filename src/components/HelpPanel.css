@@ -6,11 +6,25 @@
     width: 450px;
     z-index: 1000;
     box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
-    background: #1a1a2e;
+    background: rgba(26, 26, 46, 0.95);
+    backdrop-filter: blur(12px);
     border-left: 1px solid #2d3748;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    animation: panelSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes panelSlideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }
 
 .help-panel-container {
@@ -47,12 +61,14 @@
 }
 
 .help-close-button {
-    padding: 0.5rem;
+    width: 36px;
+    height: 36px;
+    padding: 0;
     background: transparent;
     border: none;
-    border-radius: 9999px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     color: #94a3b8;
     display: flex;
     align-items: center;
@@ -60,8 +76,13 @@
 }
 
 .help-close-button:hover {
-    background: #2d3748;
+    background: rgba(255, 255, 255, 0.1);
     color: white;
+    transform: scale(1.05);
+}
+
+.help-close-button:active {
+    transform: scale(0.95);
 }
 
 .help-panel-content {

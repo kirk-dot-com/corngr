@@ -11,6 +11,7 @@ import { GovernanceDashboard } from './components/governance/GovernanceDashboard
 import { MarketplaceSidebar } from './components/MarketplaceSidebar';
 import { MetadataPanel } from './components/MetadataPanel';
 import { HelpPanel } from './components/HelpPanel';
+import { ToastContainer, useToast } from './components/Toast';
 import './DemoApp.css';
 import { User } from './security/types';
 
@@ -32,6 +33,7 @@ const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, docId, o
     const [showMetadataPanel, setShowMetadataPanel] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+    const { toasts, dismissToast, success, error, info } = useToast();
 
     // Initialize MetadataStore with Y.Doc
     useEffect(() => {
@@ -86,6 +88,7 @@ const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, docId, o
                     modals={
                         <>
                             <HelpPanel isOpen={showHelp} onClose={() => setShowHelp(false)} />
+                            <ToastContainer toasts={toasts} onDismiss={dismissToast} />
                         </>
                     }
                     yDoc={yDoc} // Pass yDoc to Layout for Sidecar
@@ -99,6 +102,7 @@ const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, docId, o
                                 metadataStore={metadataStore}
                                 awareness={provider?.awareness}
                                 onBlockSelect={setSelectedBlockId}
+                                onToast={success}
                             />
                         </div>
                     )}
@@ -118,6 +122,7 @@ const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, docId, o
                                     metadataStore={metadataStore}
                                     awareness={provider?.awareness}
                                     onBlockSelect={setSelectedBlockId}
+                                    onToast={success}
                                 />
                             </div>
                             <div className="split-pane right">
