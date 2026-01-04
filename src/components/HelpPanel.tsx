@@ -420,6 +420,69 @@ export const HelpPanel: React.FC<HelpPanelProps> = ({ isOpen, onClose }) => {
                         </p>
                     </section>
 
+                    <hr className="help-divider" />
+
+                    <section className="help-section">
+                        <h3><span className="section-number">08</span> Editor vs. Auditor Roles</h3>
+
+                        <h4>Overview</h4>
+                        <p>
+                            Corngr uses Role-Based Access Control (RBAC) to ensure secure collaboration. The two primary roles, <strong>Editor</strong> and <strong>Auditor</strong>, serve distinct functions in the document lifecycle.
+                        </p>
+
+                        <div className="help-grid">
+                            <div className="help-stat-card role-card">
+                                <span className="role-icon">📝</span>
+                                <p className="stat-label">Editor</p>
+                                <p className="stat-detail">Creators & Collaborators</p>
+                            </div>
+                            <div className="help-stat-card role-card">
+                                <span className="role-icon">🛡️</span>
+                                <p className="stat-label">Auditor</p>
+                                <p className="stat-detail">Reviewers & Compliance</p>
+                            </div>
+                        </div>
+
+                        <h4>📝 Editor Role</h4>
+                        <ul>
+                            <li><strong>Primary Goal:</strong> Create, modify, and structure content.</li>
+                            <li><strong>Capabilities:</strong>
+                                <ul>
+                                    <li>Write and edit text blocks</li>
+                                    <li>Create and modify Smart Grids</li>
+                                    <li>Add transclusions and references</li>
+                                    <li>Can set Classification up to their clearance level</li>
+                                </ul>
+                            </li>
+                            <li><strong>Cannot:</strong> Unlock blocks locked by Auditors/Admins, verify cryptographic signatures (view only), or delete immutable audit logs.</li>
+                        </ul>
+
+                        <h4>🛡️ Auditor Role</h4>
+                        <ul>
+                            <li><strong>Primary Goal:</strong> Verify integrity, compliance, and security.</li>
+                            <li><strong>Capabilities:</strong>
+                                <ul>
+                                    <li><strong>Read-Only Access:</strong> Can view all content but cannot modify text (to prevent accidental alteration of evidence).</li>
+                                    <li><strong>Locking Power:</strong> Can 🔏 lock blocks to freeze them for compliance.</li>
+                                    <li><strong>Verification:</strong> Full access to Governance Dashboard tools (Signature Verification, PDF Reports).</li>
+                                    <li><strong>Metadata:</strong> Can override security classifications and ACLs for policy enforcement.</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                        <h4>Visual Indicators</h4>
+                        <div className="help-code-block">
+                            <p className="code-label">How to Identify Your Role</p>
+                            <p className="code-text">
+                                • <strong>Avatar:</strong> Your user avatar in the header shows your initial.<br />
+                                • <strong>Tooltip:</strong> Hover over your avatar to see "Name (Role)".<br />
+                                • <strong>Sidebar Icon:</strong> Bottom-left icon indicates role: "E" for Editor, "A" for Auditor. Click it to simulate role switching (Demo Mode only).
+                            </p>
+                        </div>
+                    </section>
+
+                    <hr className="help-divider" />
+
                     <div className="help-note">
                         <h4>🖥️ Current Deployment</h4>
                         <p>
