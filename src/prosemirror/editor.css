@@ -221,15 +221,15 @@
   display: block;
   float: left;
   clear: left;
-  width: 48px;
-  margin-left: -68px;
+  width: 56px;
+  margin-left: -76px;
   margin-right: 20px;
   padding-top: 2px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
+  gap: 6px;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
   pointer-events: auto;
   z-index: 10;
 }
@@ -239,60 +239,84 @@
   opacity: 1;
 }
 
-/* Gutter Button Styling - Optimised for Clickability */
+/* Gutter Button Styling - Enhanced for Better Clickability */
 .gutter-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: rgba(102, 126, 234, 0.1);
-  border: 1px solid rgba(102, 126, 234, 0.2);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(102, 126, 234, 0.12);
+  border: 1.5px solid rgba(102, 126, 234, 0.25);
   color: #667eea;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  position: relative;
+}
+
+/* Subtle pulse animation for unsealed blocks */
+.gutter-btn:not(.active):not(.info-btn) {
+  animation: subtlePulse 3s ease-in-out infinite;
+}
+
+@keyframes subtlePulse {
+
+  0%,
+  100% {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  }
+
+  50% {
+    box-shadow: 0 2px 10px rgba(102, 126, 234, 0.25);
+  }
 }
 
 .gutter-btn:hover {
-  background: rgba(102, 126, 234, 0.25);
+  background: rgba(102, 126, 234, 0.3);
   color: #fff;
-  border-color: rgba(102, 126, 234, 0.6);
-  transform: scale(1.05);
-  /* Slightly less aggressive scale */
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  border-color: rgba(102, 126, 234, 0.7);
+  transform: scale(1.08) translateY(-1px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
 
 .gutter-btn:active {
-  transform: scale(0.95);
-  background: rgba(102, 126, 234, 0.15);
+  transform: scale(0.96);
+  background: rgba(102, 126, 234, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .gutter-btn.active {
   /* Sealed State */
-  background: rgba(76, 217, 100, 0.15);
+  background: rgba(76, 217, 100, 0.18);
   color: #4cd964;
-  border-color: rgba(76, 217, 100, 0.4);
-  box-shadow: 0 0 10px rgba(76, 217, 100, 0.1);
+  border-color: rgba(76, 217, 100, 0.5);
+  box-shadow: 0 0 12px rgba(76, 217, 100, 0.15);
+  animation: none;
 }
 
 .gutter-btn.active:hover {
-  background: rgba(76, 217, 100, 0.25);
-  border-color: rgba(76, 217, 100, 0.6);
+  background: rgba(76, 217, 100, 0.3);
+  border-color: rgba(76, 217, 100, 0.7);
+  transform: scale(1.08) translateY(-1px);
+  box-shadow: 0 6px 16px rgba(76, 217, 100, 0.3);
 }
 
 .gutter-btn.info-btn {
   color: #a0aec0;
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  animation: none;
 }
 
 .gutter-btn.info-btn:hover {
   color: #fff;
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: scale(1.08) translateY(-1px);
+  box-shadow: 0 6px 16px rgba(255, 255, 255, 0.15);
 }
 
 /* Audit Mode Overrides */
