@@ -421,11 +421,13 @@ export const HelpPanel: React.FC<HelpPanelProps> = ({ isOpen, onClose }) => {
                     </section>
 
                     <div className="help-note">
-                        <h4>🌐 Deployment Notes</h4>
+                        <h4>🖥️ Current Deployment</h4>
                         <p>
-                            <strong>Browser Mode:</strong> Cloud sync via Supabase. Local file saving disabled for security.<br />
-                            <strong>Desktop App:</strong> Full local-first mode with optional cloud sync and file system access.<br />
-                            <strong>Enterprise:</strong> Self-hosted backend with custom SSO, audit logging, and compliance tools.
+                            <strong>Desktop App (Tauri):</strong> This is a local-first Tauri application. Real-time collaboration uses a local WebSocket server (ws://localhost:3030) running in Rust. All data is stored and processed on your machine.<br />
+                            <br />
+                            <strong>Collaboration:</strong> Multiple browser windows can connect to the same local server for testing real-time features. In production, this would connect to a self-hosted collaboration server.<br />
+                            <br />
+                            <strong>Note:</strong> This is a prototype (v6.5). Cloud sync, browser-only mode, and enterprise SSO features are planned for future releases.
                         </p>
                     </div>
 
