@@ -215,6 +215,37 @@ impl CollabServer {
                 msg = ws_receiver.next() => {
                     match msg {
                         Some(Ok(Message::Binary(data))) => {
+                            // IRAP COMPLIANCE: Role-based access control
+                            // Decode message to check if it's an update
+                            let mut decoder = DecoderV1::from(data.as_slice());
+                            let is_update = matches!(
+                                YSyncMessage::decode(&mut decoder),
+                                Ok(YSyncMessage::Sync(SyncMessage::Update(_)))
+                            );
+
+                            // Check if user has write permission
+                            if is_update && (user_role == "auditor" || user_role == "viewer") {
+                                eprintln!(
+                                    "❌ WRITE REJECTED: User '{}' with role '{}' attempted to modify document '{}'",
+                                    user_id, user_role, room_name
+                                );
+
+                                // Send error message to client
+                                let error_msg = format!(
+                                    "ERROR: Access Denied - Role '{}' has read-only access",
+                                    user_role
+                                );
+                                let _ = tx.send(Message::Text(error_msg));
+
+                                // TODO: Add audit log entry
+                                println!(
+                                    "🛡️  AUDIT: User '{}' ({}) - WRITE_REJECTED on room '{}'",
+                                    user_id, user_role, room_name
+                                );
+
+                                continue;  // Skip broadcasting and applying this update
+                            }
+
                             // 1. Broadcast to others (raw protocol message)
                             if let Err(e) = self.broadcast_to_room(
                                 &room_name,
@@ -235,6 +266,12 @@ impl CollabServer {
                                             // This is an update! Apply to server doc.
                                             if let Err(e) = self.apply_update_to_room(&room_name, &update_data).await {
                                                 eprintln!("❌ Error applying update: {}", e);
+                                            } else {
+                                                // Log successful update
+                                                println!(
+                                                    "🛡️  AUDIT: User '{}' ({}) - BLOCK_UPDATE on room '{}'",
+                                                    user_id, user_role, room_name
+                                                );
                                             }
                                         }
                                         _ => {} // Ignore Auth, Awareness, etc.
@@ -274,6 +311,8 @@ impl CollabServer {
         &self,
         room_name: &str,
         client_id: u64,
+        user_id: String,
+        user_role: String,
         tx: tokio::sync::mpsc::UnboundedSender<Message>,
     ) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
         let mut rooms = self.rooms.write().await;
@@ -281,7 +320,12 @@ impl CollabServer {
             .entry(room_name.to_string())
             .or_insert_with(|| Room::new(room_name.to_string()));
 
-        room.clients.push(ClientConnection { client_id, tx });
+        room.clients.push(ClientConnection {
+            client_id,
+            user_id: user_id.clone(),
+            user_role: user_role.clone(),
+            tx,
+        });
 
         // Generate Sync Step containing valid protocol Message
         let txn = room.doc.transact();
@@ -289,10 +333,18 @@ impl CollabServer {
         let update = txn.encode_diff_v1(&state_vector);
 
         println!(
-            "📥 Client {} joined room '{}' ({} clients)",
+            "📥 Client {} (User: '{}', Role: '{}') joined room '{}' ({} clients)",
             client_id,
+            user_id,
+            user_role,
             room_name,
             room.clients.len()
+        );
+
+        // Audit log the connection
+        println!(
+            "🛡️  AUDIT: User '{}' ({}) - CONNECTION_ESTABLISHED to room '{}'",
+            user_id, user_role, room_name
         );
 
         if !update.is_empty() {
