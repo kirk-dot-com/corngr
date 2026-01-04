@@ -65,6 +65,8 @@ impl Room {
 /// Represents a connected WebSocket client
 pub struct ClientConnection {
     pub client_id: u64,
+    pub user_id: String,
+    pub user_role: String, // "editor", "auditor", "viewer"
     pub tx: tokio::sync::mpsc::UnboundedSender<Message>,
 }
 
@@ -121,9 +123,15 @@ impl CollabServer {
     ) -> Result<(), Box<dyn std::error::Error>> {
         println!("✅ New connection from: {}", addr);
 
-        // Extract room name from HTTP request path during WebSocket handshake
+        // Extract room name and user info from HTTP request during WebSocket handshake
         let room_name_arc = Arc::new(std::sync::Mutex::new("default".to_string()));
+        let user_info_arc = Arc::new(std::sync::Mutex::new((
+            "anonymous".to_string(),
+            "viewer".to_string(),
+        )));
+
         let room_name_clone = Arc::clone(&room_name_arc);
+        let user_info_clone = Arc::clone(&user_info_arc);
 
         let ws_stream = accept_hdr_async(stream, move |req: &Request, response: Response| {
             let path = req.uri().path();
@@ -137,18 +145,56 @@ impl CollabServer {
             }
             drop(room_guard);
 
+            // Extract user authentication from headers
+            // Format: "X-User-Id: user123" and "X-User-Role: editor"
+            let mut user_id = "anonymous".to_string();
+            let mut user_role = "viewer".to_string(); // Default to most restrictive
+
+            if let Some(user_id_header) = req.headers().get("X-User-Id") {
+                if let Ok(id) = user_id_header.to_str() {
+                    user_id = id.to_string();
+                }
+            }
+
+            if let Some(user_role_header) = req.headers().get("X-User-Role") {
+                if let Ok(role) = user_role_header.to_str() {
+                    // Validate role
+                    if role == "editor" || role == "auditor" || role == "viewer" {
+                        user_role = role.to_string();
+                    } else {
+                        println!("⚠️  Invalid role '{}', defaulting to 'viewer'", role);
+                    }
+                }
+            }
+
+            let mut user_info_guard = user_info_clone.lock().unwrap();
+            *user_info_guard = (user_id.clone(), user_role.clone());
+            drop(user_info_guard);
+
+            println!(
+                "🔐 WebSocket auth: User '{}' with role '{}'",
+                user_id, user_role
+            );
+
             Ok(response)
         })
         .await?;
 
         let room_name = room_name_arc.lock().unwrap().clone();
+        let (user_id, user_role) = user_info_arc.lock().unwrap().clone();
 
         let (mut ws_sender, mut ws_receiver) = ws_stream.split();
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Message>();
         let client_id = rand::random::<u64>();
 
         let sync_message = self
-            .add_client_to_room(&room_name, client_id, tx.clone())
+            .add_client_to_room(
+                &room_name,
+                client_id,
+                user_id.clone(),
+                user_role.clone(),
+                tx.clone(),
+            )
             .await?;
 
         if let Some(msg) = sync_message {
