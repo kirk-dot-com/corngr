@@ -249,10 +249,19 @@ impl CollabServer {
                             // IRAP COMPLIANCE: Role-based access control
                             // Decode message to check if it's an update
                             let mut decoder = DecoderV1::from(data.as_slice());
+                            let decoded = YSyncMessage::decode(&mut decoder);
+
                             let is_update = matches!(
-                                YSyncMessage::decode(&mut decoder),
+                                &decoded,
                                 Ok(YSyncMessage::Sync(SyncMessage::Update(_)))
                             );
+
+                            println!("🔍 DEBUG: WS Message Received from User '{}' (Role: '{}')", user_id, user_role);
+                            match &decoded {
+                                Ok(msg) => println!("   Type: {:?}", msg),
+                                Err(e) => println!("   Decode Error: {:?}", e),
+                            }
+                            println!("   Is Update: {}", is_update);
 
                             // Check if user has write permission
                             if is_update && (user_role == "auditor" || user_role == "viewer") {
