@@ -251,9 +251,10 @@ impl CollabServer {
                             let mut decoder = DecoderV1::from(data.as_slice());
                             let decoded = YSyncMessage::decode(&mut decoder);
 
-                            let is_update = matches!(
+                            let is_write_op = matches!(
                                 &decoded,
-                                Ok(YSyncMessage::Sync(SyncMessage::Update(_)))
+                                Ok(YSyncMessage::Sync(SyncMessage::Update(_))) |
+                                Ok(YSyncMessage::Sync(SyncMessage::SyncStep2(_)))
                             );
 
                             println!("🔍 DEBUG: WS Message Received from User '{}' (Role: '{}')", user_id, user_role);
@@ -261,10 +262,10 @@ impl CollabServer {
                                 Ok(msg) => println!("   Type: {:?}", msg),
                                 Err(e) => println!("   Decode Error: {:?}", e),
                             }
-                            println!("   Is Update: {}", is_update);
+                            println!("   Is Write Op: {}", is_write_op);
 
                             // Check if user has write permission
-                            if is_update && (user_role == "auditor" || user_role == "viewer") {
+                            if is_write_op && (user_role == "auditor" || user_role == "viewer") {
                                 eprintln!(
                                     "❌ WRITE REJECTED: User '{}' with role '{}' attempted to modify document '{}'",
                                     user_id, user_role, room_name
