@@ -33,16 +33,28 @@ function testRole(role, expectSuccess) {
         // 2 = Update
         // 0 = End of update (minimal empty update?)
 
-        const buffer = Buffer.from([0, 2, 0]);
-        ws.send(buffer);
-        console.log("📤 Sent dummy update");
+        // 1. Test Sync Update (Type 2)
+        const updateMsg = Buffer.from([0, 2, 0]);
+        ws.send(updateMsg);
+        console.log("📤 Sent dummy Update (Type 2)");
+
+        // 2. Test Sync Step 2 (Type 1) - also a write operation
+        setTimeout(() => {
+            const step2Msg = Buffer.from([0, 1, 0]);
+            ws.send(step2Msg);
+            console.log("📤 Sent dummy SyncStep2 (Type 1)");
+        }, 500);
 
         setTimeout(() => {
             console.log("⏳ Timed out waiting for error");
             ws.close();
-            // If we didn't get an error message, and we expected failure, this is a FAIL.
-            // But the server sends a TEXT message on error.
-        }, 2000);
+            // If we expected failure (read-only), timeout means we FAILED to block it
+            if (!expectSuccess) {
+                // But wait, we close connection on error. If we are still here, we didn't get error.
+                // So for read-only roles, this timeout implies the server ACCEPTED the write (silently).
+                console.error("❌ FAILED: Server accepted write silently (or didn't error)");
+            }
+        }, 3000);
     });
 
     ws.on('message', (data) => {
