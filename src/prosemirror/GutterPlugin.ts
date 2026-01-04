@@ -1,14 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
 import { User } from '../security/types';
+import { sha256 } from '../utils/crypto';
 
 // ... (keep showModal)
 
-async function sha256(message: string) {
-    const msgBuffer = new TextEncoder().encode(message);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
+// Helper function to calculate SHA-256 hash
+// (Moved to shared util, import above)
 
 interface BlockSignature {
     signature: string;
