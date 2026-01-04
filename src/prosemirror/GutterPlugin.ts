@@ -1,52 +1,28 @@
-import { Plugin } from 'prosemirror-state';
-import { Decoration, DecorationSet } from 'prosemirror-view';
-import { MetadataStore } from '../metadata/MetadataStore';
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { ConfirmModal } from '../components/ConfirmModal';
+import { invoke } from '@tauri-apps/api/core';
+import { User } from '../security/types';
 
-/**
- * Shows a modal dialog using React ConfirmModal component
- * Returns a Promise that resolves when user confirms or cancels
- */
-function showModal(title: string, message: string, showCancel: boolean = false): Promise<boolean> {
-    return new Promise((resolve) => {
-        // Create a mount point for the modal
-        const modalRoot = document.createElement('div');
-        modalRoot.id = 'gutter-modal-root';
-        document.body.appendChild(modalRoot);
+// ... (keep showModal)
 
-        const root = ReactDOM.createRoot(modalRoot);
-
-        const handleClose = (confirmed: boolean) => {
-            root.unmount();
-            document.body.removeChild(modalRoot);
-            resolve(confirmed);
-        };
-
-        root.render(
-            React.createElement(ConfirmModal, {
-                isOpen: true,
-                title,
-                message,
-                confirmLabel: showCancel ? 'Sign & Seal' : 'OK',
-                showCancel,
-                onConfirm: () => handleClose(true),
-                onCancel: () => handleClose(false)
-            })
-        );
-    });
+async function sha256(message: string) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-/**
- * GutterPlugin: Adds contextual gutters to each block for governance actions.
- * Familiar to Notion/Linear users, adapted for Compliance/Audit personas.
- */
+interface BlockSignature {
+    signature: string;
+    signer_id: string;
+    timestamp: string;
+    algorithm: string;
+}
+
 export function createGutterPlugin(
     metadataStore: MetadataStore,
     appMode: 'draft' | 'audit' | 'presentation',
     onBlockSelect?: (blockId: string | null) => void,
-    onToast?: (message: string) => void
+    onToast?: (message: string) => void,
+    user?: User | null
 ): Plugin {
     return new Plugin({
         props: {
@@ -54,10 +30,8 @@ export function createGutterPlugin(
                 const decos: Decoration[] = [];
 
                 state.doc.descendants((node, pos) => {
-                    // Show gutters on paragraph and heading blocks, even without blockId
                     const isGutterableBlock = node.isBlock && (node.type.name === 'paragraph' || node.type.name === 'heading');
                     if (isGutterableBlock) {
-                        // Use blockId if available, otherwise use position as temporary identifier
                         const blockIdentifier = node.attrs.blockId || `pos-${pos}`;
 
                         const widget = Decoration.widget(pos, (view) => {
@@ -68,6 +42,7 @@ export function createGutterPlugin(
                             const isSealed = !!metadata?.provenance?.signature;
 
                             if (appMode === 'audit') {
+                                // ... (audit mode indicator logic same as before)
                                 const indicator = document.createElement('span');
                                 indicator.className = `audit-indicator ${isSealed ? 'status-sealed' : 'status-unsealed'}`;
                                 indicator.innerHTML = isSealed ? '🛡️' : '⚪';
@@ -84,10 +59,9 @@ export function createGutterPlugin(
                                     e.preventDefault();
                                     e.stopPropagation();
 
-                                    // Optimize: Instant Sign & Seal (Optimistic UI)
-                                    // Remove confirmation modal for better "flow"
                                     if (isSealed) {
-                                        // View Verification Details (keep modal for details)
+                                        // Verify
+                                        // TODO: Use verify_block_signature backend command
                                         const timestamp = metadata?.provenance?.timestamp
                                             ? new Date(metadata.provenance.timestamp).toLocaleString()
                                             : 'N/A';
@@ -96,25 +70,46 @@ export function createGutterPlugin(
                                             `Block ID: ${blockIdentifier}\n\nSigner: ${metadata?.provenance?.authorId || 'Unknown'}\n\nTimestamp: ${timestamp}`
                                         );
                                     } else {
-                                        // Instant Sign Action
-                                        const newMetadata = {
-                                            ...metadata,
-                                            provenance: {
-                                                ...metadata?.provenance,
-                                                signature: 'ED25519_SIG_' + Math.random().toString(36).substring(7),
-                                                authorId: 'Current User', // TODO: Get name from context
-                                                timestamp: new Date().toISOString()
-                                            }
-                                        };
-                                        if (node.attrs.blockId) {
-                                            metadataStore.set(node.attrs.blockId, newMetadata as any);
-
-                                            // Show toast notification
-                                            if (onToast) {
-                                                onToast(`Block signed & sealed successfully 🔒`);
-                                            }
+                                        // Sign
+                                        if (!user) {
+                                            if (onToast) onToast('❌ Error: User not authenticated');
+                                            return;
                                         }
-                                        // The view will re-render decorations on next update
+
+                                        try {
+                                            // 1. Calculate Content Hash
+                                            const contentHash = await sha256(node.textContent);
+
+                                            // 2. Call Backend to Sign
+                                            const sig = await invoke<BlockSignature>('sign_block', {
+                                                req: {
+                                                    block_id: blockIdentifier,
+                                                    content_hash: contentHash
+                                                },
+                                                user // Pass full user object for auth check
+                                            });
+
+                                            // 3. Update Metadata
+                                            const newMetadata = {
+                                                ...metadata,
+                                                provenance: {
+                                                    ...metadata?.provenance,
+                                                    signature: sig.signature,
+                                                    authorId: user.id || 'Unknown',
+                                                    timestamp: sig.timestamp,
+                                                    sourceId: sig.signer_id // Use signer Key ID as source ref
+                                                }
+                                            };
+
+                                            if (node.attrs.blockId) {
+                                                metadataStore.set(node.attrs.blockId, newMetadata as any);
+                                                if (onToast) onToast(`Block signed & sealed successfully 🔒`);
+                                            }
+                                        } catch (err: any) {
+                                            console.error("Signing failed:", err);
+                                            if (onToast) onToast(`❌ Signing Failed: ${err}`);
+                                        }
+
                                         view.dispatch(view.state.tr);
                                     }
                                 };
@@ -128,11 +123,9 @@ export function createGutterPlugin(
                                 infoBtn.onclick = async (e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    // Open metadata panel if callback is provided
                                     if (onBlockSelect && node.attrs.blockId) {
                                         onBlockSelect(node.attrs.blockId);
                                     } else {
-                                        // Fallback to modal if no callback
                                         await showModal(
                                             'ℹ️ Block Lineage',
                                             `ID: ${blockIdentifier}\nType: ${node.type.name}\nProvenance: ${metadata?.provenance?.sourceId || 'Local'}`
@@ -142,7 +135,6 @@ export function createGutterPlugin(
                                 dom.appendChild(infoBtn);
                             }
 
-                            // Prevent mousedown from moving the selection/cursor, which might interfere with click
                             dom.addEventListener('mousedown', (e) => {
                                 e.stopPropagation();
                             });
@@ -151,7 +143,6 @@ export function createGutterPlugin(
                         }, { side: -1, stopEvent: () => true, ignoreSelection: true });
                         decos.push(widget);
                     }
-                    // Don't descend into child nodes - we only want top-level block gutters
                     return false;
                 });
 

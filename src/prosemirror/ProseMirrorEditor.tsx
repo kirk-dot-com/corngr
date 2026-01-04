@@ -292,7 +292,7 @@ export const ProseMirrorEditor: React.FC<ProseMirrorEditorProps> = ({
                 variablePlugin,
                 slashPlugin,
                 ...(metadataStore && user ? [createFilterPlugin(metadataStore, user)] : []),
-                ...(metadataStore ? [createGutterPlugin(metadataStore, appMode, onBlockSelect, onToast)] : []),
+                ...(metadataStore ? [createGutterPlugin(metadataStore, appMode, onBlockSelect, onToast, user)] : []),
                 history(),
                 keymap({
                     'Mod-z': yUndo,
