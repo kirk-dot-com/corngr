@@ -35,5 +35,6 @@ tokio-tungstenite = "0.21"
 yrs = "0.17"
 y-sync = "0.4"
 futures-util = "0.3"
+urlencoding = "2.1"
 
 

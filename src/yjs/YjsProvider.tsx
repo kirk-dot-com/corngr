@@ -40,7 +40,7 @@ export const YjsProvider: React.FC<{
             provider.destroy();
         }
 
-        const wsProvider = new TauriWebSocketProvider(docId, doc);
+        const wsProvider = new TauriWebSocketProvider(docId, doc, user);
         setProvider(wsProvider);
 
         const checkConnection = setInterval(() => {

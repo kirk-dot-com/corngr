@@ -134,8 +134,16 @@ impl CollabServer {
         let user_info_clone = Arc::clone(&user_info_arc);
 
         let ws_stream = accept_hdr_async(stream, move |req: &Request, response: Response| {
-            let path = req.uri().path();
-            let extracted_room = path.trim_start_matches('/');
+            let uri = req.uri();
+            let path = uri.path();
+            let query = uri.query().unwrap_or("");
+
+            // Extract room name from path
+            let extracted_room = path
+                .trim_start_matches('/')
+                .split('?')
+                .next()
+                .unwrap_or("default");
 
             let mut room_guard = room_name_clone.lock().unwrap();
             if !extracted_room.is_empty() {
@@ -145,24 +153,32 @@ impl CollabServer {
             }
             drop(room_guard);
 
-            // Extract user authentication from headers
-            // Format: "X-User-Id: user123" and "X-User-Role: editor"
+            // Extract user authentication from query parameters
+            // Format: "?userId=user123&userRole=editor"
             let mut user_id = "anonymous".to_string();
             let mut user_role = "viewer".to_string(); // Default to most restrictive
 
-            if let Some(user_id_header) = req.headers().get("X-User-Id") {
-                if let Ok(id) = user_id_header.to_str() {
-                    user_id = id.to_string();
-                }
-            }
-
-            if let Some(user_role_header) = req.headers().get("X-User-Role") {
-                if let Ok(role) = user_role_header.to_str() {
-                    // Validate role
-                    if role == "editor" || role == "auditor" || role == "viewer" {
-                        user_role = role.to_string();
-                    } else {
-                        println!("⚠️  Invalid role '{}', defaulting to 'viewer'", role);
+            // Parse query string
+            for param in query.split('&') {
+                if let Some((key, value)) = param.split_once('=') {
+                    match key {
+                        "userId" => {
+                            user_id = urlencoding::decode(value)
+                                .unwrap_or_else(|_| value.into())
+                                .to_string();
+                        }
+                        "userRole" => {
+                            let role = urlencoding::decode(value)
+                                .unwrap_or_else(|_| value.into())
+                                .to_string();
+                            // Validate role
+                            if role == "editor" || role == "auditor" || role == "viewer" {
+                                user_role = role;
+                            } else {
+                                println!("⚠️  Invalid role '{}', defaulting to 'viewer'", role);
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
