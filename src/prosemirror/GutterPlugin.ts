@@ -136,8 +136,13 @@ export function createGutterPlugin(
                                 dom.appendChild(infoBtn);
                             }
 
+                            // Prevent mousedown from moving the selection/cursor, which might interfere with click
+                            dom.addEventListener('mousedown', (e) => {
+                                e.stopPropagation();
+                            });
+
                             return dom;
-                        }, { side: -1, stopEvent: () => true });
+                        }, { side: -1, stopEvent: () => true, ignoreSelection: true });
                         decos.push(widget);
                     }
                     // Don't descend into child nodes - we only want top-level block gutters
