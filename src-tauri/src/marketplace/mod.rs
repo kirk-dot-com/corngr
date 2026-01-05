@@ -40,7 +40,7 @@ pub async fn fetch_market_index() -> Result<Vec<MarketplaceProduct>, String> {
     // For now, let's simulate the fetch by reading the file if we are in dev,
     // OR we can hardcode the URL.
 
-    let registry_url = "http://localhost:1420/registry/index.json";
+    // let registry_url = "http://localhost:1420/registry/index.json";
 
     // We'll use a simple HTTP get if possible.
     // If we don't have reqwest, we can error out or mock it?

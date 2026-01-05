@@ -19,7 +19,7 @@ export const MarketplaceSidebar: React.FC<MarketplaceSidebarProps> = ({ onClose 
         const unsubscribe = marketplaceStore.subscribe(() => {
             setProducts([...marketplaceStore.getProducts()]); // Force refresh
         });
-        return unsubscribe;
+        return () => { unsubscribe(); };
     }, []);
 
     const handleToggleInstall = (product: MarketplaceProduct) => {
