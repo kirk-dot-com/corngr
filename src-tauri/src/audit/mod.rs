@@ -13,6 +13,9 @@ lazy_static! {
 
 pub mod shipper;
 
+#[cfg(test)]
+mod verification_test;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AuditEvent {
     pub timestamp: String,
