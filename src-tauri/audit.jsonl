@@ -42,3 +42,6 @@
 {"timestamp":"2026-01-04T06:44:48.410499+00:00","user_id":"local-user","action":"WS_CONNECT","resource_id":"doc_default","details":"Role: editor","severity":"INFO"}
 {"timestamp":"2026-01-04T06:52:24.570650+00:00","user_id":"local-user","action":"WS_CONNECT","resource_id":"doc_default","details":"Role: editor","severity":"INFO"}
 {"timestamp":"2026-01-04T06:59:57.573535+00:00","user_id":"local-user","action":"WS_CONNECT","resource_id":"doc_default","details":"Role: editor","severity":"INFO"}
+{"timestamp":"2026-01-05T07:07:05.217693+00:00","user_id":"user1","action":"LOGIN","resource_id":"system","details":"first event","severity":"INFO","prev_hash":"genesis_hash","hash":"2385623bfde057e1dd69556b102294c0f69a12d668ef54fc837f96ac32b0fa44"}
+{"timestamp":"2026-01-05T07:07:05.218211+00:00","user_id":"user1","action":"EDIT","resource_id":"block1","details":"second event","severity":"INFO","prev_hash":"2385623bfde057e1dd69556b102294c0f69a12d668ef54fc837f96ac32b0fa44","hash":"359774ca501bdc0aba5b363ab99446f9c8322a42c5521741a41ea9073a2055f5"}
+{"timestamp":"2026-01-05T07:07:05.218213+00:00","user_id":"user2","action":"LOGOUT","resource_id":"system","details":"third event","severity":"INFO","prev_hash":"359774ca501bdc0aba5b363ab99446f9c8322a42c5521741a41ea9073a2055f5","hash":"1ab5c3a2dceca9932cefdca5b205e0ceb55fe63fff9a3c3eaa98d376794bde2e"}
