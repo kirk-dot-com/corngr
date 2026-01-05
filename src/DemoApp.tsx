@@ -22,12 +22,12 @@ const metadataStore = new MetadataStore();
 interface DemoAppContentProps {
     user: User | null;
     setUser: React.Dispatch<React.SetStateAction<User | null>>;
-    docId: string;
+
     onDocChange: (id: string, title?: string) => void;
     docTitle: string;
 }
 
-const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, docId, onDocChange, docTitle }) => {
+const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, onDocChange, docTitle }) => {
     const { doc: yDoc, provider } = useYjs();
     const [appMode, setAppMode] = useState<'editor' | 'slides' | 'split' | 'governance'>('split');
     const [showMarketplace, setShowMarketplace] = useState(false);
@@ -176,7 +176,7 @@ export const DemoApp: React.FC = () => {
             <DemoAppContent
                 user={user}
                 setUser={setUser}
-                docId={docId}
+
                 onDocChange={handleDocChange}
                 docTitle={docTitle}
             />

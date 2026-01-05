@@ -165,7 +165,7 @@ export class MetadataStore extends Observable<any> {
     /**
      * Initialize store from YDoc
      */
-    initialize(yDoc: Y.Doc) {
+    initialize(_yDoc: Y.Doc) {
         // Stub for initialization logic if needed
         console.log('MetadataStore initialized with YDoc');
     }

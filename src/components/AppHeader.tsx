@@ -46,11 +46,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         document.getElementById('doc-dropdown')!.style.display = 'none';
     };
 
-    const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (onDocChange) onDocChange(document.getElementById('hidden-doc-id')?.innerText || '', e.target.value);
-    };
 
-    const [currentId, setCurrentId] = useState('');
 
     // This is a bit hacky but we need to track the ID locally or pass it in
     // For now we will rely on the parent updating the title
