@@ -12,6 +12,9 @@ export const MarketplaceSidebar: React.FC<MarketplaceSidebarProps> = ({ onClose 
     const [products, setProducts] = useState<MarketplaceProduct[]>(marketplaceStore.getProducts());
 
     useEffect(() => {
+        // Initial load
+        marketplaceStore.init();
+
         // Subscribe to store updates
         const unsubscribe = marketplaceStore.subscribe(() => {
             setProducts([...marketplaceStore.getProducts()]); // Force refresh

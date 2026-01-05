@@ -1,3 +1,5 @@
+import { invoke } from '@tauri-apps/api/core';
+
 export interface MarketplaceProduct {
     id: string;
     name: string;
@@ -22,14 +24,17 @@ class MarketplaceStore {
         this.notify();
 
         try {
+            // Use window.__TAURI__.core.invoke if module import fails or mock fallback
+            // But we can try to use the imported invoke if available. 
+            // The codebase seems to use window.__TAURI__ usually.
             // @ts-ignore
-            const { invoke } = window.__TAURI__.core;
-            this.products = await invoke('fetch_market_index');
+            const tauriInvoke = window.__TAURI__?.core?.invoke || invoke;
+
+            this.products = await tauriInvoke('fetch_market_index');
             this.initialized = true;
         } catch (e) {
             console.error("Failed to load marketplace:", e);
             this.error = "Failed to connect to marketplace registry.";
-            // Fallback for demo if backend fails (e.g. browser mode)
             this.products = this.getMockFallback();
         } finally {
             this.isLoading = false;
@@ -46,11 +51,11 @@ class MarketplaceStore {
         this.notify();
         try {
             // @ts-ignore
-            const { invoke } = window.__TAURI__.core;
-            await invoke('install_package', { packageId: id });
+            const tauriInvoke = window.__TAURI__?.core?.invoke || invoke;
+            await tauriInvoke('install_package', { packageId: id });
 
             // Refresh list to update 'installed' status
-            this.products = await invoke('fetch_market_index');
+            this.products = await tauriInvoke('fetch_market_index');
         } catch (e) {
             console.error("Install failed:", e);
             this.error = "Installation failed.";
@@ -65,11 +70,11 @@ class MarketplaceStore {
         this.notify();
         try {
             // @ts-ignore
-            const { invoke } = window.__TAURI__.core;
-            await invoke('uninstall_package', { packageId: id });
+            const tauriInvoke = window.__TAURI__?.core?.invoke || invoke;
+            await tauriInvoke('uninstall_package', { packageId: id });
 
             // Refresh list
-            this.products = await invoke('fetch_market_index');
+            this.products = await tauriInvoke('fetch_market_index');
         } catch (e) {
             console.error("Uninstall failed:", e);
         } finally {
@@ -89,6 +94,20 @@ class MarketplaceStore {
 
     private notify() {
         this.listeners.forEach(l => l());
+    }
+
+    private getMockFallback(): MarketplaceProduct[] {
+        return [
+            {
+                id: 'prod_medical',
+                name: 'Clinician Suite (Offline)',
+                description: 'Medical record blocks.',
+                icon: '🩺',
+                price: '$29/mo',
+                installed: false,
+                capabilities: []
+            }
+        ];
     }
 }
 
