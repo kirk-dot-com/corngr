@@ -1,0 +1,26 @@
+[
+    {
+        "id": "prod_medical",
+        "name": "Clinician Suite",
+        "description": "Medical record blocks, triage agents, and HL7 schema extensions.",
+        "icon": "🩺",
+        "price": "$29/mo",
+        "capabilities": [
+            "schema:medical",
+            "block:symptom",
+            "agent:triage"
+        ]
+    },
+    {
+        "id": "prod_legal",
+        "name": "Legal Audit Pack",
+        "description": "Contract clause blocks and risk assessment governance tools.",
+        "icon": "⚖️",
+        "price": "$99/mo",
+        "capabilities": [
+            "schema:legal",
+            "block:clause",
+            "agent:audit"
+        ]
+    }
+]

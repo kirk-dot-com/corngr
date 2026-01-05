@@ -1,0 +1,18 @@
+{
+    "id": "prod_medical",
+    "name": "Clinician Suite",
+    "version": "1.0.0",
+    "description": "Medical record blocks and triage agents.",
+    "author": "MedCorp",
+    "capabilities": [
+        "schema:medical",
+        "block:symptom"
+    ],
+    "blocks": [
+        {
+            "id": "blk_symptom_tracker",
+            "type": "custom",
+            "source": "./blocks/symptom.js"
+        }
+    ]
+}

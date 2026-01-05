@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 // WebSocket Collaboration Modules
 pub mod audit;
+pub mod marketplace;
 pub mod security;
 pub mod tauri_commands;
 pub mod websocket_server;

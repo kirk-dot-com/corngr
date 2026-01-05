@@ -1,0 +1,13 @@
+{
+    "id": "prod_legal",
+    "name": "Legal Audit Pack",
+    "version": "1.0.0",
+    "description": "Contract clause blocks and risk assessment governance tools.",
+    "author": "LegalTech Inc",
+    "capabilities": [
+        "schema:legal",
+        "block:clause",
+        "agent:audit"
+    ],
+    "blocks": []
+}
