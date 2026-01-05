@@ -37,5 +37,6 @@ y-sync = "0.4"
 futures-util = "0.3"
 urlencoding = "2.1"
 keyring = "3.6.3"
+thiserror = "2.0.17"
 
 
