@@ -14,6 +14,9 @@ interface SlideRendererProps {
 
 const DEFAULT_USER: User = {
     id: 'default-admin',
+    name: 'Admin',
+    role: 'admin',
+    color: '#FF0000',
     attributes: { role: 'admin' }
 };
 

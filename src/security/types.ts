@@ -1,6 +1,14 @@
 export interface UserAttributes {
     role: 'editor' | 'auditor' | 'viewer' | 'admin';
     email?: string;
+    clearanceLevel?: number;
+    department?: string;
+}
+
+export interface ACL {
+    allowedRoles: string[];
+    allowedUsers: string[];
+    requiredDepartment?: string;
 }
 
 export interface User {
