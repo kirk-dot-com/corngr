@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import * as Y from 'yjs';
+import { User } from '../security/types';
 import { TauriWebSocketProvider } from '../providers/TauriWebSocketProvider';
 
 interface UserPresence {
@@ -27,7 +28,7 @@ const YjsContext = createContext<YjsContextType>({
 export const YjsProvider: React.FC<{
     children: React.ReactNode;
     docId?: string;
-    user?: { id: string; name: string; color: string; role: string } | null;
+    user?: User | null;
 }> = ({ children, docId = 'doc_default', user }) => {
     const [doc] = useState(() => new Y.Doc());
     const [provider, setProvider] = useState<TauriWebSocketProvider | null>(null);

@@ -6,6 +6,7 @@ import { BlockMetadata } from '../yjs/schema';
 describe('checkClientAccess', () => {
     const adminUser: User = {
         id: 'admin-123',
+        role: 'admin',
         attributes: {
             role: 'admin',
             clearanceLevel: 3
@@ -14,6 +15,7 @@ describe('checkClientAccess', () => {
 
     const editorUser: User = {
         id: 'editor-456',
+        role: 'editor',
         attributes: {
             role: 'editor',
             clearanceLevel: 2
@@ -22,6 +24,7 @@ describe('checkClientAccess', () => {
 
     const viewerUser: User = {
         id: 'viewer-789',
+        role: 'viewer',
         attributes: {
             role: 'viewer',
             clearanceLevel: 1
@@ -163,6 +166,7 @@ describe('checkClientAccess', () => {
         it('should handle users with no clearance level (default 0)', () => {
             const userNoClearance: User = {
                 id: 'user-000',
+                role: 'viewer',
                 attributes: {
                     role: 'viewer'
                     // no clearanceLevel
@@ -181,6 +185,7 @@ describe('checkClientAccess', () => {
 describe('checkClientEditAccess', () => {
     const adminUser: User = {
         id: 'admin-123',
+        role: 'admin',
         attributes: {
             role: 'admin',
             clearanceLevel: 3
@@ -189,6 +194,7 @@ describe('checkClientEditAccess', () => {
 
     const editorUser: User = {
         id: 'editor-456',
+        role: 'editor',
         attributes: {
             role: 'editor',
             clearanceLevel: 2

@@ -6,11 +6,13 @@ describe('ABAC Security Engine', () => {
 
     const adminUser: User = {
         id: 'admin-1',
+        role: 'admin',
         attributes: { role: 'admin', clearanceLevel: 5, department: 'IT' }
     };
 
     const viewerUser: User = {
         id: 'viewer-1',
+        role: 'viewer',
         attributes: { role: 'viewer', clearanceLevel: 1, department: 'Sales' }
     };
 
@@ -25,7 +27,7 @@ describe('ABAC Security Engine', () => {
 
         it('should allow public access if no ACL', () => {
             expect(matchesACL(viewerUser, null)).toBe(true);
-            expect(matchesACL(viewerUser, {})).toBe(true);
+            expect(matchesACL(viewerUser, { allowedUsers: [] })).toBe(true);
         });
     });
 
