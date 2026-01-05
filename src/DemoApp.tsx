@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useYjs, YjsProvider } from './yjs/YjsProvider';
 import { UserContext } from './security/UserContext';
 import { MetadataStore } from './metadata/MetadataStore';
@@ -152,13 +152,13 @@ const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, onDocCha
 export const DemoApp: React.FC = () => {
     const [docId, setDocId] = useState('doc_default');
     const [docTitle, setDocTitle] = useState('Project Alpha');
+    const { user, setUser } = React.useContext(UserContext); // Use OIDC-provided user
+    /* 
+    // Legacy local state removed in favor of UserContext
     const [user, setUser] = useState<User | null>({
-        id: 'local-user',
-        name: 'Local User',
-        role: 'editor',
-        color: '#3b82f6',
-        attributes: { role: 'editor' }
+        id: 'local-user', ... 
     });
+    */
 
     const handleDocChange = (id: string, title: string = 'Untitled Doc') => {
         if (id === '_CURRENT_') {
