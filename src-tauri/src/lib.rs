@@ -1033,15 +1033,17 @@ mod tests {
     #[test]
     fn test_get_audit_log() {
         // 1. Log an Event
-        let event = audit_log::AuditEvent {
+        let event = audit::AuditEvent {
             timestamp: chrono::Utc::now().to_rfc3339(),
             user_id: "test-user".to_string(),
             action: "TEST_LOG".to_string(),
             resource_id: "test-res".to_string(),
             details: "Testing audit log read".to_string(),
             severity: "INFO".to_string(),
+            prev_hash: None,
+            hash: None,
         };
-        audit_log::log_event(event);
+        audit::log_event(event);
 
         // 2. Read Log
         let logs = get_audit_log(Some(10)).expect("Reading log should work");
