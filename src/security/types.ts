@@ -1,5 +1,6 @@
 export interface UserAttributes {
     role: 'editor' | 'auditor' | 'viewer' | 'admin';
+    email?: string;
 }
 
 export interface User {
