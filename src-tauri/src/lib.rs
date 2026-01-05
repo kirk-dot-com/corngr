@@ -803,9 +803,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            check_block_permission,
             load_secure_document,
             save_secure_document,
-            check_block_permission,
             reset_secure_document,
             fetch_external_block,
             request_capability_token,
@@ -813,6 +813,9 @@ pub fn run() {
             sign_block,
             verify_block_signature,
             get_audit_log,
+            marketplace::fetch_market_index,
+            marketplace::install_package,
+            marketplace::uninstall_package,
             // WebSocket collaboration commands
             tauri_commands::start_websocket_server,
             tauri_commands::stop_websocket_server,

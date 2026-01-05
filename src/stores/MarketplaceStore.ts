@@ -9,54 +9,71 @@ export interface MarketplaceProduct {
 }
 
 class MarketplaceStore {
-    private products: MarketplaceProduct[] = [
-        {
-            id: 'prod_medical',
-            name: 'Clinician Suite',
-            description: 'Medical record blocks, triage agents, and HL7 schema extensions.',
-            icon: '🩺',
-            price: '$29/mo',
-            installed: false,
-            capabilities: ['schema:medical', 'block:symptom', 'agent:triage']
-        },
-        {
-            id: 'prod_legal',
-            name: 'Legal Audit Pack',
-            description: 'Contract clause blocks and risk assessment governance tools.',
-            icon: '⚖️',
-            price: '$99/mo',
-            installed: false,
-            capabilities: ['schema:legal', 'block:clause', 'agent:audit']
-        },
-        {
-            id: 'prod_jira',
-            name: 'Jria Sync Integration',
-            description: 'Bi-directional sync with Atlassian Jria issues.',
-            icon: '🔄',
-            price: '$12/mo',
-            installed: true, // Pre-installed for demo
-            capabilities: ['integration:jira']
-        }
-    ];
-
+    private products: MarketplaceProduct[] = [];
     private listeners: Set<() => void> = new Set();
+    public isLoading = false;
+    public error: string | null = null;
+    public initialized = false;
+
+    // We must call this component-side or lazily
+    async init() {
+        if (this.initialized) return;
+        this.isLoading = true;
+        this.notify();
+
+        try {
+            // @ts-ignore
+            const { invoke } = window.__TAURI__.core;
+            this.products = await invoke('fetch_market_index');
+            this.initialized = true;
+        } catch (e) {
+            console.error("Failed to load marketplace:", e);
+            this.error = "Failed to connect to marketplace registry.";
+            // Fallback for demo if backend fails (e.g. browser mode)
+            this.products = this.getMockFallback();
+        } finally {
+            this.isLoading = false;
+            this.notify();
+        }
+    }
 
     getProducts() {
         return this.products;
     }
 
-    installProduct(id: string) {
-        const prod = this.products.find(p => p.id === id);
-        if (prod) {
-            prod.installed = true;
+    async installProduct(id: string) {
+        this.isLoading = true;
+        this.notify();
+        try {
+            // @ts-ignore
+            const { invoke } = window.__TAURI__.core;
+            await invoke('install_package', { packageId: id });
+
+            // Refresh list to update 'installed' status
+            this.products = await invoke('fetch_market_index');
+        } catch (e) {
+            console.error("Install failed:", e);
+            this.error = "Installation failed.";
+        } finally {
+            this.isLoading = false;
             this.notify();
         }
     }
 
-    uninstallProduct(id: string) {
-        const prod = this.products.find(p => p.id === id);
-        if (prod) {
-            prod.installed = false;
+    async uninstallProduct(id: string) {
+        this.isLoading = true;
+        this.notify();
+        try {
+            // @ts-ignore
+            const { invoke } = window.__TAURI__.core;
+            await invoke('uninstall_package', { packageId: id });
+
+            // Refresh list
+            this.products = await invoke('fetch_market_index');
+        } catch (e) {
+            console.error("Uninstall failed:", e);
+        } finally {
+            this.isLoading = false;
             this.notify();
         }
     }
