@@ -6,16 +6,18 @@ export interface UserAttributes {
 }
 
 export interface ACL {
-    allowedRoles: string[];
+    requiredRoles?: string[];
+    allowedRoles?: string[]; // Keep for compatibility if needed, or remove
     allowedUsers: string[];
     requiredDepartment?: string;
+    requiredClearance?: number;
 }
 
 export interface User {
     id: string;
-    name: string;
+    name?: string;
     role: 'editor' | 'auditor' | 'viewer' | 'admin';
-    color: string;
+    color?: string;
     attributes: UserAttributes; // Ensure nesting is correct for ABAC
 }
 

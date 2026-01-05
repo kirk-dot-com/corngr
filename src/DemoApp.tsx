@@ -152,13 +152,14 @@ const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, onDocCha
 export const DemoApp: React.FC = () => {
     const [docId, setDocId] = useState('doc_default');
     const [docTitle, setDocTitle] = useState('Project Alpha');
-    const { user, setUser } = React.useContext(UserContext); // Use OIDC-provided user
-    /* 
-    // Legacy local state removed in favor of UserContext
     const [user, setUser] = useState<User | null>({
-        id: 'local-user', ... 
+        id: 'u_1',
+        name: 'Kirk',
+        role: 'editor',
+        color: '#4CAF50',
+        attributes: { role: 'editor', clearanceLevel: 1, department: 'Engineering' }
     });
-    */
+    // const { user, setUser } = React.useContext(UserContext); // OIDC Placeholder
 
     const handleDocChange = (id: string, title: string = 'Untitled Doc') => {
         if (id === '_CURRENT_') {
