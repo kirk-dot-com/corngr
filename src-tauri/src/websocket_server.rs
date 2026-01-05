@@ -1,4 +1,4 @@
-use crate::audit_log::{log_event, AuditEvent};
+use crate::audit::{log_event, AuditEvent};
 use futures_util::{SinkExt, StreamExt};
 use std::collections::HashMap;
 use std::fs;

@@ -1,6 +1,6 @@
 use crate::User;
-use yrs::{Doc, GetString, Map, ReadTxn, StateVector, Transact}; // We need the User struct from lib.rs (crate root)
-                                                                // use crate::security::keystore::KeyStoreError; // Removed unused importing, Map, ReadTxn, StateVector, Text, Transact};
+use yrs::{Doc, Map, ReadTxn, StateVector, Transact}; // We need the User struct from lib.rs (crate root)
+                                                     // use crate::security::keystore::KeyStoreError; // Removed unused importing, Map, ReadTxn, StateVector, Text, Transact};
 
 /// Generates a filtered update vector based on user permissions.
 /// This constructs a temporary doc containing only the blocks the user is allowed to see,

@@ -9,6 +9,8 @@ lazy_static! {
     static ref AUDIT_LOCK: Mutex<()> = Mutex::new(());
 }
 
+pub mod shipper;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AuditEvent {
     pub timestamp: String,
@@ -57,6 +59,16 @@ pub fn log_event(event: AuditEvent) {
     if let Err(e) = append_log(&event) {
         eprintln!("CRITICAL: Failed to write to audit log: {}", e);
     }
+
+    // 3. Ship to External SIEM (Async)
+    let event_clone = event.clone();
+    tauri::async_runtime::spawn(async move {
+        use crate::audit::shipper::{LogShipper, MockShipper};
+        let shipper = MockShipper;
+        if let Err(e) = shipper.ship_event(&event_clone).await {
+            eprintln!("❌ FILTERED: Failed to ship audit event: {}", e);
+        }
+    });
 }
 
 pub fn append_log(event: &AuditEvent) -> std::io::Result<()> {

@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use uuid::Uuid;
 
 // WebSocket Collaboration Modules
-pub mod audit_log;
+pub mod audit;
 pub mod security;
 pub mod tauri_commands;
 pub mod websocket_server;
@@ -414,8 +414,8 @@ fn sign_block(req: BlockSignatureRequest, user: User) -> Result<BlockSignature, 
 }
 
 #[tauri::command]
-fn get_audit_log(limit: Option<usize>) -> Result<Vec<audit_log::AuditEvent>, String> {
-    audit_log::read_log(limit.unwrap_or(100)).map_err(|e| e.to_string())
+fn get_audit_log(limit: Option<usize>) -> Result<Vec<audit::AuditEvent>, String> {
+    audit::read_log(limit.unwrap_or(100)).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -505,7 +505,7 @@ fn verify_token(token_id: &str, signature_hex: &str) -> bool {
  * In a production system, this would write to a secure audit DB or immutable ledger.
  */
 fn audit_log(user_id: &str, action: &str, resource_id: &str, detail: &str) {
-    audit_log::log_event(audit_log::AuditEvent::new(
+    audit::log_event(audit::AuditEvent::new(
         user_id,
         action,
         resource_id,

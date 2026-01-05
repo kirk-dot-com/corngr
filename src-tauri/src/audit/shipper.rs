@@ -1,4 +1,4 @@
-use crate::audit_log::AuditEvent;
+use super::AuditEvent;
 use async_trait::async_trait;
 use std::error::Error;
 
