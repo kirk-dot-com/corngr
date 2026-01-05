@@ -1,13 +1,13 @@
-use crate::security::keystore::KeyStoreError;
-use crate::User; // We need the User struct from lib.rs (crate root)
-use yrs::{Array, Doc, GetString, Map, ReadTxn, StateVector, Text, Transact};
+use crate::User;
+use yrs::{Doc, GetString, Map, ReadTxn, StateVector, Transact}; // We need the User struct from lib.rs (crate root)
+                                                                // use crate::security::keystore::KeyStoreError; // Removed unused importing, Map, ReadTxn, StateVector, Text, Transact};
 
 /// Generates a filtered update vector based on user permissions.
 /// This constructs a temporary doc containing only the blocks the user is allowed to see,
 /// then generates a sync update from that temporary doc.
 pub fn generate_secure_snapshot(source_doc: &Doc, user: &User) -> Vec<u8> {
     let temp_doc = Doc::new();
-    let mut dest_txn = temp_doc.transact_mut();
+    let mut _dest_txn = temp_doc.transact_mut();
     let src_txn = source_doc.transact();
 
     // Assumption: The root structure is a Map called "blocks" or Array?
@@ -27,9 +27,9 @@ pub fn generate_secure_snapshot(source_doc: &Doc, user: &User) -> Vec<u8> {
 
     let src_blocks = src_txn.get_map("blocks");
     if let Some(src_map) = src_blocks {
-        let dest_map = dest_txn.get_map("blocks");
+        let _dest_map = _dest_txn.get_map("blocks");
 
-        for (key, value) in src_map.iter(&src_txn) {
+        for (key, _value) in src_map.iter(&src_txn) {
             // Check permission for this block (key)
             // We need to look up Metadata for this block.
             // Assuming metadata is stored in the value or a separate store.
@@ -75,7 +75,7 @@ fn check_block_access_stub(block_id: &str, user: &User) -> bool {
 
 /// Validates an incoming update patch.
 /// Returns true if the update is allowed, false if rejected.
-pub fn validate_write_op(user: &User, update: &[u8]) -> bool {
+pub fn validate_write_op(_user: &User, _update: &[u8]) -> bool {
     // Decode update to inspect content?
     // If we can't efficienty decode, we rely on the `is_write_op` check in websocket_server
     // which blocked "Viewer" and "Auditor" roles globally.

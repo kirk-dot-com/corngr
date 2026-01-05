@@ -1,4 +1,4 @@
-use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
+use ed25519_dalek::{Signature, VerifyingKey};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
