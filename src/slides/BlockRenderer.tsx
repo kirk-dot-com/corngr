@@ -30,6 +30,9 @@ const arePropsEqual = (prev: BlockRendererProps, next: BlockRendererProps) => {
     if (prev.block.id !== next.block.id) return false;
     if (prev.block.modified !== next.block.modified) return false;
 
+    // FIX: Explicitly check text content for real-time sync (timestamps might be debounced or lagged)
+    if (prev.block.data.text !== next.block.data.text) return false;
+
     // Phase 2: Check metadata changes
     const prevMeta = prev.metadata || prev.block.data.metadata || {};
     const nextMeta = next.metadata || next.block.data.metadata || {};
