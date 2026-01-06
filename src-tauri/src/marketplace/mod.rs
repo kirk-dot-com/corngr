@@ -115,6 +115,24 @@ pub async fn uninstall_package(package_id: String) -> Result<bool, String> {
 
 // --- Helpers ---
 
+#[tauri::command]
+pub async fn get_installed_extensions() -> Result<Vec<PackageManifest>, String> {
+    let mut manifests = Vec::new();
+    if let Ok(entries) = fs::read_dir(EXTENSIONS_DIR) {
+        for entry in entries.flatten() {
+            // Read all .json files inextensions dir
+            if entry.path().extension().and_then(|s| s.to_str()) == Some("json") {
+                if let Ok(content) = fs::read_to_string(entry.path()) {
+                    if let Ok(manifest) = serde_json::from_str::<PackageManifest>(&content) {
+                        manifests.push(manifest);
+                    }
+                }
+            }
+        }
+    }
+    Ok(manifests)
+}
+
 fn get_installed_ids() -> Vec<String> {
     let mut ids = Vec::new();
     if let Ok(entries) = fs::read_dir(EXTENSIONS_DIR) {

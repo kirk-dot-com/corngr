@@ -25,12 +25,42 @@ class MarketplaceStore {
 
         try {
             // Use window.__TAURI__.core.invoke if module import fails or mock fallback
-            // But we can try to use the imported invoke if available. 
-            // The codebase seems to use window.__TAURI__ usually.
             // @ts-ignore
             const tauriInvoke = window.__TAURI__?.core?.invoke || invoke;
 
-            this.products = await tauriInvoke('fetch_market_index');
+            // 1. Fetch from Registry (Index)
+            const remoteProducts: MarketplaceProduct[] = await tauriInvoke('fetch_market_index');
+
+            // 2. Fetch Installed Extensions (Disk)
+            // This ensures we have capabilities even if the registry is offline or products were removed from registry
+            const installedManifests: any[] = await tauriInvoke('get_installed_extensions');
+
+            // 3. Merge Strategies
+            // Start with remote products
+            let finalProducts = [...remoteProducts];
+
+            // Add installed products that might not be in the registry index anymore (Sideloaded / Deprecated)
+            installedManifests.forEach(manifest => {
+                const existing = finalProducts.find(p => p.id === manifest.id);
+                if (existing) {
+                    existing.installed = true;
+                    // Ensure capabilities match manifest (truth on disk wins)
+                    existing.capabilities = manifest.capabilities;
+                } else {
+                    // Add as a local-only product
+                    finalProducts.push({
+                        id: manifest.id,
+                        name: manifest.name,
+                        description: manifest.description,
+                        icon: '📦', // Default icon for unknown source
+                        price: 'Installed',
+                        installed: true,
+                        capabilities: manifest.capabilities
+                    });
+                }
+            });
+
+            this.products = finalProducts;
             this.initialized = true;
         } catch (e) {
             console.error("Failed to load marketplace:", e);

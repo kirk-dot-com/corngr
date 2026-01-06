@@ -816,6 +816,7 @@ pub fn run() {
             marketplace::fetch_market_index,
             marketplace::install_package,
             marketplace::uninstall_package,
+            marketplace::get_installed_extensions,
             // WebSocket collaboration commands
             tauri_commands::start_websocket_server,
             tauri_commands::stop_websocket_server,

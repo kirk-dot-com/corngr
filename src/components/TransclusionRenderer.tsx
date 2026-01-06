@@ -46,6 +46,11 @@ export const TransclusionRenderer: React.FC<TransclusionRendererProps> = ({
         let mounted = true;
 
         const resolve = async () => {
+            if (!network) {
+                setStatus('error');
+                return;
+            }
+
             setStatus('loading');
             try {
                 const block = await network.resolveExternalReference(refId);
