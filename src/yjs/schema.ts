@@ -68,8 +68,8 @@ export function getAllBlocks(doc: Y.Doc): Block[] {
         }
         return blocks;
     }
-    // ... items 381-396 (Legacy fallback)
 
+    // ... items 381-396 (Legacy fallback)
 
     /**
      * Corngr Block Types
