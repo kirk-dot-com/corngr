@@ -39,12 +39,13 @@ export const TopBar: React.FC<TopBarProps> = ({
     }, []);
 
     // Subscribe to DocumentStore
+    // Subscribe to DocumentStore
     useEffect(() => {
         documentStore.fetchDocuments(); // Fetch on mount
         const unsub = documentStore.subscribe(() => {
             setDocList(documentStore.getDocuments());
         });
-        return unsub;
+        return () => { unsub(); };
     }, []);
 
     React.useEffect(() => {
