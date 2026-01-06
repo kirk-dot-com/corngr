@@ -345,6 +345,7 @@ describe('Yjs Schema - Sprint 1 Success Criteria', () => {
 
             // Simulate " World"
             textNode.insert(5, ' World');
+            console.log('DEBUG_JSON:', JSON.stringify(paragraph.toJSON(), null, 2));
             blocks = getAllBlocks(doc);
             expect(blocks[0].data.text).toBe('Hello World');
         });
