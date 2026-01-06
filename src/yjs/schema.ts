@@ -17,19 +17,94 @@ export function getAllBlocks(doc: Y.Doc): Block[] {
     const blocks: Block[] = [];
 
     if (fragment && fragment.length > 0) {
-        // Use official helper to convert to ProseMirror JSON
-        const serialized = yXmlFragmentToProsemirrorJSON(fragment);
+        // Strategy 1: Use official helper to convert to ProseMirror JSON
+        // This handles all merging of text nodes, marks, etc. specific to ProseMirror binding
+        try {
+            const serialized = yXmlFragmentToProsemirrorJSON(fragment);
 
-        if (serialized && Array.isArray(serialized)) {
-            for (const node of serialized) {
-                const attrs = node.attrs || {};
+            if (serialized && Array.isArray(serialized) && serialized.length > 0) {
+                for (const node of serialized) {
+                    const attrs = node.attrs || {};
+                    const blockId = attrs.blockId || generateUUID();
+
+                    // Extract text from PM JSON content
+                    let text = '';
+                    if (node.content && Array.isArray(node.content)) {
+                        text = node.content
+                            .map((c: any) => c.text || '')
+                            .join('');
+                    }
+
+                    let blockType: BlockType = 'paragraph';
+                    let metadata: BlockMetadata = {
+                        slideIndex: null,
+                        layout: 'full-width'
+                    };
+
+                    // Map Node Types
+                    if (node.type === 'paragraph') {
+                        blockType = 'paragraph';
+                    } else if (node.type === 'heading') {
+                        const level = attrs.level || 1;
+                        blockType = level === 1 ? 'heading1' : 'heading2';
+                    } else if (node.type === 'variable') {
+                        blockType = 'variable';
+                    }
+
+                    blocks.push({
+                        id: blockId,
+                        type: blockType,
+                        // @ts-ignore
+                        type_: blockType,
+                        data: {
+                            text: text,
+                            value: null,
+                            metadata: metadata
+                        },
+                        created: new Date().toISOString(),
+                        modified: new Date().toISOString()
+                    });
+                }
+
+                if (blocks.length > 0) return blocks;
+            }
+        } catch (e) {
+            console.warn('y-prosemirror deserialization failed, falling back to manual:', e);
+        }
+
+        // Strategy 2: Manual Traversal (Fallback for non-standard or test data)
+        // This is required for synthetic tests and safety
+        for (const node of fragment.toArray()) {
+            if (node instanceof Y.XmlElement) {
+                const nodeName = node.nodeName || 'paragraph';
+                const attrs = node.getAttributes() || {};
+
+                // Phase 2: Extract stable block ID or generate one
                 const blockId = attrs.blockId || generateUUID();
 
+                // Extract text content by iterating children
                 let text = '';
-                if (node.content && Array.isArray(node.content)) {
-                    text = node.content
-                        .map((c: any) => c.text || '')
-                        .join('');
+                const length = node.length;
+                for (let i = 0; i < length; i++) {
+                    const child = node.get(i);
+                    if (child instanceof Y.XmlText) {
+                        // Use toDelta() for more reliable content extraction
+                        // This fixes the "partial text" issue by processing the full delta
+                        const delta = child.toDelta();
+                        text += delta.reduce((acc: string, op: any) => {
+                            if (typeof op.insert === 'string') return acc + op.insert;
+                            return acc;
+                        }, '');
+                    } else if (child instanceof Y.XmlElement) {
+                        text += child.toString();
+                    } else {
+                        text += String(child);
+                    }
+                }
+
+                // Fallback if empty and length > 0
+                if (!text && length > 0) {
+                    text = node.toString();
                 }
 
                 let blockType: BlockType = 'paragraph';
@@ -38,13 +113,12 @@ export function getAllBlocks(doc: Y.Doc): Block[] {
                     layout: 'full-width'
                 };
 
-                // Map Node Types
-                if (node.type === 'paragraph') {
+                if (nodeName === 'paragraph') {
                     blockType = 'paragraph';
-                } else if (node.type === 'heading') {
+                } else if (nodeName === 'heading') {
                     const level = attrs.level || 1;
                     blockType = level === 1 ? 'heading1' : 'heading2';
-                } else if (node.type === 'variable') {
+                } else if (nodeName === 'variable') {
                     blockType = 'variable';
                 }
 
