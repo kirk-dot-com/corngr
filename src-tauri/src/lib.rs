@@ -627,7 +627,7 @@ fn save_secure_document(
 
     let clean_id = doc_id.replace("/", "").replace("\\", "").replace("..", "");
 
-    let mut dir = match app.path().app_local_data_dir() {
+    let dir = match app.path().app_local_data_dir() {
         Ok(p) => p,
         Err(e) => {
             println!("❌ Path Error: {}", e);
