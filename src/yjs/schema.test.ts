@@ -317,4 +317,36 @@ describe('Yjs Schema - Sprint 1 Success Criteria', () => {
             });
         });
     });
+    describe('ProseMirror Integration', () => {
+        it('should extract full text from Y.XmlFragment updates', () => {
+            // Simulate ProseMirror structure
+            const fragment = doc.get('prosemirror', Y.XmlFragment) as Y.XmlFragment;
+
+            // Create a paragraph node
+            const paragraph = new Y.XmlElement('paragraph');
+            fragment.push([paragraph]);
+
+            // Add a text node simulating "H"
+            const textNode = new Y.XmlText();
+            textNode.insert(0, 'H');
+            paragraph.push([textNode]);
+
+            // Verify initial extraction
+            let blocks = getAllBlocks(doc);
+            expect(blocks.length).toBe(1);
+            expect(blocks[0].data.text).toBe('H');
+
+            // Simulate typing "ello"
+            textNode.insert(1, 'ello');
+
+            // Verify updated extraction
+            blocks = getAllBlocks(doc);
+            expect(blocks[0].data.text).toBe('Hello');
+
+            // Simulate " World"
+            textNode.insert(5, ' World');
+            blocks = getAllBlocks(doc);
+            expect(blocks[0].data.text).toBe('Hello World');
+        });
+    });
 });
