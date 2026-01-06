@@ -331,7 +331,7 @@ export function getAllBlocks(doc: Y.Doc): Block[] {
                     if (child instanceof Y.XmlText) {
                         // Use toDelta() for more reliable content extraction during active transactions
                         const delta = child.toDelta();
-                        text += delta.reduce((acc, op) => {
+                        text += delta.reduce((acc: string, op: any) => {
                             if (typeof op.insert === 'string') return acc + op.insert;
                             return acc; // Ignore embeds/formatting for plain text slides for now
                         }, '');
