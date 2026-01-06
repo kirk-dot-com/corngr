@@ -324,15 +324,23 @@ export function getAllBlocks(doc: Y.Doc): Block[] {
                 let text = '';
                 // node.toString() can be buggy for deep observation updates in real-time
                 // Iterate children to get live text content
+                // Iterate children to get live text content
                 const length = node.length;
                 for (let i = 0; i < length; i++) {
                     const child = node.get(i);
                     if (child instanceof Y.XmlText) {
-                        text += child.toString();
+                        // Use toDelta() for more reliable content extraction during active transactions
+                        const delta = child.toDelta();
+                        text += delta.reduce((acc, op) => {
+                            if (typeof op.insert === 'string') return acc + op.insert;
+                            return acc; // Ignore embeds/formatting for plain text slides for now
+                        }, '');
                     } else if (child instanceof Y.XmlElement) {
-                        // Recursive text extraction for nested nodes might be needed, 
-                        // but for basic Paragraph/Heading in ProseMirror, text is usually direct child or wrapped in marks.
-                        // For now, let's trust toString() on the child or skip complex nesting for slides.
+                        // For nested elements, try to extract text recursively or use toString as fallback
+                        // Ideally we'd recurse, but toString() often wraps in XML tags.
+                        // Let's assume nested inline content (like marks) doesn't use XmlElement in Yjs-Prosemirror default binding
+                        // (it usually splits XmlText).
+                        // If it IS an XmlElement, it might be a custom node.
                         text += child.toString();
                     } else {
                         text += String(child);

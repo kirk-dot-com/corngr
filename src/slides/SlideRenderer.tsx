@@ -109,7 +109,7 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({ yDoc, user = DEFAU
                     </div>
 
                     {currentSlideData.blocks.map((block) => (
-                        <BlockRenderer key={block.id} block={block} user={user} />
+                        <BlockRenderer key={`${block.id}_${block.modified}`} block={block} user={user} />
                     ))}
                 </div>
             </div>
