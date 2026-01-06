@@ -516,21 +516,74 @@ fn audit_log(user_id: &str, action: &str, resource_id: &str, detail: &str) {
 }
 
 /**
+ * [EIM] List Documents
+ * Returns a list of available .crng files in the current directory.
+ */
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DocumentInfo {
+    pub id: String,
+    pub filename: String,
+    pub modified: String,
+}
+
+#[tauri::command]
+fn list_documents() -> Vec<DocumentInfo> {
+    let mut docs = Vec::new();
+    if let Ok(entries) = fs::read_dir(".") {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("crng") {
+                if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
+                    let id = file_name.replace(".crng", "");
+                    // Get modified time
+                    let modified = if let Ok(metadata) = fs::metadata(&path) {
+                        if let Ok(time) = metadata.modified() {
+                            let datetime: chrono::DateTime<chrono::Utc> = time.into();
+                            datetime.to_rfc3339()
+                        } else {
+                            String::new()
+                        }
+                    } else {
+                        String::new()
+                    };
+
+                    docs.push(DocumentInfo {
+                        id,
+                        filename: file_name.to_string(),
+                        modified,
+                    });
+                }
+            }
+        }
+    }
+    docs
+}
+
+/**
  * [EIM] Load Secure Document
- * Reads from "demo.crng" (simulated DB) and filters based on User Context.
+ * Reads from "{doc_id}.crng" (simulated DB) and filters based on User Context.
  */
 #[tauri::command]
-fn load_secure_document(user: User) -> Vec<Block> {
+fn load_secure_document(user: User, doc_id: String) -> Vec<Block> {
     // 1. Load from Disk (The "Server Truth")
-    let file_path = "demo.crng";
-    let raw_blocks: Vec<Block> = if std::path::Path::new(file_path).exists() {
-        match std::fs::read_to_string(file_path) {
+    // Sanitize doc_id to prevent directory traversal
+    let clean_id = doc_id.replace("/", "").replace("\\", "").replace("..", "");
+    let file_path = format!("{}.crng", clean_id);
+    let path = Path::new(&file_path);
+
+    let raw_blocks: Vec<Block> = if path.exists() {
+        match std::fs::read_to_string(path) {
             Ok(content) => serde_json::from_str(&content).unwrap_or_else(|_| get_mock_blocks()),
             Err(_) => get_mock_blocks(),
         }
     } else {
-        println!("⚠️ No DB found, loading mock genesis block.");
-        get_mock_blocks()
+        println!("⚠️ Document {} not found, loading new/mock.", clean_id);
+        // If it's the "default" doc, return mock data. Else return empty.
+        if clean_id == "demo" || clean_id == "doc_default" {
+            get_mock_blocks()
+        } else {
+            Vec::new()
+        }
     };
 
     // 2. [EIM] Security Filtering (The "x-ray" filter)
@@ -540,9 +593,10 @@ fn load_secure_document(user: User) -> Vec<Block> {
         .collect();
 
     println!(
-        "🔒 SecureLoad: User {} ({}) requested doc. Returned {} blocks from disk.",
+        "🔒 SecureLoad: User {} ({}) requested doc {}. Returned {} blocks.",
         user.id,
         user.attributes.role,
+        clean_id,
         filtered_blocks.len()
     );
 
@@ -554,17 +608,21 @@ fn load_secure_document(user: User) -> Vec<Block> {
  * Writes the full state to disk after strictly validating security metadata.
  */
 #[tauri::command]
-fn save_secure_document(blocks: Vec<Block>, user: User) -> bool {
+fn save_secure_document(blocks: Vec<Block>, user: User, doc_id: String) -> bool {
     // 1. Security Check: Only admins/editors can save
     if user.attributes.role != "admin" && user.attributes.role != "editor" {
         println!("❌ Access Denied: User {} cannot save.", user.id);
         return false;
     }
 
+    // Sanitize
+    let clean_id = doc_id.replace("/", "").replace("\\", "").replace("..", "");
+    let file_path = format!("{}.crng", clean_id);
+    let path = Path::new(&file_path);
+
     // 2. Load existing state for "Pre-computation" (Checking locks)
-    let file_path = "demo.crng";
-    let existing_blocks: Vec<Block> = if std::path::Path::new(file_path).exists() {
-        std::fs::read_to_string(file_path)
+    let existing_blocks: Vec<Block> = if path.exists() {
+        std::fs::read_to_string(path)
             .ok()
             .and_then(|c| serde_json::from_str(&c).ok())
             .unwrap_or_else(Vec::new)
@@ -614,7 +672,7 @@ fn save_secure_document(blocks: Vec<Block>, user: User) -> bool {
     // 4. Write to Disk
     match serde_json::to_string_pretty(&blocks) {
         Ok(json_content) => {
-            if let Err(e) = std::fs::write(file_path, json_content) {
+            if let Err(e) = std::fs::write(path, json_content) {
                 println!("❌ FileSystem Error: {}", e);
                 return false;
             }
@@ -813,6 +871,7 @@ pub fn run() {
             sign_block,
             verify_block_signature,
             get_audit_log,
+            list_documents,
             marketplace::fetch_market_index,
             marketplace::install_package,
             marketplace::uninstall_package,

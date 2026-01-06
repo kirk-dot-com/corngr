@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useYjs, YjsProvider } from './yjs/YjsProvider';
 import { UserContext } from './security/UserContext';
 import { MetadataStore } from './metadata/MetadataStore';
@@ -15,6 +15,7 @@ import { SecurityDashboard } from './components/security/SecurityDashboard';
 import { ToastContainer, useToast } from './components/Toast';
 import './DemoApp.css';
 import { User } from './security/types';
+import { useDocumentPersister } from './hooks/useDocumentPersister';
 
 // Initialize Global Stores
 const metadataStore = new MetadataStore();
@@ -22,13 +23,17 @@ const metadataStore = new MetadataStore();
 interface DemoAppContentProps {
     user: User | null;
     setUser: React.Dispatch<React.SetStateAction<User | null>>;
-
     onDocChange: (id: string, title?: string) => void;
     docTitle: string;
+    docId: string;
 }
 
-const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, onDocChange, docTitle }) => {
+const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, onDocChange, docTitle, docId }) => {
     const { doc: yDoc, provider } = useYjs();
+
+    // Auto-save logic
+    useDocumentPersister(yDoc, user, docId);
+
     const [appMode, setAppMode] = useState<'editor' | 'slides' | 'split' | 'governance'>('split');
     const [showMarketplace, setShowMarketplace] = useState(false);
     const [showMetadataPanel, setShowMetadataPanel] = useState(false);
@@ -159,7 +164,6 @@ export const DemoApp: React.FC = () => {
         color: '#4CAF50',
         attributes: { role: 'editor', clearanceLevel: 1, department: 'Engineering' }
     });
-    // const { user, setUser } = React.useContext(UserContext); // OIDC Placeholder
 
     const handleDocChange = (id: string, title: string = 'Untitled Doc') => {
         if (id === '_CURRENT_') {
@@ -177,9 +181,9 @@ export const DemoApp: React.FC = () => {
             <DemoAppContent
                 user={user}
                 setUser={setUser}
-
                 onDocChange={handleDocChange}
                 docTitle={docTitle}
+                docId={docId}
             />
         </YjsProvider>
     );

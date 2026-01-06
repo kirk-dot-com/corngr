@@ -3,6 +3,7 @@ import { useYjs } from '../yjs/YjsProvider';
 import { UserContext } from '../security/UserContext';
 import { MetadataStore } from '../metadata/MetadataStore';
 import { sidecarStore } from '../stores/SidecarStore';
+import { documentStore } from '../stores/DocumentStore';
 import './AppHeader.css';
 
 interface TopBarProps {
@@ -26,6 +27,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     const { connected, users } = useYjs();
     const { user } = React.useContext(UserContext);
     const [status, setStatus] = React.useState('Offline');
+    const [docList, setDocList] = useState(documentStore.getDocuments());
 
     // Subscribe to Sidecar State for UI button active state
     const [isSidecarOpen, setSidecarOpen] = useState(false);
@@ -34,6 +36,15 @@ export const TopBar: React.FC<TopBarProps> = ({
         update();
         const unsubscribe = sidecarStore.subscribe(update);
         return () => { unsubscribe(); };
+    }, []);
+
+    // Subscribe to DocumentStore
+    useEffect(() => {
+        documentStore.fetchDocuments(); // Fetch on mount
+        const unsub = documentStore.subscribe(() => {
+            setDocList(documentStore.getDocuments());
+        });
+        return unsub;
     }, []);
 
     React.useEffect(() => {
@@ -45,11 +56,6 @@ export const TopBar: React.FC<TopBarProps> = ({
         if (onDocChange) onDocChange(id, newTitle);
         document.getElementById('doc-dropdown')!.style.display = 'none';
     };
-
-
-
-    // This is a bit hacky but we need to track the ID locally or pass it in
-    // For now we will rely on the parent updating the title
 
     return (
         <header className="top-bar">
@@ -74,24 +80,27 @@ export const TopBar: React.FC<TopBarProps> = ({
                         <button className="doc-dropdown-btn" title="Switch Document" onClick={() => {
                             const dropdown = document.getElementById('doc-dropdown');
                             if (dropdown) {
+                                // Refresh list on open
+                                documentStore.fetchDocuments();
                                 dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
                             }
                         }}>▼</button>
                         <div id="doc-dropdown" className="doc-dropdown" style={{ display: 'none' }}>
                             <div className="doc-dropdown-header">Recent Documents</div>
-                            <button className="doc-item active" onClick={() => handleDocSwitch('doc_default', 'Project Alpha')}>
-                                📄 Project Alpha <span className="doc-badge">Current</span>
-                            </button>
-                            <button className="doc-item" onClick={() => handleDocSwitch('doc_sprint_q4', 'Sprint Planning Q4')}>
-                                📄 Sprint Planning Q4
-                            </button>
-                            <button className="doc-item" onClick={() => handleDocSwitch('doc_tech_spec', 'Technical Spec v2')}>
-                                📄 Technical Spec v2
-                            </button>
+
+                            {/* Dynamic List */}
+                            {docList.map(doc => (
+                                <button key={doc.id} className="doc-item" onClick={() => handleDocSwitch(doc.id, doc.title || doc.filename)}>
+                                    📄 {doc.title || doc.filename}
+                                </button>
+                            ))}
+
                             <div className="doc-dropdown-divider"></div>
                             <button className="doc-item create-new" onClick={() => {
                                 const newId = 'doc_' + Math.random().toString(36).substr(2, 9);
                                 handleDocSwitch(newId, 'Untitled Document');
+                                // Force refresh after a short delay to allow file creation (handled by save)
+                                setTimeout(() => documentStore.fetchDocuments(), 1000);
                             }}>
                                 ➕ Create New Document
                             </button>

@@ -320,9 +320,29 @@ export function getAllBlocks(doc: Y.Doc): Block[] {
                 // Phase 2: Extract stable block ID or generate one
                 const blockId = attrs.blockId || generateUUID();
 
-                // Extract text content
+                // Extract text content by iterating children
                 let text = '';
-                text = node.toString();
+                // node.toString() can be buggy for deep observation updates in real-time
+                // Iterate children to get live text content
+                const length = node.length;
+                for (let i = 0; i < length; i++) {
+                    const child = node.get(i);
+                    if (child instanceof Y.XmlText) {
+                        text += child.toString();
+                    } else if (child instanceof Y.XmlElement) {
+                        // Recursive text extraction for nested nodes might be needed, 
+                        // but for basic Paragraph/Heading in ProseMirror, text is usually direct child or wrapped in marks.
+                        // For now, let's trust toString() on the child or skip complex nesting for slides.
+                        text += child.toString();
+                    } else {
+                        text += String(child);
+                    }
+                }
+
+                // Fallback if empty and length > 0 (e.g. sometimes mapped differently)
+                if (!text && length > 0) {
+                    text = node.toString();
+                }
 
                 let blockType: BlockType = 'paragraph';
                 let metadata: BlockMetadata = {
