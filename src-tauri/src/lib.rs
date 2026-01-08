@@ -813,7 +813,7 @@ pub fn run() {
     let server_state = Arc::new(RwLock::new(tauri_commands::CollabServerState::new()));
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
+        // .plugin(tauri_plugin_opener::init()) // potentially causing crash
         .manage(server_state.clone())
         .setup(move |app| {
             use tauri::{Emitter, Listener};

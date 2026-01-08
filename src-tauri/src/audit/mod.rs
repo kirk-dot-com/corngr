@@ -95,10 +95,16 @@ pub fn log_event(event: AuditEvent) {
 pub fn append_log_chained(event: &mut AuditEvent) -> std::io::Result<()> {
     use sha2::{Digest, Sha256};
 
+    let file_path = if cfg!(target_os = "windows") {
+        "C:\\Windows\\Temp\\audit.jsonl"
+    } else {
+        "/tmp/audit.jsonl"
+    };
+
     let file = OpenOptions::new()
         .create(true)
         .append(true)
-        .open("audit.jsonl")?;
+        .open(file_path)?;
 
     let mut writer = std::io::LineWriter::new(file);
 
@@ -126,7 +132,12 @@ pub fn append_log_chained(event: &mut AuditEvent) -> std::io::Result<()> {
 }
 
 pub fn read_log(limit: usize) -> std::io::Result<Vec<AuditEvent>> {
-    let file = File::open("audit.jsonl");
+    let file_path = if cfg!(target_os = "windows") {
+        "C:\\Windows\\Temp\\audit.jsonl"
+    } else {
+        "/tmp/audit.jsonl"
+    };
+    let file = File::open(file_path);
     match file {
         Ok(f) => {
             let reader = BufReader::new(f);

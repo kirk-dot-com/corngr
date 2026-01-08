@@ -42,6 +42,7 @@ const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, onDocCha
     const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
     const { toasts, dismissToast, success } = useToast();
 
+
     // Initialize MetadataStore with Y.Doc
     useEffect(() => {
         if (yDoc) {
