@@ -15,7 +15,7 @@ This session established the complete strategic and technical foundation for **C
 
 ### Reference Documents Created & Pushed
 
-All eight documents are live on `main` at `kirk-dot-com/corngr-erp`:
+All nine documents are live on `main` at `kirk-dot-com/corngr-erp`:
 
 | Document | Purpose |
 |---|---|
@@ -28,6 +28,7 @@ All eight documents are live on `main` at `kirk-dot-com/corngr-erp`:
 | [API_CONTRACTS.md](./API_CONTRACTS.md) | Rust engine API Contracts v1 — 12 endpoints with full request/response shapes, ABAC conditions, error codes, and implementation notes |
 | [SKILLS.md](./SKILLS.md) | ERP-Grid Skills Matrix — 7 capability domains: Orbital Architecture, Agentic Intelligence, Unified Data Grid, Cryptographic Trust, SME Domain Lenses, HITL UX, Gravity Well ingestion |
 | [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) | Phase A implementation plan — 5 milestones, engineering tasks, Rust/TS test strategy, 6 manual scenario tests, NFR targets, Phase A DoD |
+| [ADR-0001.md](./ADR-0001.md) | Architecture Decision Record — Phase A defaults: CoA templates, CAIO model size, Primary Node form factor, partial fulfillment policy, site_id phasing |
 
 ### Git History (This Session)
 
@@ -124,6 +125,8 @@ M3 can begin its React scaffold (Cockpit shell, widget placeholders) in parallel
 
 ## Key Decisions Already Made
 
+*Phase A baseline decisions are formally recorded in [ADR-0001.md](./ADR-0001.md).*
+
 | Decision | Rationale |
 |---|---|
 | Fragment IDs use ULIDs | Time-sortable + unique; avoids UUID collision without coordination |
@@ -133,16 +136,25 @@ M3 can begin its React scaffold (Cockpit shell, widget placeholders) in parallel
 | Tombstone preferred over hard delete | Preserves audit trail for lines/postings; yrs CRDT-friendly |
 | AI outputs only `proposal_create` ops | Human-in-the-loop finality is non-negotiable for financial state (FR-AI-4) |
 | `rounding_tolerance = 0.01` on balance check | Practical SME accounting tolerance; configurable in Phase B |
+| **CoA: ship with templates** (ADR-0001 §1) | Minimizes onboarding friction; templates are editable fragments |
+| **CAIO model: 3B–4B instruct** (ADR-0001 §2) | Deployable on SME hardware; reliability from constraints not parameters |
+| **Primary Node: in-app toggle** (ADR-0001 §3) | Lowest-friction for office PC/Mac mini; headless daemon deferred to Phase B |
+| **Partial fulfillment: explicit policy-gated** (ADR-0001 §4) | Matches SME reality; prevents finance↔warehouse ERP drift |
+| **`site_id` included in Phase A schema** (ADR-0001 §5) | Cheap to add now; forward-compatible; full multi-site in Phase B |
 
 ---
 
-## Open Questions for Next Session
+## Open Questions
 
-1. **Chart of Accounts seed data** — will the team ship a default CoA template (e.g., standard Australian chart) or start blank and let Shatter infer accounts?
-2. **Local LLM model selection** — which model/size is targeted for Phase A CAIO (Candle/llama-edge)? Affects hardware requirements for the "Primary Node" spec.
-3. **Primary Node deployment** — bare-metal Rust binary, Docker, or Tauri desktop app running in headless mode?
-4. **Partial fulfillment policy** — should `post_tx` block if inventory moves don't fully cover line qty, or allow backorder with a warning?
-5. **Multi-site scope** — is `branch_id`/`site_id` in Phase A or deferred to Phase B?
+> All five open questions from the previous session have been resolved and formally recorded in **[ADR-0001.md](./ADR-0001.md)** (accepted 2026-02-27).
+
+| # | Question | Resolution |
+|---|---|---|
+| 1 | CoA seed data | Ship three templates (General SME / Services / Product+Mfg); blank behind Advanced toggle |
+| 2 | Local LLM model/size | 3B–4B instruct via Candle/llama-edge; Fast/Balanced/Powerful UI tiers |
+| 3 | Primary Node deployment | In-app "Primary Node Mode" toggle (Phase A); headless daemon + Docker in Phase B |
+| 4 | Partial fulfillment policy | Allowed with explicit validation; hard qty invariants; "Partial" badges in UX |
+| 5 | Multi-site scope (`branch_id`/`site_id`) | Optional fields in Phase A schema (default `"primary"`); full multi-site in Phase B |
 
 ---
 
