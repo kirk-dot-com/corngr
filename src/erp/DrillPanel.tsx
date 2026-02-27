@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { TxSnapshot } from '../types';
+import type { TxSnapshot } from './types';
 
 interface DrillPanelProps {
     tx: TxSnapshot;
