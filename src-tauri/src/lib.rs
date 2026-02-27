@@ -14,6 +14,9 @@ pub mod security;
 pub mod tauri_commands;
 pub mod websocket_server;
 
+// ERP Engine (Phase A Milestone 1 + 2)
+pub mod erp;
+
 // [Phase 5] Token Revocation System
 lazy_static::lazy_static! {
     static ref REVOKED_TOKENS: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
@@ -870,6 +873,14 @@ pub fn run() {
             tauri_commands::stop_websocket_server,
             tauri_commands::get_server_status,
             tauri_commands::list_active_rooms,
+            // ERP Engine commands (Phase A M1+M2)
+            erp::tauri_api::erp_create_tx,
+            erp::tauri_api::erp_add_line,
+            erp::tauri_api::erp_create_invmove,
+            erp::tauri_api::erp_generate_postings,
+            erp::tauri_api::erp_post_tx,
+            erp::tauri_api::erp_get_tx_snapshot,
+            erp::tauri_api::erp_verify_audit_chain,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

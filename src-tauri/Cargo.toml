@@ -40,5 +40,6 @@ keyring = "3.6.3"
 thiserror = "2.0.17"
 async-trait = "0.1.89"
 sha2 = "0.10.9"
+ulid = "1"
 
 
