@@ -150,7 +150,45 @@ fn build_signing_payload(
     payload
 }
 
-// ── Key management (reuses the same pattern as lib.rs KeyManager) ──────────
+/// Sign an envelope using an explicitly provided signing key (used in tests and direct API calls).
+/// Production code should use MutationEnvelope::sign() which loads the node key from disk.
+pub fn sign_with_key(
+    signing_key: &SigningKey,
+    mutation_id: String,
+    actor_pubkey: &str,
+    org_id: &str,
+    ops: Vec<Op>,
+    policy_context: PolicyContext,
+    prev_hash: String,
+    lamport: u64,
+) -> Result<MutationEnvelope, ErpError> {
+    let now_ms = chrono::Utc::now().timestamp_millis();
+
+    let ops_json = serde_json::to_string(&ops)
+        .map_err(|e| ErpError::ValidationFail(format!("ops serialization: {}", e)))?;
+    let mut hasher = Sha256::new();
+    hasher.update(ops_json.as_bytes());
+    let content_hash = hex::encode(hasher.finalize());
+
+    let payload = build_signing_payload("1", &content_hash, &prev_hash, lamport, now_ms);
+    let signature: Signature = signing_key.sign(&payload);
+
+    Ok(MutationEnvelope {
+        envelope_version: "1".to_string(),
+        org_id: org_id.to_string(),
+        mutation_id,
+        actor_pubkey: actor_pubkey.to_string(),
+        device_pubkey: None,
+        issued_at_ms: now_ms,
+        lamport,
+        prev_hash,
+        capability_token_id: None,
+        ops,
+        policy_context,
+        content_hash,
+        signature: hex::encode(signature.to_bytes()),
+    })
+}
 
 const ERP_KEY_FILE: &str = "corngr_erp_node.key";
 
@@ -179,14 +217,19 @@ pub fn get_actor_pubkey_hex() -> String {
 mod tests {
     use super::*;
     use crate::erp::types::{Role, TxStatus};
+    use rand::rngs::OsRng;
 
-    fn test_actor() -> ActorContext {
-        ActorContext {
-            pubkey: get_actor_pubkey_hex(),
-            role: Role::Finance,
-            org_id: "org1".to_string(),
-            lamport: 1,
-        }
+    /// Generate a fresh in-memory signing key for tests (no file I/O).
+    fn fresh_key() -> SigningKey {
+        SigningKey::generate(&mut OsRng)
+    }
+
+    fn test_ops() -> Vec<Op> {
+        vec![crate::erp::types::Op::MapSet {
+            fragment_id: "tx:tx1:hdr".to_string(),
+            key: "status".to_string(),
+            value: serde_json::json!("draft"),
+        }]
     }
 
     fn test_policy() -> PolicyContext {
@@ -199,19 +242,18 @@ mod tests {
 
     #[test]
     fn test_mutation_envelope_sign_verify() {
-        let actor = test_actor();
-        let ops = vec![crate::erp::types::Op::MapSet {
-            fragment_id: "tx:tx1:hdr".to_string(),
-            key: "status".to_string(),
-            value: serde_json::json!("draft"),
-        }];
+        let key = fresh_key();
+        let pubkey_hex = hex::encode(key.verifying_key().to_bytes());
 
-        let envelope = MutationEnvelope::sign(
+        let envelope = sign_with_key(
+            &key,
             "mut-001".to_string(),
-            &actor,
-            ops,
+            &pubkey_hex,
+            "org1",
+            test_ops(),
             test_policy(),
             "genesis".to_string(),
+            1,
         )
         .expect("envelope sign should succeed");
 
@@ -224,19 +266,18 @@ mod tests {
 
     #[test]
     fn test_envelope_tamper_detection() {
-        let actor = test_actor();
-        let ops = vec![crate::erp::types::Op::MapSet {
-            fragment_id: "tx:tx1:hdr".to_string(),
-            key: "status".to_string(),
-            value: serde_json::json!("draft"),
-        }];
+        let key = fresh_key();
+        let pubkey_hex = hex::encode(key.verifying_key().to_bytes());
 
-        let mut envelope = MutationEnvelope::sign(
+        let mut envelope = sign_with_key(
+            &key,
             "mut-002".to_string(),
-            &actor,
-            ops,
+            &pubkey_hex,
+            "org1",
+            test_ops(),
             test_policy(),
             "genesis".to_string(),
+            1,
         )
         .expect("sign");
 
