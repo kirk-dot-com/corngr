@@ -10,6 +10,8 @@ import { DrillPanel } from './DrillPanel';
 import { CAIOSidebar } from './caio/CAIOSidebar';
 import { AuditExplorer } from './audit/AuditExplorer';
 import { PostingsLedger } from './ledger/PostingsLedger';
+import { ShatterImport } from './shatter/ShatterImport';
+import { OrbitExport } from './orbit/OrbitExport';
 import type { TxSnapshot, CreateTxRequest } from './types';
 import './erp.css';
 
@@ -22,6 +24,8 @@ export const CockpitDashboard: React.FC = () => {
     const [cmdBarValue, setCmdBarValue] = useState('');
     const [showAuditExplorer, setShowAuditExplorer] = useState(false);
     const [showLedger, setShowLedger] = useState(false);
+    const [showImport, setShowImport] = useState(false);
+    const [showExport, setShowExport] = useState(false);
 
     const handleAcceptProposal = useCallback(async (payload: Partial<CreateTxRequest>) => {
         if (!payload.tx_type) return;
@@ -75,6 +79,20 @@ export const CockpitDashboard: React.FC = () => {
                                 onChange={e => setCmdBarValue(e.target.value)}
                             />
                         </form>
+                        <button
+                            className="erp-btn"
+                            id="import-btn"
+                            onClick={() => setShowImport(true)}
+                        >
+                            ⬆ Import
+                        </button>
+                        <button
+                            className="erp-btn"
+                            id="export-btn"
+                            onClick={() => setShowExport(true)}
+                        >
+                            ⬇ Export
+                        </button>
                         <button
                             className="erp-btn"
                             id="ledger-btn"
@@ -160,6 +178,16 @@ export const CockpitDashboard: React.FC = () => {
             {/* ── Postings Ledger (M5) ── */}
             {showLedger && (
                 <PostingsLedger onClose={() => setShowLedger(false)} />
+            )}
+
+            {/* ── Shatter Import (M6) ── */}
+            {showImport && (
+                <ShatterImport onClose={() => setShowImport(false)} onImported={() => { setShowImport(false); store.refreshAll(); }} />
+            )}
+
+            {/* ── Orbit Export (M6) ── */}
+            {showExport && (
+                <OrbitExport onClose={() => setShowExport(false)} />
             )}
         </div>
     );
