@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::erp::types::{InvMove, Posting, TxHeader, TxType};
+use crate::erp::types::{InvMove, Posting, TxHeader};
 
 /// Org-level indexes maintained in-memory alongside the ErpStore.
 /// In Phase A these are simple sorted Vecs.  Phase B: persisted as yrs YArrays.

@@ -3,7 +3,7 @@ use thiserror::Error;
 
 /// All Phase A ERP error codes.
 /// Maps to string codes used in EngineResult JSON payloads.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Error)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Error)]
 pub enum ErpError {
     #[error("ERR_ABAC_DENY: {0}")]
     AbacDeny(String),

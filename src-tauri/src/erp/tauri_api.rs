@@ -1,6 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
-use tauri::State;
 
 use crate::erp::audit_log;
 use crate::erp::engine;
@@ -73,7 +71,7 @@ pub fn erp_create_invmove(actor: ActorContext, req: CreateInvMoveRequest) -> Api
 
 /// Generate draft postings for a transaction.
 #[tauri::command]
-pub fn erp_generate_postings(actor: ActorContext, tx_id: String) -> ApiResponse<Vec<Posting>> {
+pub fn erp_generate_postings(_actor: ActorContext, tx_id: String) -> ApiResponse<Vec<Posting>> {
     let store = ERP_STORE.lock().unwrap();
 
     let tx = match store.transactions.get(&tx_id) {

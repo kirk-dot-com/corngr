@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::erp::abac::{check_abac, Action};
 use crate::erp::audit_log;
-use crate::erp::envelope::{get_actor_pubkey_hex, MutationEnvelope};
+use crate::erp::envelope::MutationEnvelope;
 use crate::erp::errors::ErpError;
 use crate::erp::fragments;
 use crate::erp::replay::ReplayGuard;
@@ -181,7 +181,7 @@ pub fn add_line(actor: &ActorContext, req: &AddLineRequest) -> Result<String, Er
     }
 
     let line_id = Uuid::new_v4().to_string();
-    let inv_effect = InventoryEffect::from_str(req.inventory_effect.as_deref().unwrap_or("none"));
+    let inv_effect = InventoryEffect::from_str(&req.inventory_effect);
 
     let line = TxLine {
         line_id: line_id.clone(),
