@@ -888,6 +888,8 @@ pub fn run() {
             erp::tauri_api::erp_seed_coa,
             erp::tauri_api::erp_list_coa,
             erp::tauri_api::erp_get_ledger_summary,
+            // ERP Shatter Import command (Phase A M6)
+            erp::tauri_api::erp_bulk_import,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

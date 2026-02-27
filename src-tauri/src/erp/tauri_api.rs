@@ -486,3 +486,125 @@ pub fn erp_get_ledger_summary() -> ApiResponse<Vec<LedgerAccountRow>> {
 
     ApiResponse::ok(rows)
 }
+
+// ─── M6: Shatter Import ───────────────────────────────────────────────────────
+
+/// A single row from a Shatter import (post column-mapping).
+#[derive(Debug, Deserialize)]
+pub struct BulkImportRow {
+    pub tx_type: String,
+    pub tx_date: String,
+    pub description: String,
+    pub org_id: String,
+    pub currency: String,
+    pub party_id: Option<String>,
+    pub ref_number: Option<String>,
+    pub line_description: Option<String>,
+    pub qty: Option<f64>,
+    pub unit_price: Option<f64>,
+    pub tax_rate: Option<f64>,
+    pub provenance_label: String,
+}
+
+/// Result summary of a bulk import run.
+#[derive(Debug, Serialize)]
+pub struct BulkImportResult {
+    pub imported_count: usize,
+    pub failed_count: usize,
+    pub tx_ids: Vec<String>,
+    pub errors: Vec<String>,
+}
+
+/// Bulk-import rows from a Shatter import (CSV/XLSX → column-mapped rows).
+/// Each row creates a signed TxAtom via existing engine commands.
+/// Returns a summary of success/failure counts.
+#[tauri::command]
+pub fn erp_bulk_import(
+    actor: ActorContext,
+    rows: Vec<BulkImportRow>,
+) -> ApiResponse<BulkImportResult> {
+    use crate::erp::engine::ERP_STORE;
+    use crate::erp::ledger::generate_postings;
+    use crate::erp::types::{AddLineRequest, CreateTxRequest, TxType};
+
+    let mut tx_ids: Vec<String> = Vec::new();
+    let mut errors: Vec<String> = Vec::new();
+    let mut lamport = actor.lamport;
+
+    for (i, row) in rows.into_iter().enumerate() {
+        // Validate tx_type
+        let tx_type = match TxType::from_str(&row.tx_type) {
+            Ok(t) => t,
+            Err(e) => {
+                errors.push(format!("row {}: {}", i, e));
+                continue;
+            }
+        };
+
+        // Build description with provenance
+        let desc = format!("{} — {}", row.description, row.provenance_label);
+
+        let create_req = CreateTxRequest {
+            tx_type: row.tx_type.clone(),
+            org_id: row.org_id.clone(),
+            party_id: row.party_id.clone(),
+            currency: row.currency.clone(),
+            ref_number: row.ref_number.clone(),
+            description: Some(desc),
+            tx_date: row.tx_date.clone(),
+            site_id: Some("primary".to_string()),
+        };
+
+        // Create actor with incrementing lamport
+        let import_actor = ActorContext {
+            pubkey: actor.pubkey.clone(),
+            role: actor.role.clone(),
+            org_id: actor.org_id.clone(),
+            lamport,
+        };
+        lamport += 1;
+
+        let tx_ref = match engine::create_tx(&import_actor, &create_req) {
+            Ok(r) => r,
+            Err(e) => {
+                errors.push(format!("row {}: create_tx: {}", i, e));
+                continue;
+            }
+        };
+
+        // Add line if qty + unit_price provided
+        if let (Some(qty), Some(price)) = (row.qty, row.unit_price) {
+            let line_req = AddLineRequest {
+                tx_id: tx_ref.tx_id.clone(),
+                item_id: None,
+                account_id: None,
+                description: row.line_description.clone(),
+                qty,
+                unit_price: price,
+                inventory_effect: "none".to_string(),
+                tax_code: Some("GST".to_string()),
+                tax_rate: row.tax_rate,
+            };
+            let line_actor = ActorContext {
+                pubkey: actor.pubkey.clone(),
+                role: actor.role.clone(),
+                org_id: actor.org_id.clone(),
+                lamport,
+            };
+            lamport += 1;
+            if let Err(e) = engine::add_line(&line_actor, &line_req) {
+                errors.push(format!("row {}: add_line: {}", i, e));
+                // tx still created — continue
+            }
+        }
+
+        tx_ids.push(tx_ref.tx_id);
+    }
+
+    ApiResponse::ok(BulkImportResult {
+        imported_count: tx_ids.len(),
+        failed_count: errors.len(),
+        tx_ids,
+        errors,
+    })
+}
