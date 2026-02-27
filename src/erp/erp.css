@@ -1,0 +1,720 @@
+/* =========================================================
+   Corngr-ERP · M3 Cockpit Design System
+   Extends DemoApp.css tokens — dark glassmorphism
+   ========================================================= */
+
+/* CSS tokens */
+:root {
+  --erp-bg: #080810;
+  --erp-panel: rgba(255, 255, 255, 0.04);
+  --erp-border: rgba(255, 255, 255, 0.09);
+  --erp-accent: #667eea;
+  --erp-accent2: #764ba2;
+  --erp-green: #10b981;
+  --erp-amber: #f59e0b;
+  --erp-red: #ef4444;
+  --erp-blue: #3b82f6;
+  --erp-gray: #6b7280;
+  --caio-accent: #f59e0b;
+  --erp-text: #f0f0f5;
+  --erp-text2: #9ca3af;
+  --erp-radius: 16px;
+  --erp-radius-sm: 10px;
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255,255,255,0.06);
+}
+
+/* ── Layout ─────────────────────────────────────────────── */
+.erp-cockpit {
+  display: flex;
+  height: 100%;
+  background: var(--erp-bg);
+  color: var(--erp-text);
+  font-family: 'Inter', -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+.erp-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.erp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px 12px;
+  border-bottom: 1px solid var(--erp-border);
+  flex-shrink: 0;
+}
+
+.erp-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.erp-header-title h1 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0;
+  background: linear-gradient(135deg, #fff 0%, var(--erp-accent) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.erp-logo-badge {
+  font-size: 1.4rem;
+}
+
+.erp-header-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ── Widget Grid ────────────────────────────────────────── */
+.erp-widgets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 16px 24px 12px;
+  flex-shrink: 0;
+}
+
+.widget-card {
+  background: var(--erp-panel);
+  border: 1px solid var(--erp-border);
+  border-radius: var(--erp-radius);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-glass);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: default;
+}
+
+.widget-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255,255,255,0.1);
+}
+
+.widget-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--erp-text2);
+  margin-bottom: 8px;
+}
+
+.widget-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  font-family: 'Outfit', sans-serif;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.widget-sub {
+  font-size: 0.72rem;
+  color: var(--erp-text2);
+}
+
+/* ── Lens Toggle ────────────────────────────────────────── */
+.lens-toggle-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 24px 10px;
+  flex-shrink: 0;
+}
+
+.lens-btn {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--erp-border);
+  background: transparent;
+  color: var(--erp-text2);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lens-btn.active {
+  background: var(--erp-accent);
+  border-color: var(--erp-accent);
+  color: #fff;
+}
+
+.lens-btn:hover:not(.active) {
+  background: var(--erp-panel);
+  color: var(--erp-text);
+}
+
+/* ── Lens Area ──────────────────────────────────────────── */
+.erp-lens-area {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  margin: 0 24px 16px;
+  border-radius: var(--erp-radius);
+  border: 1px solid var(--erp-border);
+  background: var(--erp-panel);
+}
+
+/* ── Grid Lens ──────────────────────────────────────────── */
+.tx-grid {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+.tx-grid table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.tx-grid thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(10, 10, 20, 0.95);
+  backdrop-filter: blur(8px);
+}
+
+.tx-grid th {
+  text-align: left;
+  padding: 11px 14px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--erp-text2);
+  border-bottom: 1px solid var(--erp-border);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tx-grid th:hover {
+  color: var(--erp-text);
+}
+
+.tx-grid td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: var(--erp-text);
+  white-space: nowrap;
+}
+
+.tx-grid tr:hover td {
+  background: rgba(102, 126, 234, 0.06);
+  cursor: pointer;
+}
+
+/* ── Status Badges ──────────────────────────────────────── */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.status-badge.draft    { background: rgba(107,114,128,0.2); color: #9ca3af; }
+.status-badge.proposed { background: rgba(59,130,246,0.2);  color: #60a5fa; }
+.status-badge.approved { background: rgba(245,158,11,0.2);  color: #fbbf24; }
+.status-badge.posted   { background: rgba(16,185,129,0.2);  color: #34d399; }
+.status-badge.void     { background: rgba(239,68,68,0.15);  color: #f87171; }
+
+.tx-type-icon { font-size: 1rem; }
+
+/* ── Kanban Lens ────────────────────────────────────────── */
+.tx-kanban {
+  display: flex;
+  gap: 10px;
+  height: 100%;
+  overflow-x: auto;
+  padding: 14px;
+  box-sizing: border-box;
+}
+
+.kanban-column {
+  min-width: 200px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kanban-col-header {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--erp-text2);
+  padding: 4px 6px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kanban-count {
+  background: rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 0.65rem;
+}
+
+.kanban-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--erp-border);
+  border-radius: var(--erp-radius-sm);
+  padding: 11px 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kanban-card:hover {
+  background: rgba(102,126,234,0.1);
+  border-color: rgba(102,126,234,0.3);
+  transform: translateY(-1px);
+}
+
+.kanban-card-type {
+  font-size: 0.68rem;
+  color: var(--erp-text2);
+  margin-bottom: 4px;
+}
+
+.kanban-card-id {
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: var(--erp-accent);
+  margin-bottom: 6px;
+}
+
+.kanban-card-meta {
+  font-size: 0.72rem;
+  color: var(--erp-text2);
+}
+
+/* ── CAIO Sidebar ───────────────────────────────────────── */
+.caio-sidebar {
+  width: 280px;
+  min-width: 280px;
+  border-left: 1px solid var(--erp-border);
+  display: flex;
+  flex-direction: column;
+  background: rgba(245, 158, 11, 0.02);
+  overflow: hidden;
+}
+
+.caio-header {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--erp-border);
+  flex-shrink: 0;
+}
+
+.caio-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--caio-accent);
+  margin-bottom: 2px;
+}
+
+.caio-mode-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: rgba(245,158,11,0.6);
+  border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 8px;
+  padding: 1px 7px;
+  display: inline-block;
+}
+
+.caio-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.caio-section-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--erp-text2);
+  margin: 10px 0 6px;
+}
+
+/* Morning Briefing */
+.morning-briefing {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--erp-radius-sm);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.briefing-bullet {
+  display: flex;
+  gap: 8px;
+  font-size: 0.76rem;
+  color: var(--erp-text);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.briefing-bullet:last-child { margin-bottom: 0; }
+
+.briefing-dot {
+  color: var(--caio-accent);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Proposal Cards */
+.proposal-card {
+  background: rgba(245,158,11,0.06);
+  border: 1px solid rgba(245,158,11,0.18);
+  border-radius: var(--erp-radius-sm);
+  padding: 11px 12px;
+  margin-bottom: 8px;
+  transition: all 0.15s ease;
+}
+
+.proposal-card:hover {
+  background: rgba(245,158,11,0.1);
+}
+
+.proposal-type {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--caio-accent);
+  margin-bottom: 4px;
+}
+
+.proposal-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--erp-text);
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.proposal-rationale {
+  font-size: 0.7rem;
+  color: var(--erp-text2);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.proposal-source {
+  font-family: monospace;
+  font-size: 0.65rem;
+  color: rgba(102,126,234,0.7);
+  margin-bottom: 8px;
+}
+
+.proposal-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.proposal-btn {
+  flex: 1;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.proposal-btn.accept {
+  background: rgba(16,185,129,0.2);
+  color: #34d399;
+  border: 1px solid rgba(16,185,129,0.3);
+}
+
+.proposal-btn.accept:hover {
+  background: rgba(16,185,129,0.35);
+}
+
+.proposal-btn.dismiss {
+  background: rgba(255,255,255,0.05);
+  color: var(--erp-text2);
+  border: 1px solid var(--erp-border);
+}
+
+.proposal-btn.dismiss:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+/* ── Drill Panel ────────────────────────────────────────── */
+.drill-panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+  backdrop-filter: blur(4px);
+}
+
+.drill-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 520px;
+  max-width: 90vw;
+  background: #0d0d1a;
+  border-left: 1px solid var(--erp-border);
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+.drill-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--erp-border);
+  flex-shrink: 0;
+}
+
+.drill-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--erp-text);
+}
+
+.drill-close {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid var(--erp-border);
+  border-radius: 8px;
+  color: var(--erp-text2);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.15s;
+}
+
+.drill-close:hover { background: rgba(255,255,255,0.12); }
+
+.drill-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--erp-border);
+  flex-shrink: 0;
+}
+
+.drill-tab {
+  padding: 10px 16px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--erp-text2);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s;
+}
+
+.drill-tab.active {
+  color: var(--erp-accent);
+  border-bottom-color: var(--erp-accent);
+}
+
+.drill-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px;
+}
+
+.drill-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.drill-table th {
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--erp-text2);
+  border-bottom: 1px solid var(--erp-border);
+}
+
+.drill-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: var(--erp-text);
+  font-family: monospace;
+  font-size: 0.78rem;
+}
+
+.audit-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--erp-border);
+  font-size: 0.8rem;
+}
+
+.audit-key {
+  color: var(--erp-text2);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.audit-val {
+  font-family: monospace;
+  font-size: 0.74rem;
+  color: var(--erp-text);
+  word-break: break-all;
+}
+
+/* ── Audit Badge Widget ──────────────────────────────────── */
+.audit-badge-intact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--erp-green);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.audit-badge-failed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--erp-red);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%       { transform: scale(1.4); opacity: 0.6; }
+}
+
+/* ── Liquidity SVG Wave ──────────────────────────────────── */
+.liquidity-wave svg {
+  width: 100%;
+  height: 54px;
+  margin-top: 8px;
+}
+
+/* ── Gen-UI Command Bar ──────────────────────────────────── */
+.erp-command-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--erp-border);
+  border-radius: 24px;
+  flex: 1;
+  max-width: 320px;
+}
+
+.erp-command-bar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--erp-text);
+  font-size: 0.82rem;
+}
+
+.erp-command-bar input::placeholder {
+  color: var(--erp-text2);
+}
+
+.erp-command-bar .cmd-icon {
+  color: var(--erp-text2);
+  font-size: 0.85rem;
+}
+
+/* ── Empty State ────────────────────────────────────────── */
+.erp-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--erp-text2);
+  gap: 10px;
+}
+
+.erp-empty-state .empty-icon { font-size: 2.5rem; opacity: 0.4; }
+.erp-empty-state p { font-size: 0.84rem; margin: 0; }
+
+/* ── Shared Utility ─────────────────────────────────────── */
+.erp-btn {
+  padding: 7px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--erp-border);
+  background: rgba(255,255,255,0.06);
+  color: var(--erp-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.erp-btn:hover { background: rgba(255,255,255,0.11); }
+
+.erp-btn.primary {
+  background: var(--erp-accent);
+  border-color: var(--erp-accent);
+  color: #fff;
+}
+
+.erp-btn.primary:hover {
+  background: #5a70d8;
+}
