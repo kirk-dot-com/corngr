@@ -881,6 +881,13 @@ pub fn run() {
             erp::tauri_api::erp_post_tx,
             erp::tauri_api::erp_get_tx_snapshot,
             erp::tauri_api::erp_verify_audit_chain,
+            // ERP Audit Explorer commands (Phase A M4)
+            erp::tauri_api::erp_get_audit_log,
+            erp::tauri_api::erp_time_travel,
+            // ERP CoA + Ledger commands (Phase A M5)
+            erp::tauri_api::erp_seed_coa,
+            erp::tauri_api::erp_list_coa,
+            erp::tauri_api::erp_get_ledger_summary,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

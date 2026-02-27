@@ -10,8 +10,17 @@ use crate::erp::fragments;
 use crate::erp::replay::ReplayGuard;
 use crate::erp::types::{
     ActorContext, AddLineRequest, CreateInvMoveRequest, CreateTxRequest, InvMove, InventoryEffect,
-    Op, PolicyContext, TxHeader, TxLine, TxRef, TxStatus, TxType,
+    Op, PolicyContext, Posting, TxHeader, TxLine, TxRef, TxStatus, TxType,
 };
+
+/// A Chart of Accounts record — stored in ErpStore::accounts keyed by account code.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AccountRecord {
+    pub code: String,
+    pub name: String,
+    pub acct_type: String, // "asset" | "liability" | "equity" | "income" | "expense"
+    pub normal_balance: String, // "debit" | "credit"
+}
 
 /// In-memory ERP document store.
 /// Phase A: single org, single in-process doc (no yrs CRDT cross-device sync for ERP data yet).
@@ -23,6 +32,10 @@ pub struct ErpStore {
     pub replay: ReplayGuard,
     /// Most recently seen envelope hash per actor (prev_hash chain)
     pub actor_prev_hash: std::collections::HashMap<String, String>,
+    /// Chart of Accounts — keyed by account code ("1000", "2000", …)
+    pub accounts: std::collections::HashMap<String, AccountRecord>,
+    /// Committed postings — keyed by posting_id; populated on erp_post_tx success
+    pub postings: std::collections::HashMap<String, Posting>,
 }
 
 impl ErpStore {
@@ -33,7 +46,54 @@ impl ErpStore {
             invmoves: Default::default(),
             replay: ReplayGuard::new(),
             actor_prev_hash: Default::default(),
+            accounts: Default::default(),
+            postings: Default::default(),
         }
+    }
+}
+
+/// Apply a slice of CoA template ops into the given accounts HashMap.
+/// Processes MapSet {key=code/name/type/normal_balance} on account:{code} fragments.
+pub fn seed_coa_ops(ops: &[Op], accounts: &mut std::collections::HashMap<String, AccountRecord>) {
+    use std::collections::HashMap;
+    // Group ops by fragment_id
+    let mut groups: HashMap<String, HashMap<String, String>> = HashMap::new();
+    for op in ops {
+        if let Op::MapSet {
+            fragment_id,
+            key,
+            value,
+        } = op
+        {
+            if fragment_id.starts_with("account:") {
+                let entry = groups.entry(fragment_id.clone()).or_default();
+                entry.insert(key.clone(), value.as_str().unwrap_or("").to_string());
+            }
+        }
+    }
+    for (_, fields) in groups {
+        let code = fields.get("code").cloned().unwrap_or_default();
+        if code.is_empty() {
+            continue;
+        }
+        accounts.insert(
+            code.clone(),
+            AccountRecord {
+                code,
+                name: fields
+                    .get("name")
+                    .cloned()
+                    .unwrap_or_else(|| "(unnamed)".to_string()),
+                acct_type: fields
+                    .get("type")
+                    .cloned()
+                    .unwrap_or_else(|| "asset".to_string()),
+                normal_balance: fields
+                    .get("normal_balance")
+                    .cloned()
+                    .unwrap_or_else(|| "debit".to_string()),
+            },
+        );
     }
 }
 

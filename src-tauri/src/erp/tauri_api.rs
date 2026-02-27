@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::erp::audit_log;
-use crate::erp::engine;
+use crate::erp::audit_log::{self, ErpAuditEntry};
+use crate::erp::coa_templates;
 use crate::erp::engine::ERP_STORE;
+use crate::erp::engine::{self, AccountRecord};
 use crate::erp::errors::ErpError;
 use crate::erp::ledger;
 use crate::erp::post::validate_post;
@@ -134,7 +135,6 @@ pub fn erp_post_tx(
 
     match validate_post(&actor, &tx, &lines, &invmoves, &postings, &approvals) {
         Ok(()) => {
-            // Transition to posted
             let mut store = ERP_STORE.lock().unwrap();
             if let Some(t) = store.transactions.get_mut(&tx_id) {
                 t.status = crate::erp::types::TxStatus::Posted;
@@ -150,7 +150,7 @@ pub fn erp_post_tx(
     }
 }
 
-/// Get a transaction snapshot (header + lines + invmoves + postings count).
+/// Get a transaction snapshot (header + lines + invmoves count).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TxSnapshot {
     pub tx_id: String,
@@ -198,4 +198,291 @@ pub fn erp_verify_audit_chain() -> ApiResponse<ChainVerifyResult> {
     ApiResponse::ok(ChainVerifyResult {
         intact: audit_log::verify_chain(),
     })
+}
+
+// ─── M4: Audit log read ───────────────────────────────────────────────────────
+
+/// A UI-friendly view of a single audit log entry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditEntryView {
+    pub mutation_id: String,
+    pub actor_pubkey: String,
+    pub issued_at_ms: i64,
+    pub op_count: usize,
+    pub prev_hash: String,
+    pub content_hash: String,
+    pub chain_hash: String,
+    pub op_summary: String,
+}
+
+fn entry_to_view(entry: &ErpAuditEntry) -> AuditEntryView {
+    let env = &entry.envelope;
+    let op_summary = env
+        .ops
+        .first()
+        .map(|op| match op {
+            crate::erp::types::Op::MapSet {
+                fragment_id,
+                key,
+                value,
+            } => format!("MapSet {} .{} = {}", fragment_id, key, value),
+            crate::erp::types::Op::ArrayInsert { fragment_id, .. } => {
+                format!("ArrayInsert {}", fragment_id)
+            }
+            crate::erp::types::Op::ArrayDelete { fragment_id, .. } => {
+                format!("ArrayDelete {}", fragment_id)
+            }
+            crate::erp::types::Op::MapDel { fragment_id, key } => {
+                format!("MapDel {} .{}", fragment_id, key)
+            }
+            // LinkAdd, ProposalCreate and future Phase B ops
+            _ => "(complex op)".to_string(),
+        })
+        .unwrap_or_else(|| "(no ops)".to_string());
+
+    AuditEntryView {
+        mutation_id: env.mutation_id.clone(),
+        actor_pubkey: env.actor_pubkey.clone(),
+        issued_at_ms: env.issued_at_ms,
+        op_count: env.ops.len(),
+        prev_hash: env.prev_hash.clone(),
+        content_hash: env.content_hash.clone(),
+        chain_hash: entry.chain_hash.clone(),
+        op_summary,
+    }
+}
+
+/// Read last N audit log entries, newest first.
+#[tauri::command]
+pub fn erp_get_audit_log(limit: usize) -> ApiResponse<Vec<AuditEntryView>> {
+    match audit_log::read_log(limit) {
+        Ok(entries) => ApiResponse::ok(entries.iter().map(entry_to_view).collect()),
+        Err(e) => ApiResponse::err(ErpError::ValidationFail(e.to_string())),
+    }
+}
+
+// ─── M4: Time travel ─────────────────────────────────────────────────────────
+
+/// A simplified snapshot of ERP state reconstructed at a point in time.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TimeTravelSnapshot {
+    pub as_of_ms: i64,
+    pub tx_count: usize,
+    pub posted_count: usize,
+    pub mutation_count: usize,
+    pub chain_intact: bool,
+    pub as_of_label: String,
+}
+
+/// Replay the audit log up to `target_ts_ms` and return a reconstructed state summary.
+/// Phase A: compute-on-replay, no checkpoints.
+/// Phase B: checkpoint every N mutations for O(1) reconstruction.
+#[tauri::command]
+pub fn erp_time_travel(target_ts_ms: i64) -> ApiResponse<TimeTravelSnapshot> {
+    // Read all entries up to the target timestamp
+    let entries = match audit_log::read_log_bounded(0, target_ts_ms) {
+        Ok(e) => e,
+        Err(err) => return ApiResponse::err(ErpError::ValidationFail(err.to_string())),
+    };
+
+    let mutation_count = entries.len();
+
+    // Reconstruct minimal state: count distinct tx_ids and estimate posted count
+    // by scanning MapSet ops for status=posted
+    let mut tx_ids = std::collections::HashSet::new();
+    let mut posted_ids = std::collections::HashSet::new();
+
+    for entry in &entries {
+        for op in &entry.envelope.ops {
+            if let crate::erp::types::Op::MapSet {
+                fragment_id,
+                key,
+                value,
+            } = op
+            {
+                // fragment_id pattern: "tx:{uuid}:hdr"
+                if fragment_id.starts_with("tx:") && fragment_id.ends_with(":hdr") {
+                    let parts: Vec<&str> = fragment_id.split(':').collect();
+                    if parts.len() >= 2 {
+                        let tx_id = parts[1].to_string();
+                        tx_ids.insert(tx_id.clone());
+                        if key == "status" && value.as_str() == Some("posted") {
+                            posted_ids.insert(tx_id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let as_of_label = {
+        use chrono::{TimeZone, Utc};
+        match Utc.timestamp_millis_opt(target_ts_ms) {
+            chrono::LocalResult::Single(dt) => dt.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+            _ => "unknown".to_string(),
+        }
+    };
+
+    ApiResponse::ok(TimeTravelSnapshot {
+        as_of_ms: target_ts_ms,
+        tx_count: tx_ids.len(),
+        posted_count: posted_ids.len(),
+        mutation_count,
+        chain_intact: audit_log::verify_chain(),
+        as_of_label,
+    })
+}
+
+// ─── M5: Chart of Accounts ───────────────────────────────────────────────────
+
+/// Seed the Chart of Accounts from a named template.
+/// `template_name`: "general_sme_au_gst" | "services_low_inventory" | "product_manufacturing"
+/// Returns the number of accounts seeded.
+#[tauri::command]
+pub fn erp_seed_coa(actor: ActorContext, template_name: String) -> ApiResponse<usize> {
+    // ABAC: only owner_admin / finance can seed CoA
+    use crate::erp::types::PolicyContext;
+    let ctx = PolicyContext {
+        org_id: actor.org_id.clone(),
+        tx_id: None,
+        tx_status: None,
+    };
+    if let Err(e) = crate::erp::abac::check_abac(&actor, &crate::erp::abac::Action::TxCreate, &ctx)
+    {
+        return ApiResponse::err(e);
+    }
+
+    let ops = match template_name.as_str() {
+        "general_sme_au_gst" => coa_templates::general_sme_au_gst(),
+        "services_low_inventory" => coa_templates::services_low_inventory(),
+        "product_manufacturing" => coa_templates::product_manufacturing(),
+        other => {
+            return ApiResponse::err(ErpError::ValidationFail(format!(
+                "unknown CoA template: {}",
+                other
+            )))
+        }
+    };
+
+    let mut store = ERP_STORE.lock().unwrap();
+    engine::seed_coa_ops(&ops, &mut store.accounts);
+    let count = store.accounts.len();
+    ApiResponse::ok(count)
+}
+
+/// UI-friendly CoA account view.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccountView {
+    pub code: String,
+    pub name: String,
+    pub acct_type: String,
+    pub normal_balance: String,
+}
+
+impl From<&AccountRecord> for AccountView {
+    fn from(r: &AccountRecord) -> Self {
+        AccountView {
+            code: r.code.clone(),
+            name: r.name.clone(),
+            acct_type: r.acct_type.clone(),
+            normal_balance: r.normal_balance.clone(),
+        }
+    }
+}
+
+/// List all seeded CoA accounts sorted by account code.
+#[tauri::command]
+pub fn erp_list_coa() -> ApiResponse<Vec<AccountView>> {
+    let store = ERP_STORE.lock().unwrap();
+    let mut accounts: Vec<AccountView> = store.accounts.values().map(AccountView::from).collect();
+    accounts.sort_by(|a, b| a.code.cmp(&b.code));
+    ApiResponse::ok(accounts)
+}
+
+// ─── M5: Postings Ledger ─────────────────────────────────────────────────────
+
+/// Per-account balance rollup for the Postings Ledger view.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LedgerAccountRow {
+    pub account_id: String,
+    pub account_name: String,
+    pub acct_type: String,
+    pub normal_balance: String,
+    pub total_debit: f64,
+    pub total_credit: f64,
+    pub balance: f64,
+    pub tx_count: usize,
+}
+
+/// Returns per-account balance rollup from all committed postings in ErpStore::postings.
+#[tauri::command]
+pub fn erp_get_ledger_summary() -> ApiResponse<Vec<LedgerAccountRow>> {
+    let store = ERP_STORE.lock().unwrap();
+
+    // Aggregate postings by account_id
+    let mut agg: std::collections::HashMap<String, (f64, f64, usize)> =
+        std::collections::HashMap::new();
+    for posting in store.postings.values() {
+        let entry = agg
+            .entry(posting.account_id.clone())
+            .or_insert((0.0, 0.0, 0));
+        entry.0 += posting.debit_amount;
+        entry.1 += posting.credit_amount;
+        entry.2 += 1;
+    }
+
+    let mut rows: Vec<LedgerAccountRow> = agg
+        .into_iter()
+        .map(|(acct_id, (dr, cr, cnt))| {
+            // Try to resolve account name from seeded CoA
+            // Symbolic ledger IDs (e.g. "accounts_receivable") are matched by name lookup
+            let found = store.accounts.values().find(|a| {
+                a.code == acct_id
+                    || a.name.to_lowercase().replace(' ', "_") == acct_id.to_lowercase()
+            });
+            let (account_name, acct_type, normal_balance) = found
+                .map(|a| {
+                    (
+                        a.name.clone(),
+                        a.acct_type.clone(),
+                        a.normal_balance.clone(),
+                    )
+                })
+                .unwrap_or_else(|| (acct_id.clone(), "unknown".to_string(), "debit".to_string()));
+
+            // Net balance: positive if on the normal side
+            let balance = if normal_balance == "debit" {
+                dr - cr
+            } else {
+                cr - dr
+            };
+            LedgerAccountRow {
+                account_id: acct_id,
+                account_name,
+                acct_type,
+                normal_balance,
+                total_debit: (dr * 100.0).round() / 100.0,
+                total_credit: (cr * 100.0).round() / 100.0,
+                balance: (balance * 100.0).round() / 100.0,
+                tx_count: cnt,
+            }
+        })
+        .collect();
+
+    // Sort: by acct_type grouping then by account_id
+    rows.sort_by(|a, b| {
+        let type_ord = |t: &str| match t {
+            "asset" => 0,
+            "liability" => 1,
+            "equity" => 2,
+            "income" => 3,
+            "expense" => 4,
+            _ => 5,
+        };
+        type_ord(&a.acct_type)
+            .cmp(&type_ord(&b.acct_type))
+            .then(a.account_id.cmp(&b.account_id))
+    });
+
+    ApiResponse::ok(rows)
 }

@@ -8,6 +8,8 @@ import { TxGridLens } from './lenses/TxGridLens';
 import { TxKanbanLens } from './lenses/TxKanbanLens';
 import { DrillPanel } from './DrillPanel';
 import { CAIOSidebar } from './caio/CAIOSidebar';
+import { AuditExplorer } from './audit/AuditExplorer';
+import { PostingsLedger } from './ledger/PostingsLedger';
 import type { TxSnapshot, CreateTxRequest } from './types';
 import './erp.css';
 
@@ -18,6 +20,8 @@ export const CockpitDashboard: React.FC = () => {
     const [lensMode, setLensMode] = useState<LensMode>('grid');
     const [selectedTx, setSelectedTx] = useState<TxSnapshot | null>(null);
     const [cmdBarValue, setCmdBarValue] = useState('');
+    const [showAuditExplorer, setShowAuditExplorer] = useState(false);
+    const [showLedger, setShowLedger] = useState(false);
 
     const handleAcceptProposal = useCallback(async (payload: Partial<CreateTxRequest>) => {
         if (!payload.tx_type) return;
@@ -71,6 +75,20 @@ export const CockpitDashboard: React.FC = () => {
                                 onChange={e => setCmdBarValue(e.target.value)}
                             />
                         </form>
+                        <button
+                            className="erp-btn"
+                            id="ledger-btn"
+                            onClick={() => setShowLedger(true)}
+                        >
+                            📒 Ledger
+                        </button>
+                        <button
+                            className="erp-btn"
+                            id="audit-explorer-btn"
+                            onClick={() => setShowAuditExplorer(true)}
+                        >
+                            🔍 Audit
+                        </button>
                         <button
                             className="erp-btn"
                             id="erp-refresh-btn"
@@ -132,6 +150,16 @@ export const CockpitDashboard: React.FC = () => {
             {/* ── Drill Panel (modal) ── */}
             {selectedTx && (
                 <DrillPanel tx={selectedTx} onClose={() => setSelectedTx(null)} />
+            )}
+
+            {/* ── Audit Explorer (M4) ── */}
+            {showAuditExplorer && (
+                <AuditExplorer onClose={() => setShowAuditExplorer(false)} />
+            )}
+
+            {/* ── Postings Ledger (M5) ── */}
+            {showLedger && (
+                <PostingsLedger onClose={() => setShowLedger(false)} />
             )}
         </div>
     );
