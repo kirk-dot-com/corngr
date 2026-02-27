@@ -1,31 +1,52 @@
-# Corngr Architecture
+# Corngr-ERP Architecture v1 (Antigravity Spine)
 
 ## System Overview
 
-Corngr is a local-first, security-focused document editor with cloud backup and real-time collaboration capabilities. The architecture is built on three core principles:
+Corngr-ERP is a **local-first, cryptographically verifiable ERP-Grid** that replaces file workflows and "syncing modules" with a **Unified Data Grid** of CRDT fragments (Yjs/yrs) and a **Signed Reality** audit chain.
 
-1. **Local-First**: All data operations complete locally before syncing to cloud
-2. **Zero-Trust Security**: Every access request is validated cryptographically
-3. **Performance-Optimized**: Capability tokens enable 20x faster transclusion
+The architecture is built on three core principles:
+
+1. **Local-First Truth** — All business operations (transactions, inventory moves, approvals) commit locally first. Sync improves availability, not correctness.
+2. **Zero-Trust, Signed Reality** — Every meaningful state change is a signed mutation (Ed25519) and becomes part of a Merkle-chained audit log. Trust is mathematical, not administrative.
+3. **Performance-Optimized Lenses + Capabilities** — The UI is "Lenses over atoms" (Grid, Workflow, Docs, Cockpit). Capability grants (tokens) accelerate safe access for Lenses/Plugins — without bypassing posting/approval controls.
 
 ---
 
 ## Technology Stack
 
 ### Frontend
-- **React 18**: UI framework
-- **ProseMirror**: Rich text editor with collaborative editing
-- **Yjs**: CRDT for conflict-free collaborative editing
-- **TypeScript**: Type-safe development
 
-### Backend
-- **Tauri 2**: Rust-based desktop app framework
-- **Rust**: Systems programming for security-critical operations
-- **Ed25519-dalek**: Cryptographic signing library
+| Technology | Role |
+|---|---|
+| **React 18** | UI framework |
+| **TypeScript** | Type-safe development |
+| **Canvas/WebGL** | High-performance grid + cockpit visuals |
+| **ProseMirror** | Document Lens (invoices, POs, notes) |
+| **Yjs** | CRDT state model for fragments/atoms and doc collaboration |
 
-### Cloud
-- **Supabase**: PostgreSQL database with real-time subscriptions
-- **Row Level Security (RLS)**: Database-level access control
+### Backend (Edge-Native)
+
+| Technology | Role |
+|---|---|
+| **Tauri 2** | Desktop/mobile shell + IPC bridge |
+| **Rust** | Security-critical logic + business rules + persistence |
+| **yrs (Rust Yjs)** | Backend CRDT state integration |
+| **Ed25519-dalek** | Cryptographic signing/verification |
+| **Local LLM runtime** *(Phase A optional)* | Candle / llama-edge for on-device inference |
+
+### Persistence (Local)
+
+| Store | Description |
+|---|---|
+| **CRDT Store** | Local fragment state (yrs/Yjs updates + snapshots) |
+| **Outbox** | Pending signed mutation envelopes awaiting anchoring |
+| **Merkle Audit Log (JSONL)** | Append-only, hash-chained, verifiable timeline |
+| **Key Storage** | OS keychain/secure enclave when available (fallback: encrypted local store) |
+
+### Optional Cloud (Phase B/C)
+
+- **Backup/Relay (non-authoritative):** e.g., Supabase or equivalent
+- **Note:** Cloud is **never** the source of truth; it may store encrypted backups, checkpoints, and relay messages.
 
 ---
 
@@ -34,455 +55,389 @@ Corngr is a local-first, security-focused document editor with cloud backup and 
 ```mermaid
 graph TD
     subgraph Frontend["Frontend (React + TypeScript)"]
-        A[DemoApp.tsx]
-        B[ProseMirrorEditor]
-        C[SlideRenderer]
-        D[MetadataPanel]
-        
+        A[Cockpit + CAIO]
+        B[Grid Lens - Spreadsheet]
+        C[Workflow Lens - Kanban/Gantt]
+        D[Docs Lens - ProseMirror]
+        E[Marketplace Lens UI]
         A --> B
         A --> C
         A --> D
     end
-    
-    subgraph YjsLayer["Yjs CRDT Layer"]
-        E[Y.Doc]
-        F[Y.XmlFragment]
-        G[Awareness]
-        
-        B --> E
-        E --> F
-        E --> G
+
+    subgraph Grid["Unified Data Grid (Yjs/yrs CRDT)"]
+        F[Y.Doc / Fragment Store]
+        G[Index Fragments]
+        H[Awareness - optional]
     end
-    
-    subgraph SecurityLayer["Security Layer"]
-        H[TauriSecureNetwork]
-        I[MetadataStore]
-        J[GlobalReferenceStore]
-        K[TauriSyncProvider]
-        
-        E --> H
-        H --> I
-        H --> J
-        H --> K
+
+    subgraph Engine["Rust Engine (Tauri)"]
+        I[Rust + Yjs Bridge<br/>Ops to yrs transactions]
+        J[ABAC Policy Engine]
+        K[Crypto Module<br/>Ed25519 sign/verify]
+        L[Ledger Engine<br/>TxAtom + Posting Rules]
+        M[Inventory Engine<br/>Moves + Valuation v0]
+        N[Approval Engine<br/>Signature gates]
+        O[Capability Manager<br/>Lens/Plugin Grants]
+        P[Outbox Manager]
+        Q[Merkle Audit Log<br/>JSONL hash chain]
     end
-    
-    subgraph RustBackend["Rust Backend (Tauri)"]
-        L[ABAC Engine]
-        M[Crypto Module]
-        N[Token Manager]
-        O[File System]
-        
-        H -->|invoke| L
-        H -->|invoke| M
-        H -->|invoke| N
-        H -->|invoke| O
+
+    subgraph Topology["Node Topology"]
+        R[Primary Node<br/>Canonical Anchor]
+        S[Satellite Nodes<br/>Offline-first]
     end
-    
-    subgraph Persistence["Persistence Layer"]
-        P[(demo.crng)]
-        Q[corngr_node.key]
-        R[(Supabase)]
-        
-        O --> P
-        M --> Q
-        H --> R
+
+    subgraph OptionalCloud["Optional Cloud (non-authoritative)"]
+        T[(Backup/Relay Store)]
     end
-    
+
+    B --> F
+    C --> F
+    D --> F
+    A --> F
+
+    F --> I
+    I --> L
+    I --> M
+    I --> N
+
+    L --> J
+    M --> J
+    N --> J
+    J --> K
+    K --> Q
+    I --> P
+
+    P --> S
+    S --> R
+    R --> Q
+    R --> F
+
+    R -. optional backup/relay .-> T
+    S -. optional backup/relay .-> T
+
     style Frontend fill:#e1f5ff
-    style YjsLayer fill:#fff4e1
-    style SecurityLayer fill:#ffe1f5
-    style RustBackend fill:#e1ffe1
-    style Persistence fill:#f5e1ff
+    style Grid fill:#fff4e1
+    style Engine fill:#e1ffe1
+    style Topology fill:#ffe1f5
+    style OptionalCloud fill:#f5e1ff
 ```
 
 ---
 
-## Data Flow
+## Data Model Orientation (Post-File)
 
-### 1. Document Loading
+Corngr-ERP does not store "ERP modules" as separate databases. It stores:
+
+| Atom / Fragment | Description |
+|---|---|
+| **Transaction Atoms (TxAtom)** | Header + business lines + postings + links |
+| **Inventory Move Atoms** | Physical qty deltas linked to tx lines |
+| **Approval Atoms** | Signature references gating status transitions |
+| **Index Fragments** | Lens performance indexes (engine-only writes) |
+
+Everything is addressable fragments in a shared CRDT grid — Lenses render different views over the same state.
+
+---
+
+## Data Flows
+
+### 1) Create Transaction (local-first, signed)
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant React
-    participant TauriNet as TauriSecureNetwork
-    participant Rust as Rust Backend
-    participant FS as File System
-    participant Cloud as Supabase
-    
-    User->>React: Open App
-    React->>TauriNet: new TauriSecureNetwork()
-    
-    par Cloud Restore
-        TauriNet->>Cloud: restoreFromCloud()
-        Cloud-->>TauriNet: Base64 Yjs state
-        TauriNet->>TauriNet: Y.applyUpdate()
-    end
-    
-    TauriNet->>Rust: sync()
-    Rust->>FS: load_secure_document()
-    FS-->>Rust: Filtered blocks (ABAC)
-    Rust-->>TauriNet: Blocks + metadata
-    TauriNet->>TauriNet: Split content/metadata
-    TauriNet->>React: Update ProseMirror
-    React-->>User: Display content
+    participant React as React Lens
+    participant Bridge as Rust-Yjs Bridge
+    participant ABAC as ABAC Engine
+    participant Crypto as Crypto Ed25519
+    participant CRDT as yrs/Yjs Store
+    participant Audit as Merkle Audit Log
+    participant Outbox as Outbox
+
+    User->>React: Create Invoice / Receipt / Journal
+    React->>Bridge: create_tx(request)
+    Bridge->>ABAC: check(tx.create)
+    ABAC-->>Bridge: allow
+    Bridge->>Bridge: build canonical ops
+    Bridge->>Crypto: sign envelope
+    Crypto-->>Bridge: signature ok
+    Bridge->>CRDT: apply ops (yrs transaction)
+    Bridge->>Audit: append JSONL entry (hash-chained)
+    Bridge->>Outbox: enqueue envelope (pending anchor)
+    Bridge-->>React: tx_id + head_hash + mutation_id
+    React-->>User: Draft created
 ```
 
-### 2. Document Saving
+### 2) Add Line + Create Inventory Move (offline-friendly)
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant React
-    participant TauriNet as TauriSecureNetwork
-    participant Rust as Rust Backend
-    participant FS as File System
-    participant Cloud as Supabase
-    
-    User->>React: Edit content
-    React->>TauriNet: save()
-    TauriNet->>TauriNet: Enrich with metadata
-    TauriNet->>Rust: save_secure_document()
-    Rust->>Rust: Validate permissions
-    Rust->>FS: Write demo.crng
-    FS-->>Rust: Success
-    Rust-->>TauriNet: Success
-    
-    par Cloud Backup
-        TauriNet->>TauriNet: saveToCloud()
-        TauriNet->>Cloud: upsert document
-        Cloud-->>TauriNet: Success
+    participant React as Grid Lens
+    participant Bridge as Rust Engine
+    participant ABAC as ABAC
+    participant CRDT as yrs/Yjs
+    participant Audit as Merkle Log
+
+    React->>Bridge: add_line(tx_id, line_fields)
+    Bridge->>ABAC: check(txline.create)
+    ABAC-->>Bridge: allow
+    Bridge->>Bridge: compute amounts canonically
+    Bridge->>CRDT: apply ops
+    Bridge->>Audit: append entry
+    Bridge-->>React: ok(line_id, computed amounts)
+
+    alt line affects inventory
+        React->>Bridge: create_invmove(tx_line_id, qty_delta, location)
+        Bridge->>ABAC: check(invmove.create)
+        ABAC-->>Bridge: allow
+        Bridge->>Bridge: validate item + sign of qty_delta
+        Bridge->>CRDT: apply ops (invmove + link into txline.move_ids)
+        Bridge->>Audit: append entry
+        Bridge-->>React: ok(move_id)
     end
-    
-    TauriNet-->>React: Save complete
-    React-->>User: ✅ Saved
 ```
 
-### 3. Capability Token Flow
+### 3) Post Transaction ("post ceremony" with approvals + invariants)
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant TauriNet as TauriSecureNetwork
-    participant Rust as Rust Backend
-    participant Crypto as Ed25519 Module
-    
-    Note over Client,Crypto: Phase 1: Handshake (31ms)
-    Client->>TauriNet: requestCapabilityToken(refId)
-    TauriNet->>Rust: request_capability_token()
-    Rust->>Rust: Perform ABAC check
-    Rust->>Crypto: sign_token(token_id)
-    Crypto-->>Rust: Ed25519 signature
-    Rust-->>TauriNet: CapabilityToken
-    TauriNet->>TauriNet: Store in MetadataStore
-    TauriNet-->>Client: Token issued
-    
-    Note over Client,Crypto: Phase 2: Fast-Path Access (5.9ms)
-    Client->>TauriNet: resolveExternalReference(refId)
-    TauriNet->>TauriNet: Get cached token
-    TauriNet->>Rust: fetch_external_block(token)
-    Rust->>Crypto: verify_token_with_expiration()
-    Crypto->>Crypto: Check revocation
-    Crypto->>Crypto: Check expiration
-    Crypto->>Crypto: Verify signature
-    Crypto-->>Rust: Valid ✅
-    Rust-->>TauriNet: Block data
-    TauriNet-->>Client: Resolved block
+    participant Finance as Finance Lens
+    participant Engine as Rust Engine
+    participant ABAC as ABAC
+    participant Ledger as Ledger Engine
+    participant Inv as Inventory Engine
+    participant CRDT as yrs/Yjs
+    participant Audit as Merkle Log
+
+    Finance->>Engine: post_tx(tx_id)
+    Engine->>ABAC: check(tx.post)
+    ABAC-->>Engine: allow
+    Engine->>Ledger: ensure postings / generate drafts
+    Ledger-->>Engine: posting ops
+    Engine->>Inv: finalize valuation for moves
+    Inv-->>Engine: invmove finalize ops
+    Engine->>Ledger: balance check (debits == credits)
+    alt balanced
+        Engine->>CRDT: apply ops (approval + finalize + status=posted)
+        Engine->>Audit: append entries (hash-chained)
+        Engine-->>Finance: posted ok
+    else fail
+        Engine-->>Finance: ERR_BALANCE_FAIL / ERR_POSTINGS_MISSING / ERR_MOVE_QTY_EXCEEDS
+    end
+```
+
+### 4) Primary ↔ Satellite Sync (anchoring)
+
+```mermaid
+sequenceDiagram
+    participant Sat as Satellite Node
+    participant Pri as Primary Node Anchor
+    participant Verify as Verification Sig+ABAC
+    participant Audit as Canonical Audit Log
+    participant CRDT as Canonical yrs/Yjs
+
+    Sat->>Pri: sync(head_hash, pending_envelopes)
+    Pri->>Verify: verify envelopes (sig + policy)
+    alt accept
+        Pri->>Audit: append Anchor Entry
+        Pri->>CRDT: apply ops
+        Pri-->>Sat: accepted + new canonical_head_hash + missing updates
+        Sat->>Sat: mark anchored + apply updates
+    else reject
+        Pri-->>Sat: rejected(reason codes)
+        Sat->>Sat: quarantine + user notification
+    end
 ```
 
 ---
 
-## Security Model
+## Capability Token System (ERP-Ready)
 
-### ABAC (Attribute-Based Access Control)
-
-The system uses a multi-layered ABAC model:
-
-```rust
-fn check_access(user: &User, block: &Block, action: &str) -> bool {
-    // 1. Admin Override
-    if user.role == "admin" { return true; }
-    
-    // 2. Action Capabilities (Role-Based)
-    if action == "write" && user.role != "editor" { return false; }
-    
-    // 3. ACL Check (Resource-Level)
-    if !block.acl.contains(user.role) { return false; }
-    
-    // 4. Classification Check (Attribute-Based)
-    match block.classification {
-        "public" => true,
-        "internal" => true,
-        "confidential" => user.clearance >= 2,
-        "restricted" => user.clearance >= 3,
-    }
-}
-```
-
-### Access Control Matrix
-
-| Role | Clearance | Public | Internal | Confidential | Restricted | Write |
-|------|-----------|--------|----------|--------------|------------|-------|
-| **Viewer** | 0 | ✅ | ✅ | ❌ | ❌ | ❌ |
-| **Editor** | 1 | ✅ | ✅ | ❌ | ❌ | ✅ |
-| **Manager** | 2 | ✅ | ✅ | ✅ | ❌ | ✅ |
-| **Admin** | 3+ | ✅ | ✅ | ✅ | ✅ | ✅ |
-
----
-
-## Capability Token System
+Capability tokens grant **Lens/Plugin permissions** with least privilege. They do **not** replace approvals or posting gates.
 
 ### Token Structure
 
 ```typescript
 interface CapabilityToken {
-    token_id: string;      // UUID v4
-    expires_at: string;    // RFC3339 timestamp
-    signature: string;     // Hex-encoded Ed25519 signature
+  token_id: string;           // ULID or UUID
+  issuer_pubkey: string;      // org/authority key
+  subject_asset_id: string;   // lens/plugin id
+  scope: {
+    read?: string[];          // e.g., ["ledger", "inventory"]
+    propose?: string[];       // e.g., ["posting_suggestions", "reorder"]
+    write?: string[];         // rare, tightly scoped
+  };
+  expires_at_ms: number;
+  signature: string;          // Ed25519 over canonical token bytes
 }
 ```
 
-### Token Lifecycle
+### Rules
 
-1. **Generation** (request_capability_token)
-   - ABAC check performed
-   - Token ID generated (UUID v4)
-   - Expiration set (now + 5 minutes)
-   - Ed25519 signature created
-   - Token stored in MetadataStore
-
-2. **Verification** (verify_token_with_expiration)
-   - Check if revoked (in-memory HashSet)
-   - Check if expired (RFC3339 timestamp)
-   - Verify Ed25519 signature
-   - Return boolean result
-
-3. **Revocation** (revoke_capability_token)
-   - Add token_id to REVOKED_TOKENS
-   - Immediate effect (no grace period)
-   - Persists until app restart
-
-### Performance Impact
-
-| Operation | Without Token | With Token | Improvement |
-|-----------|---------------|------------|-------------|
-| Transclusion | 121.6ms | 5.9ms | **20.6x** |
-| ABAC Check | 120ms | 0ms (skipped) | ∞ |
-| Signature Verify | 0ms | ~1ms | -1ms |
+- Tokens are **capability grants**, not "ABAC bypass."
+- High-risk actions (posting/reversal/permission changes) always require ABAC evaluation **and** appropriate approval signatures.
 
 ---
 
-## Cloud Sync Architecture
+## Security Model (ERP Actions)
 
-### Supabase Integration
+**Domains:** `tx` · `ledger` · `inventory` · `approvals` · `marketplace` · `export`
 
-```typescript
-// Write Path
-async saveToCloud(blocks: any[]) {
-    const update = Y.encodeStateAsUpdate(this.clientDoc);
-    const contentBase64 = this.toBase64(update);
-    
-    await this.supabase
-        .from('documents')
-        .upsert({
-            id: 'doc_default',
-            content: contentBase64,
-            owner_id: this.user.id,
-            updated_at: new Date().toISOString()
-        });
-}
+**Key actions:** `tx.create` · `tx.edit` · `tx.status.transition` · `txline.create/edit/delete` · `invmove.create/finalize` · `posting.create/finalize` · `approval.sign` · `tx.post` · `tx.reverse` · `capability.grant` · `asset.install`
 
-// Read Path
-async restoreFromCloud() {
-    const { data } = await this.supabase
-        .from('documents')
-        .select('content, updated_at')
-        .eq('id', 'doc_default')
-        .single();
-    
-    const update = this.fromBase64(data.content);
-    Y.applyUpdate(this.clientDoc, update);
-}
-```
+### Example Role Defaults
 
-### Conflict Resolution
-
-Corngr uses **Yjs CRDTs** for automatic conflict resolution:
-
-1. **Local Changes**: Applied immediately to Y.Doc
-2. **Cloud Sync**: Yjs state encoded as Base64
-3. **Restore**: Yjs automatically merges cloud state with local changes
-4. **No Conflicts**: CRDT guarantees convergence
-
-### Row Level Security (RLS)
-
-```sql
--- Users can only access their own documents
-CREATE POLICY documents_select_policy ON documents
-    FOR SELECT
-    USING (auth.uid()::text = owner_id);
-```
+| Role | Draft Tx | Create Moves | Generate Postings | Sign Approvals | Post Tx | Reverse |
+|---|---|---|---|---|---|---|
+| Staff | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Manager | ✅ | ✅ | ⚠️ threshold | ✅ approve | ⚠️ threshold | ❌/⚠️ |
+| Finance | ✅ | ✅ | ✅ | ✅ approve/post/reverse | ✅ | ✅ |
+| Owner/Admin | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Auditor | Read-only | Read-only | Read-only | ❌ | ❌ | ❌ |
 
 ---
 
-## Performance Optimizations
+## Threat Model
 
-### 1. Dual-Layer Architecture
+| Threat | Example | Impact | Mitigation |
+|---|---|---|---|
+| **Unauthorized posting** | Staff tries to post invoices | Financial integrity loss | ABAC + approval atoms + signature gates; engine-only posting finalization |
+| **Tampering with history** | Modify local audit JSONL | Audit invalidation | Merkle hash chain verification; integrity badge; re-verify on load/sync |
+| **Replay attack** | Re-submit old envelope | Duplicate entries | Mutation ID uniqueness + lamport monotonic checks + replay cache |
+| **Key compromise** | Stolen laptop key | Unauthorized approvals | Key revocation propagation; device trust; optional multi-sig (Phase B) |
+| **Plugin exfiltration** | Marketplace plugin reads ledger | Data leakage | Capability manifests + sandboxed WASM + no key access + network disabled by default |
+| **Policy drift across nodes** | Satellite policy outdated | Inconsistent authorization | Primary is policy anchor; rejects invalid envelopes; satellites quarantine |
+| **Clock manipulation** | Fake timestamps | Audit confusion | Lamport clock ordering; timestamps informational; anchor time recorded on Primary |
+| **Partial sync divergence** | Some nodes offline | Operational inconsistency | CRDT convergence + anchored chain; UI shows anchor status and node health |
 
-**Content Layer** (ProseMirror):
-- Fast rendering
-- Minimal data structure
-- No security metadata
+---
 
-**Metadata Layer** (Shadow Store):
-- Security attributes
-- Provenance tracking
-- ACLs and classifications
+## Performance Optimisations (ERP-Grid)
 
-**Benefit**: ProseMirror renders at full speed while security checks happen in parallel.
-
-### 2. Capability Token Caching
-
-```typescript
-// First access: Full ABAC check (121.6ms)
-const token = await network.requestCapabilityToken(refId);
-
-// Subsequent accesses: Token verification only (5.9ms)
-await network.resolveExternalReference(refId); // Uses cached token
-```
-
-### 3. Async Cloud Sync
-
-```typescript
-// Save completes immediately
-await invoke('save_secure_document', { blocks });
-console.log('✅ Local save complete');
-
-// Cloud sync happens in background
-this.saveToCloud(blocks); // No await!
-```
+1. **Local commit fast-path** — Apply yrs ops locally first for sub-16ms "feel." Persist envelopes and apply state immediately; anchoring happens asynchronously.
+2. **Index fragments (engine-only)** — Maintain lightweight indexes (`tx_by_time`, `postings_by_account`, `moves_by_item`) so Lenses query fast without scanning whole state.
+3. **Checkpoints (Phase B)** — Periodic snapshots/checkpoints to accelerate time-travel reconstruction and large-history loads.
 
 ---
 
 ## Testing Strategy
 
-### Rust Tests
+### Rust Tests (Engine / Bridge / Invariants)
 
 ```rust
 #[test]
-fn test_admin_access() {
-    // Admin sees all blocks regardless of classification
+fn test_tx_post_balance_invariant() {
+    // Given a tx with postings, ensure sum(debits) == sum(credits) or ERR_BALANCE_FAIL.
 }
 
 #[test]
-fn test_viewer_access_public() {
-    // Viewer sees public/internal, not confidential/restricted
+fn test_invmove_qty_sign_matches_inventory_effect() {
+    // Receipt must be positive, issue must be negative, else ERR_INVENTORY_EFFECT_MISMATCH.
 }
 
 #[test]
-fn test_crypto_handshake() {
-    // Ed25519 signature generation and verification
+fn test_post_requires_approval() {
+    // approved->posted requires post approval or ERR_APPROVAL_MISSING.
+}
+
+#[test]
+fn test_merkle_chain_tamper_detection() {
+    // Modify an audit entry and verify integrity check fails.
+}
+
+#[test]
+fn test_replay_protection() {
+    // Same mutation_id or lamport rewind triggers ERR_REPLAY_MUTATION_ID / ERR_LAMPORT_REWIND.
 }
 ```
 
-### TypeScript Tests
+### TypeScript Tests (Lenses / UI Behaviours)
 
 ```typescript
-describe('MetadataStore', () => {
-    it('should store and retrieve metadata');
-    it('should handle token caching');
+describe("Grid Lens", () => {
+  it("renders tx lines and updates reactively from Yjs fragments");
+  it("shows anchor status badges and quarantine notifications");
 });
 
-describe('SlideRenderer', () => {
-    it('should render blocks in slide view');
-    it('should respect security boundaries');
+describe("Cockpit", () => {
+  it("drill-to-source opens the correct tx/posting/approval chain");
 });
 ```
 
-### Manual Testing
+### Manual / Scenario Testing (Must-Pass)
 
-1. **Cloud Sync**: Delete local DB, restart, verify restore
-2. **Token Revocation**: Revoke token, verify access denied
-3. **Performance**: Run stress test, verify <10ms latency
+| # | Scenario | Pass Criteria |
+|---|---|---|
+| 1 | **Offline warehouse flow** | Create inv moves offline → reconnect → anchor → cockpit updates |
+| 2 | **Posting ceremony** | Missing approval → correct error; sign → post succeeds |
+| 3 | **Audit drill-down** | Click a number → signature + mutation + lineage displayed |
+| 4 | **Tamper test** | Modify audit file → integrity badge fails immediately |
+| 5 | **Policy change** | Primary revokes role/key → satellite sync → rejected + quarantined |
+| 6 | **Large import** | Shatter CSV/Excel → postings generated → post works |
 
 ---
 
 ## Deployment
 
-### Desktop (Current)
+### Desktop (Primary & Satellite)
 
 ```bash
 npm run tauri build
 ```
 
-Produces platform-specific installers:
-- macOS: `.dmg`
-- Windows: `.msi`
-- Linux: `.AppImage`, `.deb`
+Produces platform installers: macOS `.dmg` · Windows `.msi` · Linux `.AppImage` / `.deb`
 
-### Future: Web
+### Node Role Configuration
 
-Requires replacing Tauri with:
-- WebAssembly for Rust backend
-- IndexedDB for local storage
-- Service Workers for offline support
+- **Primary Node:** Enable "Anchor mode" (always-on service + canonical audit chain)
+- **Satellite Node:** Default mode (offline-first + outbox + sync client)
 
-### Future: Mobile
+### Optional Cloud (Phase B/C)
 
-Tauri Mobile (in development):
-- iOS: Swift + Rust
-- Android: Kotlin + Rust
+- Enable encrypted backup/checkpoint uploads
+- Enable relay messaging if needed
+- **Never** rely on cloud for correctness
 
 ---
 
-## Security Considerations
+## Key Management
 
-### Threat Model
-
-| Threat | Mitigation |
-|--------|------------|
-| **Token Replay** | Expiration (5 min) + Revocation |
-| **Token Tampering** | Ed25519 signature verification |
-| **Unauthorized Access** | ABAC + RLS policies |
-| **Data Leakage** | Metadata separation + Filtering |
-| **MITM Attacks** | HTTPS (Supabase) + Local crypto |
-
-### Key Management
-
-- **Node Key**: Generated on first launch, stored in `corngr_node.key`
-- **Rotation**: Manual (delete key file to regenerate)
-- **Future**: Automatic rotation every 90 days
+- **Actor Keys:** Created per user; stored in OS keychain/secure enclave when possible
+- **Device Keys (optional):** Identify device; useful for trust posture and revocation
+- **Revocation:** Key revocation is a signed policy update that propagates to nodes; Primary enforces
 
 ---
 
 ## Future Enhancements
 
-### Phase 6: Real-Time Collaboration
-- Supabase Realtime for live updates
-- Cursor presence via Yjs Awareness
-- Conflict resolution UI
+### Phase B: Operational Hardening
 
-### Phase 7: Enterprise Features
-- SSO/SAML integration
-- Immutable audit logs (blockchain?)
-- Compliance reporting (SOC2, GDPR)
+- Checkpoints/snapshots for faster time travel
+- Stronger inventory valuation methods (FIFO/Weighted Avg with reconciliation)
+- Admin console for key/device lifecycle + diagnostics
+- Optional cloud backup/relay (non-authoritative)
 
-### Phase 8: Mobile Support
-- Tauri Mobile apps
-- Touch-optimized UI
-- Mobile-specific sync strategy
+### Phase C: Ecosystem
+
+- Marketplace (Lens Store): industry lenses + WASM logic plugins + CAIO personas
+- Developer signing + capability manifests + private registries
+- Plugin SDK with strict sandbox rules and proposal-first default
 
 ---
 
 ## References
 
-- [Tauri Documentation](https://tauri.app/)
-- [Yjs Documentation](https://docs.yjs.dev/)
-- [Ed25519 Specification](https://ed25519.cr.yp.to/)
-- [Supabase Documentation](https://supabase.com/docs)
-- [ABAC NIST Guide](https://csrc.nist.gov/publications/detail/sp/800-162/final)
+- Tauri documentation
+- Yjs documentation
+- yrs (Rust Yjs) project docs
+- Ed25519 specification resources
+- NIST ABAC guidance (SP 800-162)
 
 ---
 
-**Last Updated**: 29 December 2025  
-**Version**: Phase 5 Complete
+*See also: [PRD.md](./PRD.md) · [SKILLS.md](./SKILLS.md) · [TECHNICAL_BLUEPRINT.md](./TECHNICAL_BLUEPRINT.md)*
+
+**Last Updated:** 27 February 2026  
+**Version:** Corngr-ERP Architecture v1 (Phase A Baseline)
