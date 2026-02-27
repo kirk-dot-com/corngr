@@ -892,6 +892,8 @@ pub fn run() {
             erp::tauri_api::erp_bulk_import,
             // ERP Post Ceremony command (Phase A M7)
             erp::tauri_api::erp_transition_status,
+            // ERP list transactions (Phase A M8)
+            erp::tauri_api::erp_list_txs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

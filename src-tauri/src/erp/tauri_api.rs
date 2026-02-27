@@ -263,6 +263,41 @@ pub fn erp_get_tx_snapshot(tx_id: String) -> ApiResponse<TxSnapshot> {
     })
 }
 
+/// List all transactions for an org (Phase A: in-memory scan; Phase B: index query).
+/// Returns TxSnapshot array sorted by lamport descending (newest first).
+#[tauri::command]
+pub fn erp_list_txs(org_id: String) -> ApiResponse<Vec<TxSnapshot>> {
+    let store = ERP_STORE.lock().unwrap();
+
+    let mut snapshots: Vec<TxSnapshot> = store
+        .transactions
+        .values()
+        .filter(|tx| tx.org_id == org_id)
+        .map(|tx| {
+            let line_count = store.lines.values().filter(|l| l.tx_id == tx.tx_id).count();
+            let move_count = store
+                .invmoves
+                .values()
+                .filter(|m| m.tx_id == tx.tx_id)
+                .count();
+            TxSnapshot {
+                tx_id: tx.tx_id.clone(),
+                org_id: tx.org_id.clone(),
+                tx_type: tx.tx_type.as_str().to_string(),
+                status: tx.status.as_str().to_string(),
+                site_id: tx.site_id.clone(),
+                line_count,
+                move_count,
+            }
+        })
+        .collect();
+
+    // Newest first — sort by tx_id (ULID-ordered) descending
+    snapshots.sort_by(|a, b| b.tx_id.cmp(&a.tx_id));
+
+    ApiResponse::ok(snapshots)
+}
+
 /// Verify audit chain integrity.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChainVerifyResult {
