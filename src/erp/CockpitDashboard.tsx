@@ -12,6 +12,7 @@ import { AuditExplorer } from './audit/AuditExplorer';
 import { PostingsLedger } from './ledger/PostingsLedger';
 import { ShatterImport } from './shatter/ShatterImport';
 import { OrbitExport } from './orbit/OrbitExport';
+import { CreateTxModal } from './CreateTxModal';
 import type { TxSnapshot, CreateTxRequest } from './types';
 import './erp.css';
 
@@ -26,6 +27,7 @@ export const CockpitDashboard: React.FC = () => {
     const [showLedger, setShowLedger] = useState(false);
     const [showImport, setShowImport] = useState(false);
     const [showExport, setShowExport] = useState(false);
+    const [showCreateTx, setShowCreateTx] = useState(false);
 
     const handleAcceptProposal = useCallback(async (payload: Partial<CreateTxRequest>) => {
         if (!payload.tx_type) return;
@@ -79,6 +81,13 @@ export const CockpitDashboard: React.FC = () => {
                                 onChange={e => setCmdBarValue(e.target.value)}
                             />
                         </form>
+                        <button
+                            className="erp-btn primary"
+                            id="new-tx-btn"
+                            onClick={() => setShowCreateTx(true)}
+                        >
+                            ＋ New Tx
+                        </button>
                         <button
                             className="erp-btn"
                             id="import-btn"
@@ -188,6 +197,11 @@ export const CockpitDashboard: React.FC = () => {
             {/* ── Orbit Export (M6) ── */}
             {showExport && (
                 <OrbitExport onClose={() => setShowExport(false)} />
+            )}
+
+            {/* ── Create Transaction Modal (M8) ── */}
+            {showCreateTx && (
+                <CreateTxModal onClose={() => setShowCreateTx(false)} />
             )}
         </div>
     );

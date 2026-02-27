@@ -175,16 +175,13 @@ export function useErpStore(): ErpStore {
         setLoading(true);
         setError(null);
         try {
-            // In Phase A, we list all known tx_ids by iterating the store via snapshot.
-            // Phase B: replace with `erp_list_txs(org_id, filters)` query command.
-            // For now, we use a window-level cache set by createTx.
-            const knownIds: string[] = (window as any).__erp_tx_ids__ ?? [];
-            const snaps: TxSnapshot[] = [];
-            for (const id of knownIds) {
-                const res = await invoke<ApiResponse<TxSnapshot>>('erp_get_tx_snapshot', { txId: id });
-                if (res.ok && res.data) snaps.push(res.data);
+            // M8: single erp_list_txs call replaces the window.__erp_tx_ids__ hack
+            const res = await invoke<ApiResponse<TxSnapshot[]>>('erp_list_txs', {
+                orgId: 'org_default',
+            });
+            if (res.ok && res.data) {
+                setTransactions(res.data);
             }
-            setTransactions(snaps);
 
             // Audit chain
             const chainRes = await invoke<ApiResponse<{ intact: boolean }>>('erp_verify_audit_chain');
@@ -202,9 +199,6 @@ export function useErpStore(): ErpStore {
         try {
             const res = await invoke<ApiResponse<TxRef>>('erp_create_tx', { actor, req });
             if (res.ok && res.data) {
-                const ids: string[] = (window as any).__erp_tx_ids__ ?? [];
-                ids.push(res.data.tx_id);
-                (window as any).__erp_tx_ids__ = ids;
                 await refreshAll();
                 return res.data;
             }
@@ -214,6 +208,7 @@ export function useErpStore(): ErpStore {
         }
         return null;
     }, [refreshAll]);
+
 
     const addLine = useCallback(async (req: AddLineRequest): Promise<string | null> => {
         const actor = actorRef.current;

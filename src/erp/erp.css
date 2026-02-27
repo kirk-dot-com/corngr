@@ -939,3 +939,117 @@
 .action-msg:not(:empty) {
   display: block;
 }
+
+/* ── Create Tx Modal ────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.create-tx-modal {
+  background: #0f0f1c;
+  border: 1px solid var(--erp-border);
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  width: 100%;
+  max-width: 540px;
+  animation: modalIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes modalIn {
+  from {
+    transform: scale(0.94) translateY(12px);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--erp-border);
+}
+
+.modal-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--erp-text);
+  margin-bottom: 2px;
+}
+
+.modal-subtitle {
+  font-size: 0.72rem;
+  color: var(--erp-text2);
+}
+
+.modal-body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.modal-field label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--erp-text2);
+}
+
+.modal-input,
+.modal-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--erp-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--erp-text);
+  font-size: 0.84rem;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.modal-input:focus,
+.modal-select:focus {
+  border-color: var(--erp-accent);
+  background: rgba(102, 126, 234, 0.06);
+}
+
+.modal-input::placeholder {
+  color: var(--erp-text2);
+}
+
+.modal-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 10px;
+  padding-top: 4px;
+}
