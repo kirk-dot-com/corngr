@@ -309,6 +309,10 @@ export function useErpStore(): ErpStore {
         refreshAll,
         createTx,
         addLine,
+        transitionStatus,
+        postTx,
+        generatePostings,
+        createInvMove,
         dismissProposal,
     };
 }
