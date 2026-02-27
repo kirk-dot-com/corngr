@@ -7,8 +7,8 @@ use crate::erp::errors::ErpError;
 use crate::erp::ledger;
 use crate::erp::post::validate_post;
 use crate::erp::types::{
-    ActorContext, AddLineRequest, ApprovalAtom, CreateInvMoveRequest, CreateTxRequest, InvMove,
-    Posting, TxRef, TxType,
+    ActorContext, AddLineRequest, ApprovalAtom, CreateInvMoveRequest, CreateTxRequest, Posting,
+    TxRef,
 };
 
 // ─── Response wrapper ────────────────────────────────────────────────────────
