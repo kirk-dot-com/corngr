@@ -890,6 +890,8 @@ pub fn run() {
             erp::tauri_api::erp_get_ledger_summary,
             // ERP Shatter Import command (Phase A M6)
             erp::tauri_api::erp_bulk_import,
+            // ERP Post Ceremony command (Phase A M7)
+            erp::tauri_api::erp_transition_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

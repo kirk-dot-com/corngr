@@ -9,7 +9,7 @@ export interface TxRef {
 export type TxStatus = 'draft' | 'proposed' | 'approved' | 'posted' | 'void';
 export type TxType =
   | 'invoice_out' | 'invoice_in'
-  | 'payment_in'  | 'payment_out'
+  | 'payment_in' | 'payment_out'
   | 'stock_receipt' | 'stock_issue' | 'stock_adjust'
   | 'journal' | 'credit_note' | 'debit_note';
 
@@ -99,4 +99,21 @@ export interface CaioProposal {
   rationale: string;
   source_fragment: string;
   payload?: Partial<CreateTxRequest>;
+}
+
+export interface CreateInvMoveRequest {
+  tx_id: string;
+  tx_line_id: string;
+  item_id: string;
+  qty_delta: number;
+  location_id?: string;
+}
+
+export interface ApprovalAtom {
+  approval_id: string;
+  tx_id: string;
+  approval_type: string;
+  actor_pubkey: string;
+  signature_ref: string;
+  issued_at_ms: number;
 }

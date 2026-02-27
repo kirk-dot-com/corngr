@@ -139,6 +139,10 @@ pub fn erp_post_tx(
             if let Some(t) = store.transactions.get_mut(&tx_id) {
                 t.status = crate::erp::types::TxStatus::Posted;
             }
+            // Persist finalized postings into the ledger store
+            for p in &postings {
+                store.postings.insert(p.posting_id.clone(), p.clone());
+            }
             let tx_ref = TxRef {
                 tx_id: tx_id.clone(),
                 org_id: tx.org_id.clone(),
@@ -148,6 +152,78 @@ pub fn erp_post_tx(
         }
         Err(e) => ApiResponse::err(e),
     }
+}
+
+/// Transition a transaction status: draft→proposed, proposed→approved, or →void.
+/// Phase A: no cryptographic approval atom required (single-user local node).
+/// Phase B: require a signed ApprovalAtom with actor pubkey.
+#[tauri::command]
+pub fn erp_transition_status(
+    actor: ActorContext,
+    tx_id: String,
+    target_status: String,
+) -> ApiResponse<TxRef> {
+    use crate::erp::types::TxStatus;
+
+    let target = match target_status.as_str() {
+        "proposed" => TxStatus::Proposed,
+        "approved" => TxStatus::Approved,
+        "void" => TxStatus::Void,
+        other => {
+            return ApiResponse::err(ErpError::ValidationFail(format!(
+                "unknown target status: {}",
+                other
+            )))
+        }
+    };
+
+    let mut store = ERP_STORE.lock().unwrap();
+
+    let tx = match store.transactions.get_mut(&tx_id) {
+        Some(t) => t,
+        None => {
+            return ApiResponse::err(ErpError::ValidationFail(format!("tx {} not found", tx_id)))
+        }
+    };
+
+    // Enforce valid state machine transitions
+    let valid = matches!(
+        (&tx.status, &target),
+        (TxStatus::Draft, TxStatus::Proposed)
+            | (TxStatus::Proposed, TxStatus::Approved)
+            | (TxStatus::Draft, TxStatus::Void)
+            | (TxStatus::Proposed, TxStatus::Void)
+    );
+    if !valid {
+        return ApiResponse::err(ErpError::InvalidStatus(
+            tx.status.as_str().to_string(),
+            target.as_str().to_string(),
+        ));
+    }
+
+    // ABAC: finance/manager/owner_admin can approve; staff can propose
+    if matches!(target, TxStatus::Approved) {
+        let policy_ctx = crate::erp::types::PolicyContext {
+            org_id: tx.org_id.clone(),
+            tx_id: Some(tx_id.clone()),
+            tx_status: Some(tx.status.clone()),
+        };
+        if let Err(e) =
+            crate::erp::abac::check_abac(&actor, &crate::erp::abac::Action::TxPost, &policy_ctx)
+        {
+            return ApiResponse::err(e);
+        }
+    }
+
+    tx.status = target.clone();
+    let org_id = tx.org_id.clone();
+    drop(store);
+
+    ApiResponse::ok(TxRef {
+        tx_id,
+        org_id,
+        status: target,
+    })
 }
 
 /// Get a transaction snapshot (header + lines + invmoves count).

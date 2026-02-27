@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type {
     TxSnapshot, TxRef, ActorContext, CreateTxRequest,
-    AddLineRequest, ApiResponse, CaioProposal
+    AddLineRequest, ApiResponse, CaioProposal,
+    Posting, CreateInvMoveRequest, ApprovalAtom,
 } from '../types';
 
 // ── Default actor (Phase A: local single-user, hardcoded identity) ──────────
@@ -100,6 +101,10 @@ export interface ErpStore {
     refreshAll: () => Promise<void>;
     createTx: (req: CreateTxRequest) => Promise<TxRef | null>;
     addLine: (req: AddLineRequest) => Promise<string | null>;
+    transitionStatus: (txId: string, target: 'proposed' | 'approved' | 'void') => Promise<TxRef | null>;
+    postTx: (txId: string, postings: Posting[], approvals: ApprovalAtom[]) => Promise<TxRef | null>;
+    generatePostings: (txId: string) => Promise<Posting[]>;
+    createInvMove: (req: CreateInvMoveRequest) => Promise<string | null>;
     dismissProposal: (id: string) => void;
 }
 
@@ -229,6 +234,57 @@ export function useErpStore(): ErpStore {
     const dismissProposal = useCallback((id: string) => {
         setDismissedProposals(prev => new Set([...prev, id]));
     }, []);
+
+    const transitionStatus = useCallback(async (
+        txId: string, target: 'proposed' | 'approved' | 'void'
+    ): Promise<TxRef | null> => {
+        const actor = actorRef.current;
+        actorRef.current = nextActor(actor);
+        try {
+            const res = await invoke<ApiResponse<TxRef>>('erp_transition_status', {
+                actor, txId, targetStatus: target
+            });
+            if (res.ok && res.data) { await refreshAll(); return res.data; }
+            setError(res.error_message ?? 'transition_status failed');
+        } catch (e) { setError(String(e)); }
+        return null;
+    }, [refreshAll]);
+
+    const postTx = useCallback(async (
+        txId: string, postings: Posting[], approvals: ApprovalAtom[]
+    ): Promise<TxRef | null> => {
+        const actor = actorRef.current;
+        actorRef.current = nextActor(actor);
+        try {
+            const res = await invoke<ApiResponse<TxRef>>('erp_post_tx', {
+                actor, txId, postings, approvals
+            });
+            if (res.ok && res.data) { await refreshAll(); return res.data; }
+            setError(res.error_message ?? 'post_tx failed');
+        } catch (e) { setError(String(e)); }
+        return null;
+    }, [refreshAll]);
+
+    const generatePostings = useCallback(async (txId: string): Promise<Posting[]> => {
+        const actor = actorRef.current;
+        try {
+            const res = await invoke<ApiResponse<Posting[]>>('erp_generate_postings', { actor, txId });
+            if (res.ok && res.data) return res.data;
+            setError(res.error_message ?? 'generate_postings failed');
+        } catch (e) { setError(String(e)); }
+        return [];
+    }, []);
+
+    const createInvMove = useCallback(async (req: CreateInvMoveRequest): Promise<string | null> => {
+        const actor = actorRef.current;
+        actorRef.current = nextActor(actor);
+        try {
+            const res = await invoke<ApiResponse<string>>('erp_create_invmove', { actor, req });
+            if (res.ok && res.data) { await refreshAll(); return res.data; }
+            setError(res.error_message ?? 'create_invmove failed');
+        } catch (e) { setError(String(e)); }
+        return null;
+    }, [refreshAll]);
 
     // Seed + initial load
     useEffect(() => {
