@@ -13,6 +13,7 @@ import { MetadataPanel } from './components/MetadataPanel';
 import { HelpPanel } from './components/HelpPanel';
 import { SecurityDashboard } from './components/security/SecurityDashboard';
 import { ToastContainer, useToast } from './components/Toast';
+import { CockpitDashboard } from './erp/CockpitDashboard';
 import './DemoApp.css';
 import { User } from './security/types';
 import { useDocumentPersister } from './hooks/useDocumentPersister';
@@ -34,7 +35,7 @@ const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, onDocCha
     // Auto-save logic
     useDocumentPersister(yDoc, user, docId);
 
-    const [appMode, setAppMode] = useState<'editor' | 'slides' | 'split' | 'governance'>('split');
+    const [appMode, setAppMode] = useState<'editor' | 'slides' | 'split' | 'governance' | 'erp'>('split');
     const [showMarketplace, setShowMarketplace] = useState(false);
     const [showMetadataPanel, setShowMetadataPanel] = useState(false);
     const [showSecurity, setShowSecurity] = useState(false);
@@ -51,9 +52,32 @@ const DemoAppContent: React.FC<DemoAppContentProps> = ({ user, setUser, onDocCha
     }, [yDoc]);
 
     // Handle view change from SideNav
-    const handleViewChange = (mode: 'editor' | 'slides' | 'split' | 'governance') => {
+    const handleViewChange = (mode: 'editor' | 'slides' | 'split' | 'governance' | 'erp') => {
         setAppMode(mode);
     };
+
+    // ERP Cockpit renders full-bleed outside the WorkspaceLayout chrome
+    if (appMode === 'erp') {
+        return (
+            <UserContext.Provider value={{ user, setUser }}>
+                <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#080810' }}>
+                    <SideNav
+                        currentView={appMode}
+                        currentUser={user!}
+                        onViewChange={handleViewChange}
+                        onRoleChange={() => {
+                            const newRole = user?.role === 'editor' ? 'auditor' : 'editor';
+                            setUser(u => u ? { ...u, role: newRole, attributes: { ...u.attributes, role: newRole } } : null);
+                        }}
+                    />
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <CockpitDashboard />
+                    </div>
+                    <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+                </div>
+            </UserContext.Provider>
+        );
+    }
 
     return (
         <UserContext.Provider value={{ user, setUser }}>

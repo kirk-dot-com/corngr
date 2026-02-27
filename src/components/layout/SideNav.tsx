@@ -2,7 +2,7 @@ import React from 'react';
 import { User } from '../../security/types';
 import './WorkspaceLayout.css'; // Shared styles
 
-export type ViewMode = 'split' | 'editor' | 'slides' | 'governance';
+export type ViewMode = 'split' | 'editor' | 'slides' | 'governance' | 'erp';
 
 interface SideNavProps {
     currentView: ViewMode;
@@ -51,6 +51,14 @@ export const SideNav: React.FC<SideNavProps> = ({
                 title="Governance Dashboard"
             >
                 🛡️
+            </button>
+            <button
+                className={`nav-item ${currentView === 'erp' ? 'active' : ''}`}
+                onClick={() => onViewChange('erp')}
+                title="ERP Cockpit"
+                id="nav-erp-cockpit"
+            >
+                🏭
             </button>
 
             <div className="nav-spacer"></div>
