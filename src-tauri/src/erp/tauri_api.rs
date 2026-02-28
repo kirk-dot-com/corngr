@@ -812,3 +812,196 @@ pub fn erp_bulk_import(
         errors,
     })
 }
+
+// ─── M11 — Binary Parquet export ────────────────────────────────────────────
+
+use arrow_array::{Float64Array, Int64Array, RecordBatch, StringArray};
+use arrow_schema::{DataType, Field, Schema};
+use parquet::arrow::ArrowWriter;
+use parquet::basic::Compression;
+use parquet::file::properties::WriterProperties;
+use std::sync::Arc;
+
+fn parquet_date_stamp() -> String {
+    chrono::Utc::now().format("%Y-%m-%d").to_string()
+}
+
+fn home_downloads() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    std::path::PathBuf::from(home).join("Downloads")
+}
+
+/// Export all transactions for `org_id` as a Snappy-compressed Parquet file.
+/// Writes to ~/Downloads/corngr_txs_YYYY-MM-DD.parquet and returns the path.
+#[tauri::command]
+pub fn erp_export_parquet(org_id: String) -> ApiResponse<String> {
+    let store = ERP_STORE.lock().unwrap();
+
+    let txs: Vec<_> = store
+        .transactions
+        .values()
+        .filter(|t| t.org_id == org_id)
+        .collect();
+
+    // ── Build Arrow arrays ────────────────────────────────────────────────────
+    let tx_ids: Vec<&str> = txs.iter().map(|t| t.tx_id.as_str()).collect();
+    let tx_types: Vec<&str> = txs.iter().map(|t| t.tx_type.as_str()).collect();
+    let statuses: Vec<&str> = txs.iter().map(|t| t.status.as_str()).collect();
+    let org_ids: Vec<&str> = txs.iter().map(|t| t.org_id.as_str()).collect();
+    let currencies: Vec<&str> = txs.iter().map(|t| t.currency.as_str()).collect();
+    let tx_dates: Vec<&str> = txs.iter().map(|t| t.tx_date.as_str()).collect();
+    let site_ids: Vec<&str> = txs.iter().map(|t| t.site_id.as_str()).collect();
+    let pubkeys: Vec<&str> = txs.iter().map(|t| t.created_by_pubkey.as_str()).collect();
+    let ref_nums: Vec<Option<&str>> = txs.iter().map(|t| t.ref_number.as_deref()).collect();
+    let descs: Vec<Option<&str>> = txs.iter().map(|t| t.description.as_deref()).collect();
+    let party_ids: Vec<Option<&str>> = txs.iter().map(|t| t.party_id.as_deref()).collect();
+    let created_ms: Vec<i64> = txs.iter().map(|t| t.created_at_ms).collect();
+
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("tx_id", DataType::Utf8, false),
+        Field::new("tx_type", DataType::Utf8, false),
+        Field::new("status", DataType::Utf8, false),
+        Field::new("org_id", DataType::Utf8, false),
+        Field::new("currency", DataType::Utf8, false),
+        Field::new("tx_date", DataType::Utf8, false),
+        Field::new("site_id", DataType::Utf8, false),
+        Field::new("created_by_pubkey", DataType::Utf8, false),
+        Field::new("ref_number", DataType::Utf8, true),
+        Field::new("description", DataType::Utf8, true),
+        Field::new("party_id", DataType::Utf8, true),
+        Field::new("created_at_ms", DataType::Int64, false),
+    ]));
+
+    let batch = match RecordBatch::try_new(
+        schema.clone(),
+        vec![
+            Arc::new(StringArray::from(tx_ids)) as _,
+            Arc::new(StringArray::from(tx_types)) as _,
+            Arc::new(StringArray::from(statuses)) as _,
+            Arc::new(StringArray::from(org_ids)) as _,
+            Arc::new(StringArray::from(currencies)) as _,
+            Arc::new(StringArray::from(tx_dates)) as _,
+            Arc::new(StringArray::from(site_ids)) as _,
+            Arc::new(StringArray::from(pubkeys)) as _,
+            Arc::new(StringArray::from(ref_nums)) as _,
+            Arc::new(StringArray::from(descs)) as _,
+            Arc::new(StringArray::from(party_ids)) as _,
+            Arc::new(Int64Array::from(created_ms)) as _,
+        ],
+    ) {
+        Ok(b) => b,
+        Err(e) => return ApiResponse::err(ErpError::ValidationFail(format!("Arrow batch: {e}"))),
+    };
+
+    // ── Write Parquet ─────────────────────────────────────────────────────────
+    let dir = home_downloads();
+    let _ = std::fs::create_dir_all(&dir);
+    let path = dir.join(format!("corngr_txs_{}.parquet", parquet_date_stamp()));
+    let file = match std::fs::File::create(&path) {
+        Ok(f) => f,
+        Err(e) => return ApiResponse::err(ErpError::ValidationFail(format!("File: {e}"))),
+    };
+    drop(store); // release lock before IO
+
+    let props = WriterProperties::builder()
+        .set_compression(Compression::SNAPPY)
+        .build();
+    let mut writer = match ArrowWriter::try_new(file, schema, Some(props)) {
+        Ok(w) => w,
+        Err(e) => return ApiResponse::err(ErpError::ValidationFail(format!("Writer: {e}"))),
+    };
+    if let Err(e) = writer.write(&batch) {
+        return ApiResponse::err(ErpError::ValidationFail(format!("Write: {e}")));
+    }
+    if let Err(e) = writer.close() {
+        return ApiResponse::err(ErpError::ValidationFail(format!("Close: {e}")));
+    }
+
+    ApiResponse::ok(path.to_string_lossy().to_string())
+}
+
+/// Export all postings for `org_id` as a Snappy-compressed Parquet file.
+/// Writes to ~/Downloads/corngr_postings_YYYY-MM-DD.parquet and returns the path.
+#[tauri::command]
+pub fn erp_export_postings_parquet(org_id: String) -> ApiResponse<String> {
+    let store = ERP_STORE.lock().unwrap();
+
+    let postings: Vec<_> = store
+        .postings
+        .values()
+        .filter(|p| {
+            store
+                .transactions
+                .get(&p.tx_id)
+                .map(|t| t.org_id == org_id)
+                .unwrap_or(false)
+        })
+        .collect();
+
+    // ── Arrow arrays ──────────────────────────────────────────────────────────
+    let posting_ids: Vec<&str> = postings.iter().map(|p| p.posting_id.as_str()).collect();
+    let tx_ids: Vec<&str> = postings.iter().map(|p| p.tx_id.as_str()).collect();
+    let account_ids: Vec<&str> = postings.iter().map(|p| p.account_id.as_str()).collect();
+    let currencies: Vec<&str> = postings.iter().map(|p| p.currency.as_str()).collect();
+    let statuses: Vec<&str> = postings.iter().map(|p| p.status.as_str()).collect();
+    let gen_bys: Vec<&str> = postings.iter().map(|p| p.generated_by.as_str()).collect();
+    let descs: Vec<Option<&str>> = postings.iter().map(|p| p.description.as_deref()).collect();
+    let debits: Vec<f64> = postings.iter().map(|p| p.debit_amount).collect();
+    let credits: Vec<f64> = postings.iter().map(|p| p.credit_amount).collect();
+
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("posting_id", DataType::Utf8, false),
+        Field::new("tx_id", DataType::Utf8, false),
+        Field::new("account_id", DataType::Utf8, false),
+        Field::new("currency", DataType::Utf8, false),
+        Field::new("status", DataType::Utf8, false),
+        Field::new("generated_by", DataType::Utf8, false),
+        Field::new("description", DataType::Utf8, true),
+        Field::new("debit_amount", DataType::Float64, false),
+        Field::new("credit_amount", DataType::Float64, false),
+    ]));
+
+    let batch = match RecordBatch::try_new(
+        schema.clone(),
+        vec![
+            Arc::new(StringArray::from(posting_ids)) as _,
+            Arc::new(StringArray::from(tx_ids)) as _,
+            Arc::new(StringArray::from(account_ids)) as _,
+            Arc::new(StringArray::from(currencies)) as _,
+            Arc::new(StringArray::from(statuses)) as _,
+            Arc::new(StringArray::from(gen_bys)) as _,
+            Arc::new(StringArray::from(descs)) as _,
+            Arc::new(Float64Array::from(debits)) as _,
+            Arc::new(Float64Array::from(credits)) as _,
+        ],
+    ) {
+        Ok(b) => b,
+        Err(e) => return ApiResponse::err(ErpError::ValidationFail(format!("Arrow batch: {e}"))),
+    };
+
+    // ── Write Parquet ─────────────────────────────────────────────────────────
+    let dir = home_downloads();
+    let _ = std::fs::create_dir_all(&dir);
+    let path = dir.join(format!("corngr_postings_{}.parquet", parquet_date_stamp()));
+    let file = match std::fs::File::create(&path) {
+        Ok(f) => f,
+        Err(e) => return ApiResponse::err(ErpError::ValidationFail(format!("File: {e}"))),
+    };
+    drop(store);
+
+    let props = WriterProperties::builder()
+        .set_compression(Compression::SNAPPY)
+        .build();
+    let mut writer = match ArrowWriter::try_new(file, schema, Some(props)) {
+        Ok(w) => w,
+        Err(e) => return ApiResponse::err(ErpError::ValidationFail(format!("Writer: {e}"))),
+    };
+    if let Err(e) = writer.write(&batch) {
+        return ApiResponse::err(ErpError::ValidationFail(format!("Write: {e}")));
+    }
+    if let Err(e) = writer.close() {
+        return ApiResponse::err(ErpError::ValidationFail(format!("Close: {e}")));
+    }
+
+    ApiResponse::ok(path.to_string_lossy().to_string())
+}

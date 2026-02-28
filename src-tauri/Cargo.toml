@@ -45,3 +45,7 @@ ulid = "1"
 # Phase B — SQLite persistence (M10)
 rusqlite = { version = "0.32", features = ["bundled"] }
 
+# Phase B — Binary Parquet export (M11)
+parquet = { version = "53", default-features = false, features = ["snap"] }
+arrow-array = "53"
+arrow-schema = "53"

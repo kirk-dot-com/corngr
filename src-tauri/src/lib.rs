@@ -909,6 +909,9 @@ pub fn run() {
             // ERP party master (Phase A M9)
             erp::tauri_api::erp_create_party,
             erp::tauri_api::erp_list_parties,
+            // ERP Binary Parquet export (Phase B M11)
+            erp::tauri_api::erp_export_parquet,
+            erp::tauri_api::erp_export_postings_parquet,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

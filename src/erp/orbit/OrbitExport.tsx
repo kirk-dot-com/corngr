@@ -40,6 +40,9 @@ function triggerDownload(blob: Blob, filename: string) {
 export const OrbitExport: React.FC<OrbitExportProps> = ({ onClose }) => {
     const [tab, setTab] = useState<ExportTab>('csv');
     const [exporting, setExporting] = useState(false);
+    const [parquetPath, setParquetPath] = useState<string | null>(null);
+    const [parquetPostingsPath, setParquetPostingsPath] = useState<string | null>(null);
+    const [parquetError, setParquetError] = useState<string | null>(null);
 
     const handleCsvExport = async () => {
         setExporting(true);
@@ -92,31 +95,46 @@ export const OrbitExport: React.FC<OrbitExportProps> = ({ onClose }) => {
         }
     };
 
-    const handleParquetExport = () => {
-        const manifest = {
-            format: 'corngr-parquet-manifest-v1',
-            note: 'Phase A: JSON schema manifest. Binary Parquet export is Phase B (Arrow worker).',
-            exported_at: new Date().toISOString(),
-            schema: {
-                transactions: ['tx_id', 'tx_type', 'status', 'tx_date', 'org_id', 'currency', 'description', 'created_at_ms', 'created_by_pubkey', 'site_id'],
-                postings: ['posting_id', 'tx_id', 'account_id', 'debit_amount', 'credit_amount', 'currency', 'status'],
-                invmoves: ['move_id', 'tx_id', 'tx_line_id', 'item_id', 'qty_delta', 'location_id', 'moved_at_ms'],
-                audit_log: ['mutation_id', 'actor_pubkey', 'issued_at_ms', 'prev_hash', 'content_hash'],
-                accounts: ['code', 'name', 'acct_type', 'normal_balance'],
-            },
-            partitioning: {
-                by: ['tx_date', 'org_id'],
-                note: 'Phase B: partition Parquet files by month + org_id.',
-            },
-        };
-        const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
-        triggerDownload(blob, `corngr-parquet-manifest-${new Date().toISOString().slice(0, 10)}.json`);
+    const handleParquetExport = async () => {
+        setExporting(true);
+        setParquetPath(null);
+        setParquetError(null);
+        try {
+            const res = await invoke<ApiResponse<string>>('erp_export_parquet', { orgId: 'org_default' });
+            if (res.ok && res.data) {
+                setParquetPath(res.data);
+            } else {
+                setParquetError((res as any).error ?? 'Export failed');
+            }
+        } catch (e: any) {
+            setParquetError(String(e));
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const handlePostingsParquetExport = async () => {
+        setExporting(true);
+        setParquetPostingsPath(null);
+        setParquetError(null);
+        try {
+            const res = await invoke<ApiResponse<string>>('erp_export_postings_parquet', { orgId: 'org_default' });
+            if (res.ok && res.data) {
+                setParquetPostingsPath(res.data);
+            } else {
+                setParquetError((res as any).error ?? 'Export failed');
+            }
+        } catch (e: any) {
+            setParquetError(String(e));
+        } finally {
+            setExporting(false);
+        }
     };
 
     const TABS: { id: ExportTab; icon: string; label: string; desc: string }[] = [
         { id: 'csv', icon: '📊', label: 'CSV Ledger', desc: 'All transactions as a CSV spreadsheet' },
         { id: 'json', icon: '🔏', label: 'JSON Evidence', desc: 'Full audit trail bundle with chain hashes' },
-        { id: 'parquet', icon: '📦', label: 'Parquet Manifest', desc: 'Schema + metadata manifest (Phase A proxy)' },
+        { id: 'parquet', icon: '📦', label: 'Parquet Export', desc: 'Binary Apache Parquet files (Snappy compression)' },
     ];
 
     return (
@@ -145,7 +163,7 @@ export const OrbitExport: React.FC<OrbitExportProps> = ({ onClose }) => {
                             ⬇ Standard Orbit Export
                         </div>
                         <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: 2 }}>
-                            CSV · JSON Evidence Bundle · Parquet Manifest
+                            CSV · JSON Evidence Bundle · Parquet (Apache Arrow)
                         </div>
                     </div>
                     <button onClick={onClose} className="drill-close">✕</button>
@@ -229,13 +247,33 @@ export const OrbitExport: React.FC<OrbitExportProps> = ({ onClose }) => {
                                         padding: '14px 16px', marginBottom: 20, border: '1px solid rgba(96,165,250,0.15)',
                                         fontSize: '0.76rem', color: '#9ca3af'
                                     }}>
-                                        <strong style={{ color: '#60a5fa' }}>Phase A note</strong><br />
-                                        True binary Parquet (Apache Arrow) is Phase B. This exports a JSON manifest of the full schema
-                                        and partitioning strategy — ready for the Phase B Arrow worker to produce real Parquet files.
+                                        <strong style={{ color: '#60a5fa' }}>Phase B — Binary Parquet</strong><br />
+                                        Exports real Apache Parquet files (Snappy-compressed) using Arrow directly from the
+                                        in-memory ERP store. Readable by DuckDB, Power BI, pandas, and any Parquet-compatible tool.
                                     </div>
-                                    <button id="orbit-parquet-btn" className="erp-btn" onClick={handleParquetExport}>
-                                        ⬇ Download Schema Manifest (JSON)
-                                    </button>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                        <button id="orbit-parquet-txs-btn" className="erp-btn primary" onClick={handleParquetExport} disabled={exporting}>
+                                            {exporting ? 'Exporting…' : '📦 Export Transactions (.parquet)'}
+                                        </button>
+                                        <button id="orbit-parquet-postings-btn" className="erp-btn" onClick={handlePostingsParquetExport} disabled={exporting}>
+                                            {exporting ? 'Exporting…' : '📦 Export Postings (.parquet)'}
+                                        </button>
+                                    </div>
+                                    {parquetPath && (
+                                        <div style={{ marginTop: 14, fontSize: '0.75rem', color: '#34d399', wordBreak: 'break-all' }}>
+                                            ✅ Transactions saved to: <code>{parquetPath}</code>
+                                        </div>
+                                    )}
+                                    {parquetPostingsPath && (
+                                        <div style={{ marginTop: 8, fontSize: '0.75rem', color: '#34d399', wordBreak: 'break-all' }}>
+                                            ✅ Postings saved to: <code>{parquetPostingsPath}</code>
+                                        </div>
+                                    )}
+                                    {parquetError && (
+                                        <div style={{ marginTop: 10, fontSize: '0.75rem', color: '#f87171' }}>
+                                            ⚠️ {parquetError}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
