@@ -1,6 +1,7 @@
 pub mod abac;
 pub mod audit_log;
 pub mod coa_templates;
+pub mod db;
 pub mod engine;
 pub mod envelope;
 pub mod errors;
