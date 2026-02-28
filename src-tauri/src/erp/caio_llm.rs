@@ -1,37 +1,21 @@
 //! caio_llm.rs — Local LLM integration for the CAIO Guardian (Phase B M12)
 //!
 //! ## Architecture
-//! - Sends an ERP-context prompt to a local Ollama instance (`http://127.0.0.1:11434/api/generate`)
-//!   using the `reqwest` blocking client.
-//! - Parses a JSON array of `CaioProposal`-shaped objects from the LLM response.
-//! - Falls back silently to `deterministic_proposals()` if:
-//!   - Ollama is not running (connection refused)
-//!   - The LLM returns malformed JSON
-//!   - Any request error occurs
+//! Shells out to `ollama run mistral` via `std::process::Command` (stdin/stdout).
+//! This avoids the `reqwest::blocking` deadlock that occurs when called from within
+//! Tauri's tokio async runtime.
 //!
-//! ## LLM prompt contract
-//! The prompt instructs the model to respond with a raw JSON array only.
-//! Each item must match:
-//! ```json
-//! {
-//!   "id": "unique-string",
-//!   "type": "reorder_proposal|draft_invoice|anomaly_flag|briefing",
-//!   "title": "Short title",
-//!   "rationale": "One-sentence explanation",
-//!   "source_fragment": "fragment identifier"
-//! }
-//! ```
-//! If the model produces anything else the fallback activates.
+//! Falls back to `deterministic_proposals()` if:
+//!   - `ollama` is not in PATH or not installed
+//!   - The process times out (20s)
+//!   - The response cannot be parsed as a JSON array
 
-use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
+use std::io::Write;
+use std::process::{Command, Stdio};
 use std::time::Duration;
 
-const OLLAMA_URL: &str = "http://127.0.0.1:11434/api/generate";
-const OLLAMA_MODEL: &str = "mistral";
-const REQUEST_TIMEOUT_SECS: u64 = 20;
-
-// ─── Types returned by this module (mirrors TS CaioProposal) ─────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmProposal {
@@ -45,22 +29,7 @@ pub struct LlmProposal {
     pub source: Option<String>, // "llm" | "rules"
 }
 
-// ─── Ollama request / response shapes ────────────────────────────────────────
-
-#[derive(Serialize)]
-struct OllamaRequest<'a> {
-    model: &'a str,
-    prompt: String,
-    stream: bool,
-    format: &'a str,
-}
-
-#[derive(Deserialize)]
-struct OllamaResponse {
-    response: String,
-}
-
-// ─── Public entry point ───────────────────────────────────────────────────────
+// ─── Public API ───────────────────────────────────────────────────────────────
 
 pub struct CaioContext {
     pub org_id: String,
@@ -72,47 +41,75 @@ pub struct CaioContext {
 }
 
 /// Query the local Ollama instance for CAIO proposals.
-///
 /// Returns `(Vec<LlmProposal>, used_llm: bool)`.
-/// `used_llm = true` means the LLM responded and proposals were parsed.
-/// `used_llm = false` means the deterministic fallback was used.
 pub fn query_caio(ctx: &CaioContext, user_query: &str) -> (Vec<LlmProposal>, bool) {
-    match try_ollama(ctx, user_query) {
+    match try_ollama_cli(ctx, user_query) {
         Some(proposals) if !proposals.is_empty() => (proposals, true),
         _ => (deterministic_proposals(ctx), false),
     }
 }
 
-// ─── Ollama call ──────────────────────────────────────────────────────────────
+// ─── Ollama CLI subprocess ────────────────────────────────────────────────────
 
-fn try_ollama(ctx: &CaioContext, user_query: &str) -> Option<Vec<LlmProposal>> {
+fn try_ollama_cli(ctx: &CaioContext, user_query: &str) -> Option<Vec<LlmProposal>> {
     let prompt = build_prompt(ctx, user_query);
 
-    let client = Client::builder()
-        .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
-        .build()
+    // Try common ollama binary locations
+    let ollama_paths = [
+        "/usr/local/bin/ollama",
+        "/usr/bin/ollama",
+        "/opt/homebrew/bin/ollama",
+        "ollama", // rely on PATH
+    ];
+
+    let ollama_bin = ollama_paths
+        .iter()
+        .find(|p| {
+            if **p == "ollama" {
+                return true; // try PATH fallback last
+            }
+            std::path::Path::new(p).exists()
+        })
+        .copied()
+        .unwrap_or("ollama");
+
+    let mut child = Command::new(ollama_bin)
+        .args(["run", "mistral", "--format", "json"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
         .ok()?;
 
-    let req = OllamaRequest {
-        model: OLLAMA_MODEL,
-        prompt,
-        stream: false,
-        format: "json",
-    };
+    // Write prompt to stdin
+    if let Some(stdin) = child.stdin.take() {
+        let mut stdin = stdin;
+        let _ = stdin.write_all(prompt.as_bytes());
+        // stdin closes when dropped, signalling EOF to ollama
+    }
 
-    let resp = client.post(OLLAMA_URL).json(&req).send().ok()?;
+    // Wait with a timeout using a thread
+    use std::sync::mpsc;
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let result = child.wait_with_output();
+        let _ = tx.send(result);
+    });
 
-    if !resp.status().is_success() {
+    let output = rx.recv_timeout(Duration::from_secs(30)).ok()?.ok()?;
+
+    if !output.status.success() && output.stdout.is_empty() {
         return None;
     }
 
-    let body: OllamaResponse = resp.json().ok()?;
+    let raw = String::from_utf8_lossy(&output.stdout);
+    let raw = raw.trim();
 
-    // The model should return a JSON array as the response string
-    let raw = body.response.trim();
-    let proposals: Vec<LlmProposal> = serde_json::from_str(raw).ok()?;
+    // The model may wrap the array in ```json fences — strip them
+    let json_str = strip_fences(raw);
 
-    // Tag each proposal as LLM-sourced
+    let proposals: Vec<LlmProposal> = serde_json::from_str(json_str).ok()?;
+
     Some(
         proposals
             .into_iter()
@@ -122,6 +119,22 @@ fn try_ollama(ctx: &CaioContext, user_query: &str) -> Option<Vec<LlmProposal>> {
             })
             .collect(),
     )
+}
+
+fn strip_fences(s: &str) -> &str {
+    let s = s.trim();
+    if let Some(inner) = s.strip_prefix("```json") {
+        let inner = inner.trim_start();
+        if let Some(body) = inner.strip_suffix("```") {
+            return body.trim();
+        }
+    }
+    if let Some(inner) = s.strip_prefix("```") {
+        if let Some(body) = inner.strip_suffix("```") {
+            return body.trim();
+        }
+    }
+    s
 }
 
 fn build_prompt(ctx: &CaioContext, user_query: &str) -> String {
@@ -134,20 +147,12 @@ Current ledger context:
 - Parties on file: {party_count}
 - Chart of Accounts entries: {account_count}
 
-User question / query: {user_query}
+User question: {user_query}
 
-Your task: Analyse the context and user query, then return a JSON array of 1–4 proposal objects.
-Each object MUST have exactly these fields:
-  "id": a short unique slug (e.g. "caio-llm-001"),
-  "type": one of: "reorder_proposal", "draft_invoice", "anomaly_flag", "briefing",
-  "title": a short title (max 8 words),
-  "rationale": one plain-English sentence explaining the proposal,
-  "source_fragment": a relevant fragment identifier (e.g. "org:{org_id}:indexes")
+Respond with ONLY a JSON array of 1-3 proposal objects. No markdown, no explanation.
+Each object must have: "id" (unique slug), "type" (one of: reorder_proposal, draft_invoice, anomaly_flag, briefing), "title" (max 8 words), "rationale" (one sentence), "source_fragment" (e.g. "org:{org_id}:indexes").
 
-Return ONLY the JSON array, no markdown, no explanation, no preamble.
-
-Example output:
-[{{"id":"caio-llm-001","type":"briefing","title":"Ledger Status Summary","rationale":"You have {draft_count} drafts and {posted_count} posted transactions on record.","source_fragment":"org:{org_id}:indexes"}}]"#,
+Example: [{{"id":"caio-1","type":"briefing","title":"Ledger Status","rationale":"You have {draft_count} drafts pending.","source_fragment":"org:{org_id}:indexes"}}]"#,
         org_id = ctx.org_id,
         tx_count = ctx.tx_count,
         draft_count = ctx.draft_count,
@@ -160,11 +165,9 @@ Example output:
 
 // ─── Deterministic fallback ───────────────────────────────────────────────────
 
-/// Mirrors the Phase A rules engine — runs when Ollama is unavailable.
 fn deterministic_proposals(ctx: &CaioContext) -> Vec<LlmProposal> {
-    let mut proposals: Vec<LlmProposal> = Vec::new();
+    let mut proposals = Vec::new();
 
-    // Rule: stale drafts
     if ctx.draft_count >= 3 {
         proposals.push(LlmProposal {
             id: "caio-rules-anomaly".into(),
@@ -179,7 +182,6 @@ fn deterministic_proposals(ctx: &CaioContext) -> Vec<LlmProposal> {
         });
     }
 
-    // Rule: no CoA seeded
     if ctx.account_count == 0 {
         proposals.push(LlmProposal {
             id: "caio-rules-coa".into(),
@@ -193,14 +195,13 @@ fn deterministic_proposals(ctx: &CaioContext) -> Vec<LlmProposal> {
         });
     }
 
-    // Rule: healthy ledger
     if proposals.is_empty() {
         proposals.push(LlmProposal {
             id: "caio-rules-briefing".into(),
             r#type: "briefing".into(),
             title: "Ledger Looks Healthy".into(),
             rationale: format!(
-                "{} total transactions, {} posted. No anomalies detected by rules engine.",
+                "{} total transactions, {} posted. No anomalies detected.",
                 ctx.tx_count, ctx.posted_count
             ),
             source_fragment: format!("org:{}:indexes", ctx.org_id),
