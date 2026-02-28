@@ -1007,3 +1007,75 @@ pub fn erp_export_postings_parquet(org_id: String) -> ApiResponse<String> {
 
     ApiResponse::ok(path.to_string_lossy().to_string())
 }
+
+// ─── M12 — Local LLM CAIO query ──────────────────────────────────────────────
+
+use crate::erp::caio_llm::{query_caio, CaioContext, LlmProposal};
+
+/// Response envelope for erp_caio_query.
+#[derive(Debug, Serialize)]
+pub struct CaioQueryResult {
+    /// The proposals returned (either from Ollama or deterministic fallback)
+    pub proposals: Vec<LlmProposal>,
+    /// True if the LLM was reachable and proposals are LLM-generated
+    pub used_llm: bool,
+    /// Human-readable source label for the UI badge
+    pub source_label: String,
+}
+
+/// Query CAIO with an optional free-text user question.
+///
+/// 1. Reads live counts from ERP_STORE.
+/// 2. Calls `caio_llm::query_caio()` — tries Ollama, falls back to rules.
+/// 3. Returns proposals + metadata so the frontend can show LLM vs rules badge.
+#[tauri::command]
+pub fn erp_caio_query(org_id: String, user_query: String) -> ApiResponse<CaioQueryResult> {
+    let store = ERP_STORE.lock().unwrap();
+
+    let tx_count = store
+        .transactions
+        .values()
+        .filter(|t| t.org_id == org_id)
+        .count();
+    let draft_count = store
+        .transactions
+        .values()
+        .filter(|t| t.org_id == org_id && t.status.as_str() == "draft")
+        .count();
+    let posted_count = store
+        .transactions
+        .values()
+        .filter(|t| t.org_id == org_id && t.status.as_str() == "posted")
+        .count();
+    let party_count = store
+        .parties
+        .values()
+        .filter(|p| p.org_id == org_id)
+        .count();
+    let account_count = store.accounts.len();
+
+    drop(store); // release lock before potentially slow Ollama call
+
+    let ctx = CaioContext {
+        org_id: org_id.clone(),
+        tx_count,
+        draft_count,
+        posted_count,
+        party_count,
+        account_count,
+    };
+
+    let (proposals, used_llm) = query_caio(&ctx, &user_query);
+
+    let source_label = if used_llm {
+        "Mistral via Ollama".to_string()
+    } else {
+        "Deterministic rules (Ollama offline)".to_string()
+    };
+
+    ApiResponse::ok(CaioQueryResult {
+        proposals,
+        used_llm,
+        source_label,
+    })
+}

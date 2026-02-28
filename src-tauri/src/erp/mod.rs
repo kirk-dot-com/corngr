@@ -1,5 +1,6 @@
 pub mod abac;
 pub mod audit_log;
+pub mod caio_llm;
 pub mod coa_templates;
 pub mod db;
 pub mod engine;

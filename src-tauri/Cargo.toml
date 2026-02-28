@@ -49,3 +49,6 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 parquet = { version = "53", default-features = false, features = ["snap", "arrow"] }
 arrow-array = "53"
 arrow-schema = "53"
+
+# Phase B — Local LLM CAIO (M12)
+reqwest = { version = "0.12", default-features = false, features = ["json", "blocking"] }
