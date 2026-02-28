@@ -849,6 +849,18 @@ pub fn run() {
                 }
             });
 
+            // 4. Initialise ERP SQLite store (Phase B M10)
+            // Resolve platform app-data dir then open/warm corngr.db
+            {
+                use tauri::Manager;
+                let app_data_dir = app
+                    .path()
+                    .app_data_dir()
+                    .unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let db_path = app_data_dir.join("corngr.db");
+                crate::erp::engine::init_erp_db(&db_path);
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

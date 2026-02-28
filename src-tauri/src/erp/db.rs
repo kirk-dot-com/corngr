@@ -5,7 +5,7 @@
 //!   - On writes:   each engine mutation calls the matching `upsert_*` helper.
 //!   - ErpStore remains the in-process working set; SQLite is the durable source of truth.
 
-use rusqlite::{params, Connection, Result as SqlResult};
+use rusqlite::{params, Connection, Error as SqlErr, Result as SqlResult};
 use std::path::Path;
 
 use crate::erp::engine::{AccountRecord, ErpStore};
@@ -19,17 +19,18 @@ const SCHEMA: &str = "
 PRAGMA journal_mode=WAL;
 
 CREATE TABLE IF NOT EXISTS tx_headers (
-    tx_id        TEXT PRIMARY KEY,
-    org_id       TEXT NOT NULL,
-    tx_type      TEXT NOT NULL,
-    status       TEXT NOT NULL,
-    party_id     TEXT,
-    currency     TEXT NOT NULL DEFAULT 'AUD',
-    ref_number   TEXT,
-    description  TEXT,
-    tx_date      TEXT,
-    site_id      TEXT,
-    created_at_ms INTEGER NOT NULL DEFAULT 0
+    tx_id             TEXT PRIMARY KEY,
+    org_id            TEXT NOT NULL,
+    tx_type           TEXT NOT NULL,
+    status            TEXT NOT NULL,
+    party_id          TEXT,
+    currency          TEXT NOT NULL DEFAULT 'AUD',
+    ref_number        TEXT,
+    description       TEXT,
+    tx_date           TEXT NOT NULL DEFAULT '',
+    site_id           TEXT NOT NULL DEFAULT 'primary',
+    created_at_ms     INTEGER NOT NULL DEFAULT 0,
+    created_by_pubkey TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS tx_lines (
@@ -58,13 +59,15 @@ CREATE TABLE IF NOT EXISTS postings (
 );
 
 CREATE TABLE IF NOT EXISTS inv_moves (
-    move_id      TEXT PRIMARY KEY,
-    tx_id        TEXT NOT NULL,
-    tx_line_id   TEXT NOT NULL,
-    item_id      TEXT NOT NULL,
-    qty_delta    REAL NOT NULL DEFAULT 0,
-    location_id  TEXT,
-    moved_at_ms  INTEGER NOT NULL DEFAULT 0
+    move_id          TEXT PRIMARY KEY,
+    tx_id            TEXT NOT NULL,
+    tx_line_id       TEXT NOT NULL,
+    item_id          TEXT NOT NULL,
+    qty_delta        REAL NOT NULL DEFAULT 0,
+    location_id      TEXT,
+    moved_at_ms      INTEGER NOT NULL DEFAULT 0,
+    moved_by_pubkey  TEXT NOT NULL DEFAULT '',
+    site_id          TEXT NOT NULL DEFAULT 'primary'
 );
 
 CREATE TABLE IF NOT EXISTS parties (
@@ -101,8 +104,9 @@ pub fn init_db(db_path: &Path) -> SqlResult<Connection> {
 pub fn upsert_tx(conn: &Connection, tx: &TxHeader) -> SqlResult<()> {
     conn.execute(
         "INSERT OR REPLACE INTO tx_headers
-         (tx_id, org_id, tx_type, status, party_id, currency, ref_number, description, tx_date, site_id, created_at_ms)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+         (tx_id, org_id, tx_type, status, party_id, currency, ref_number, description,
+          tx_date, site_id, created_at_ms, created_by_pubkey)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             tx.tx_id,
             tx.org_id,
@@ -115,6 +119,7 @@ pub fn upsert_tx(conn: &Connection, tx: &TxHeader) -> SqlResult<()> {
             tx.tx_date,
             tx.site_id,
             tx.created_at_ms,
+            tx.created_by_pubkey,
         ],
     )?;
     Ok(())
@@ -123,7 +128,8 @@ pub fn upsert_tx(conn: &Connection, tx: &TxHeader) -> SqlResult<()> {
 pub fn upsert_line(conn: &Connection, line: &TxLine) -> SqlResult<()> {
     conn.execute(
         "INSERT OR REPLACE INTO tx_lines
-         (line_id, tx_id, item_id, account_id, description, qty, unit_price, inventory_effect, tax_code, tax_rate)
+         (line_id, tx_id, item_id, account_id, description, qty, unit_price,
+          inventory_effect, tax_code, tax_rate)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
             line.line_id,
@@ -144,7 +150,8 @@ pub fn upsert_line(conn: &Connection, line: &TxLine) -> SqlResult<()> {
 pub fn upsert_posting(conn: &Connection, p: &Posting) -> SqlResult<()> {
     conn.execute(
         "INSERT OR REPLACE INTO postings
-         (posting_id, tx_id, account_id, debit_amount, credit_amount, currency, description, status, generated_by)
+         (posting_id, tx_id, account_id, debit_amount, credit_amount, currency,
+          description, status, generated_by)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         params![
             p.posting_id,
@@ -164,8 +171,9 @@ pub fn upsert_posting(conn: &Connection, p: &Posting) -> SqlResult<()> {
 pub fn upsert_invmove(conn: &Connection, m: &InvMove) -> SqlResult<()> {
     conn.execute(
         "INSERT OR REPLACE INTO inv_moves
-         (move_id, tx_id, tx_line_id, item_id, qty_delta, location_id, moved_at_ms)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+         (move_id, tx_id, tx_line_id, item_id, qty_delta, location_id, moved_at_ms,
+          moved_by_pubkey, site_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         params![
             m.move_id,
             m.tx_id,
@@ -174,6 +182,8 @@ pub fn upsert_invmove(conn: &Connection, m: &InvMove) -> SqlResult<()> {
             m.qty_delta,
             m.location_id,
             m.moved_at_ms,
+            m.moved_by_pubkey,
+            m.site_id,
         ],
     )?;
     Ok(())
@@ -188,7 +198,7 @@ pub fn upsert_party(conn: &Connection, p: &Party) -> SqlResult<()> {
             p.party_id,
             p.org_id,
             p.name,
-            p.kind.to_str(),
+            p.kind.as_str(),
             p.email,
             p.contact,
             p.abn,
@@ -209,8 +219,14 @@ pub fn upsert_account(conn: &Connection, a: &AccountRecord) -> SqlResult<()> {
 
 // ─── Load all — warms ErpStore from SQLite on startup ────────────────────────
 
+/// Convert an `ErpError` string form to a `rusqlite::Error` so it can bubble
+/// through query_map closures.
+fn erp_err_to_sql(msg: String) -> SqlErr {
+    SqlErr::InvalidParameterName(msg)
+}
+
 /// Populate a fresh `ErpStore` from the SQLite database.
-/// Called once during `lazy_static` initialisation in `engine.rs`.
+/// Called once during the `lazy_static` initialisation in `engine.rs`.
 pub fn load_all(conn: &Connection) -> SqlResult<ErpStore> {
     let mut store = ErpStore::new();
 
@@ -218,24 +234,29 @@ pub fn load_all(conn: &Connection) -> SqlResult<ErpStore> {
     {
         let mut stmt = conn.prepare(
             "SELECT tx_id, org_id, tx_type, status, party_id, currency,
-                    ref_number, description, tx_date, site_id, created_at_ms
+                    ref_number, description, tx_date, site_id, created_at_ms, created_by_pubkey
              FROM tx_headers",
         )?;
         let rows = stmt.query_map([], |row| {
+            let tx_type_s: String = row.get(2)?;
+            let status_s: String = row.get(3)?;
             Ok(TxHeader {
                 tx_id: row.get(0)?,
                 org_id: row.get(1)?,
-                tx_type: TxType::from_str(&row.get::<_, String>(2)?),
-                status: TxStatus::from_str(&row.get::<_, String>(3)?),
+                tx_type: TxType::from_str(&tx_type_s).map_err(|e| erp_err_to_sql(e.to_string()))?,
+                status: TxStatus::from_str(&status_s).map_err(|e| erp_err_to_sql(e.to_string()))?,
                 party_id: row.get(4)?,
                 currency: row
                     .get::<_, Option<String>>(5)?
                     .unwrap_or_else(|| "AUD".into()),
                 ref_number: row.get(6)?,
                 description: row.get(7)?,
-                tx_date: row.get(8)?,
-                site_id: row.get(9)?,
+                tx_date: row.get::<_, Option<String>>(8)?.unwrap_or_default(),
+                site_id: row
+                    .get::<_, Option<String>>(9)?
+                    .unwrap_or_else(|| "primary".into()),
                 created_at_ms: row.get(10)?,
+                created_by_pubkey: row.get::<_, Option<String>>(11)?.unwrap_or_default(),
             })
         })?;
         for r in rows {
@@ -252,6 +273,7 @@ pub fn load_all(conn: &Connection) -> SqlResult<ErpStore> {
              FROM tx_lines",
         )?;
         let rows = stmt.query_map([], |row| {
+            let inv_s: String = row.get(7)?;
             Ok(TxLine {
                 line_id: row.get(0)?,
                 tx_id: row.get(1)?,
@@ -260,10 +282,10 @@ pub fn load_all(conn: &Connection) -> SqlResult<ErpStore> {
                 description: row.get(4)?,
                 qty: row.get(5)?,
                 unit_price: row.get(6)?,
-                inventory_effect: InventoryEffect::from_str(&row.get::<_, String>(7)?),
+                inventory_effect: InventoryEffect::from_str(&inv_s),
                 tax_code: row.get(8)?,
                 tax_rate: row.get(9)?,
-                move_ids: vec![], // populated from inv_moves below
+                move_ids: vec![], // re-linked from inv_moves below
             })
         })?;
         for r in rows {
@@ -275,7 +297,8 @@ pub fn load_all(conn: &Connection) -> SqlResult<ErpStore> {
     // ── inv_moves ─────────────────────────────────────────────────────────────
     {
         let mut stmt = conn.prepare(
-            "SELECT move_id, tx_id, tx_line_id, item_id, qty_delta, location_id, moved_at_ms
+            "SELECT move_id, tx_id, tx_line_id, item_id, qty_delta, location_id,
+                    moved_at_ms, moved_by_pubkey, site_id
              FROM inv_moves",
         )?;
         let rows = stmt.query_map([], |row| {
@@ -287,6 +310,10 @@ pub fn load_all(conn: &Connection) -> SqlResult<ErpStore> {
                 qty_delta: row.get(4)?,
                 location_id: row.get(5)?,
                 moved_at_ms: row.get(6)?,
+                moved_by_pubkey: row.get::<_, Option<String>>(7)?.unwrap_or_default(),
+                site_id: row
+                    .get::<_, Option<String>>(8)?
+                    .unwrap_or_else(|| "primary".into()),
             })
         })?;
         for r in rows {
@@ -338,11 +365,12 @@ pub fn load_all(conn: &Connection) -> SqlResult<ErpStore> {
              FROM parties",
         )?;
         let rows = stmt.query_map([], |row| {
+            let kind_s: String = row.get(3)?;
             Ok(Party {
                 party_id: row.get(0)?,
                 org_id: row.get(1)?,
                 name: row.get(2)?,
-                kind: PartyKind::from_str(&row.get::<_, String>(3)?),
+                kind: PartyKind::from_str(&kind_s),
                 email: row.get(4)?,
                 contact: row.get(5)?,
                 abn: row.get(6)?,

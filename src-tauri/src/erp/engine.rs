@@ -1,9 +1,11 @@
 use chrono::Utc;
+use rusqlite::Connection;
 use std::sync::Mutex;
 use uuid::Uuid;
 
 use crate::erp::abac::{check_abac, Action};
 use crate::erp::audit_log;
+use crate::erp::db;
 use crate::erp::envelope::MutationEnvelope;
 use crate::erp::errors::ErpError;
 use crate::erp::fragments;
@@ -101,7 +103,34 @@ pub fn seed_coa_ops(ops: &[Op], accounts: &mut std::collections::HashMap<String,
 }
 
 lazy_static::lazy_static! {
+    /// In-memory working set — populated from SQLite at first access via `erp::db::load_all()`
+    /// when the app-data path becomes available (set by lib.rs setup via `init_erp_db`).
     pub static ref ERP_STORE: Mutex<ErpStore> = Mutex::new(ErpStore::new());
+
+    /// SQLite connection — `None` until `init_erp_db` is called from lib.rs setup.
+    /// All DB writes are best-effort: log errors but never fail the mutation.
+    pub static ref ERP_DB: Mutex<Option<Connection>> = Mutex::new(None);
+}
+
+/// Called from lib.rs `.setup()` once the app-data directory is known.
+/// Opens (creates) `corngr.db`, loads all rows into ERP_STORE, and stores the
+/// connection in ERP_DB for subsequent write-through upserts.
+pub fn init_erp_db(db_path: &std::path::Path) {
+    match db::init_db(db_path) {
+        Ok(conn) => {
+            // Warm the in-memory store from persisted data
+            match db::load_all(&conn) {
+                Ok(loaded) => {
+                    let mut store = ERP_STORE.lock().unwrap();
+                    *store = loaded;
+                    println!("✅ ERP store loaded from SQLite: {:?}", db_path);
+                }
+                Err(e) => eprintln!("⚠️  ERP load_all failed: {e}"),
+            }
+            *ERP_DB.lock().unwrap() = Some(conn);
+        }
+        Err(e) => eprintln!("⚠️  ERP DB init failed: {e}"),
+    }
 }
 
 // ─── create_tx ──────────────────────────────────────────────────────────────
@@ -203,12 +232,20 @@ pub fn create_tx(actor: &ActorContext, req: &CreateTxRequest) -> Result<TxRef, E
         .actor_prev_hash
         .insert(actor.pubkey.clone(), envelope.envelope_hash());
 
-    // 6. Store
+    // 6. Store (in-memory + SQLite write-through)
+    let header_for_db = header.clone();
     store.transactions.insert(tx_id.clone(), header);
 
-    // 7. Audit log (best-effort; don't fail the tx if log write fails)
+    // 7. Audit log + SQLite persist (both best-effort)
     drop(store);
     let _ = audit_log::append(&envelope);
+    if let Ok(db_guard) = ERP_DB.lock() {
+        if let Some(ref conn) = *db_guard {
+            if let Err(e) = db::upsert_tx(conn, &header_for_db) {
+                eprintln!("⚠️  ERP DB upsert_tx failed: {e}");
+            }
+        }
+    }
 
     Ok(TxRef {
         tx_id,
@@ -296,10 +333,18 @@ pub fn add_line(actor: &ActorContext, req: &AddLineRequest) -> Result<String, Er
     store
         .actor_prev_hash
         .insert(actor.pubkey.clone(), envelope.envelope_hash());
+    let line_for_db = line.clone();
     store.lines.insert(line_id.clone(), line);
 
     drop(store);
     let _ = audit_log::append(&envelope);
+    if let Ok(db_guard) = ERP_DB.lock() {
+        if let Some(ref conn) = *db_guard {
+            if let Err(e) = db::upsert_line(conn, &line_for_db) {
+                eprintln!("⚠️  ERP DB upsert_line failed: {e}");
+            }
+        }
+    }
 
     Ok(line_id)
 }
@@ -387,6 +432,7 @@ pub fn create_invmove(
     store
         .actor_prev_hash
         .insert(actor.pubkey.clone(), envelope.envelope_hash());
+    let invmove_for_db = invmove.clone();
     store.invmoves.insert(move_id.clone(), invmove);
 
     // Update line's move_ids
@@ -396,6 +442,13 @@ pub fn create_invmove(
 
     drop(store);
     let _ = audit_log::append(&envelope);
+    if let Ok(db_guard) = ERP_DB.lock() {
+        if let Some(ref conn) = *db_guard {
+            if let Err(e) = db::upsert_invmove(conn, &invmove_for_db) {
+                eprintln!("⚠️  ERP DB upsert_invmove failed: {e}");
+            }
+        }
+    }
 
     Ok(move_id)
 }
