@@ -46,6 +46,6 @@ ulid = "1"
 rusqlite = { version = "0.32", features = ["bundled"] }
 
 # Phase B — Binary Parquet export (M11)
-parquet = { version = "53", default-features = false, features = ["snap"] }
+parquet = { version = "53", default-features = false, features = ["snap", "arrow"] }
 arrow-array = "53"
 arrow-schema = "53"

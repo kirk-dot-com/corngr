@@ -906,10 +906,11 @@ pub fn erp_export_parquet(org_id: String) -> ApiResponse<String> {
     let props = WriterProperties::builder()
         .set_compression(Compression::SNAPPY)
         .build();
-    let mut writer = match ArrowWriter::try_new(file, schema, Some(props)) {
-        Ok(w) => w,
-        Err(e) => return ApiResponse::err(ErpError::ValidationFail(format!("Writer: {e}"))),
-    };
+    let mut writer: ArrowWriter<std::fs::File> =
+        match ArrowWriter::try_new(file, schema, Some(props)) {
+            Ok(w) => w,
+            Err(e) => return ApiResponse::err(ErpError::ValidationFail(format!("Writer: {e}"))),
+        };
     if let Err(e) = writer.write(&batch) {
         return ApiResponse::err(ErpError::ValidationFail(format!("Write: {e}")));
     }
@@ -992,10 +993,11 @@ pub fn erp_export_postings_parquet(org_id: String) -> ApiResponse<String> {
     let props = WriterProperties::builder()
         .set_compression(Compression::SNAPPY)
         .build();
-    let mut writer = match ArrowWriter::try_new(file, schema, Some(props)) {
-        Ok(w) => w,
-        Err(e) => return ApiResponse::err(ErpError::ValidationFail(format!("Writer: {e}"))),
-    };
+    let mut writer: ArrowWriter<std::fs::File> =
+        match ArrowWriter::try_new(file, schema, Some(props)) {
+            Ok(w) => w,
+            Err(e) => return ApiResponse::err(ErpError::ValidationFail(format!("Writer: {e}"))),
+        };
     if let Err(e) = writer.write(&batch) {
         return ApiResponse::err(ErpError::ValidationFail(format!("Write: {e}")));
     }
