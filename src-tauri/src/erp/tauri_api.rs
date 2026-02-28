@@ -298,6 +298,58 @@ pub fn erp_list_txs(org_id: String) -> ApiResponse<Vec<TxSnapshot>> {
     ApiResponse::ok(snapshots)
 }
 
+// ─── M9: Party Master ────────────────────────────────────────────────────────
+
+use crate::erp::types::{CreatePartyRequest, Party, PartyKind};
+
+/// Create a new party (customer / supplier / employee / other).
+/// Returns the new party_id on success.
+#[tauri::command]
+pub fn erp_create_party(actor: ActorContext, req: CreatePartyRequest) -> ApiResponse<String> {
+    if req.name.trim().is_empty() {
+        return ApiResponse::err(ErpError::ValidationFail(
+            "party name must not be empty".to_string(),
+        ));
+    }
+
+    let party_id = format!("party_{}", Uuid::new_v4().simple());
+    let now_ms = chrono::Utc::now().timestamp_millis();
+
+    let party = Party {
+        party_id: party_id.clone(),
+        org_id: req.org_id.clone(),
+        name: req.name.trim().to_string(),
+        kind: PartyKind::from_str(&req.kind),
+        email: req.email.filter(|s| !s.is_empty()),
+        contact: req.contact.filter(|s| !s.is_empty()),
+        abn: req.abn.filter(|s| !s.is_empty()),
+        created_at_ms: now_ms,
+    };
+
+    // Phase A: direct store write. Phase B: full signed MapSet envelope via engine.
+    let mut store = ERP_STORE.lock().unwrap();
+    store.parties.insert(party_id.clone(), party);
+
+    ApiResponse::ok(party_id)
+}
+
+/// List all parties for an org, sorted by name ascending.
+#[tauri::command]
+pub fn erp_list_parties(org_id: String) -> ApiResponse<Vec<Party>> {
+    let store = ERP_STORE.lock().unwrap();
+
+    let mut parties: Vec<Party> = store
+        .parties
+        .values()
+        .filter(|p| p.org_id == org_id)
+        .cloned()
+        .collect();
+
+    parties.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+
+    ApiResponse::ok(parties)
+}
+
 /// Verify audit chain integrity.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChainVerifyResult {

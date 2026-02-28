@@ -117,3 +117,27 @@ export interface ApprovalAtom {
   signature_ref: string;
   issued_at_ms: number;
 }
+
+// ── M9: Party Master ────────────────────────────────────────────────────────
+
+export type PartyKind = 'customer' | 'supplier' | 'employee' | 'other';
+
+export interface Party {
+  party_id: string;
+  org_id: string;
+  name: string;
+  kind: PartyKind;
+  email?: string;
+  contact?: string;
+  abn?: string;
+  created_at_ms: number;
+}
+
+export interface CreatePartyRequest {
+  org_id: string;
+  name: string;
+  kind: string;
+  email?: string;
+  contact?: string;
+  abn?: string;
+}

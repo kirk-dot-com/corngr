@@ -13,6 +13,7 @@ import { PostingsLedger } from './ledger/PostingsLedger';
 import { ShatterImport } from './shatter/ShatterImport';
 import { OrbitExport } from './orbit/OrbitExport';
 import { CreateTxModal } from './CreateTxModal';
+import { PartyManager } from './party/PartyManager';
 import type { TxSnapshot, CreateTxRequest } from './types';
 import './erp.css';
 
@@ -28,6 +29,7 @@ export const CockpitDashboard: React.FC = () => {
     const [showImport, setShowImport] = useState(false);
     const [showExport, setShowExport] = useState(false);
     const [showCreateTx, setShowCreateTx] = useState(false);
+    const [showParties, setShowParties] = useState(false);
 
     const handleAcceptProposal = useCallback(async (payload: Partial<CreateTxRequest>) => {
         if (!payload.tx_type) return;
@@ -87,6 +89,13 @@ export const CockpitDashboard: React.FC = () => {
                             onClick={() => setShowCreateTx(true)}
                         >
                             ＋ New Tx
+                        </button>
+                        <button
+                            className="erp-btn"
+                            id="parties-btn"
+                            onClick={() => setShowParties(true)}
+                        >
+                            👥 Parties
                         </button>
                         <button
                             className="erp-btn"
@@ -202,6 +211,15 @@ export const CockpitDashboard: React.FC = () => {
             {/* ── Create Transaction Modal (M8) ── */}
             {showCreateTx && (
                 <CreateTxModal onClose={() => setShowCreateTx(false)} />
+            )}
+
+            {/* ── Party Manager (M9) ── */}
+            {showParties && (
+                <PartyManager
+                    parties={store.parties}
+                    onCreateParty={store.createParty}
+                    onClose={() => setShowParties(false)}
+                />
             )}
         </div>
     );

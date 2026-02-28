@@ -4,6 +4,7 @@ import type {
     TxSnapshot, TxRef, ActorContext, CreateTxRequest,
     AddLineRequest, ApiResponse, CaioProposal,
     Posting, CreateInvMoveRequest, ApprovalAtom,
+    Party, CreatePartyRequest,
 } from '../types';
 
 // ── Default actor (Phase A: local single-user, hardcoded identity) ──────────
@@ -92,6 +93,7 @@ function buildMorningBriefing(transactions: TxSnapshot[]): string[] {
 
 export interface ErpStore {
     transactions: TxSnapshot[];
+    parties: Party[];
     auditChainIntact: boolean;
     proposals: CaioProposal[];
     briefingBullets: string[];
@@ -105,11 +107,13 @@ export interface ErpStore {
     postTx: (txId: string, postings: Posting[], approvals: ApprovalAtom[]) => Promise<TxRef | null>;
     generatePostings: (txId: string) => Promise<Posting[]>;
     createInvMove: (req: CreateInvMoveRequest) => Promise<string | null>;
+    createParty: (req: CreatePartyRequest) => Promise<string | null>;
     dismissProposal: (id: string) => void;
 }
 
 export function useErpStore(): ErpStore {
     const [transactions, setTransactions] = useState<TxSnapshot[]>([]);
+    const [parties, setParties] = useState<Party[]>([]);
     const [auditChainIntact, setAuditChainIntact] = useState(true);
     const [dismissedProposals, setDismissedProposals] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(false);
@@ -181,6 +185,14 @@ export function useErpStore(): ErpStore {
             });
             if (res.ok && res.data) {
                 setTransactions(res.data);
+            }
+
+            // M9: load parties
+            const partyRes = await invoke<ApiResponse<Party[]>>('erp_list_parties', {
+                orgId: 'org_default',
+            });
+            if (partyRes.ok && partyRes.data) {
+                setParties(partyRes.data);
             }
 
             // Audit chain
@@ -281,6 +293,20 @@ export function useErpStore(): ErpStore {
         return null;
     }, [refreshAll]);
 
+    const createParty = useCallback(async (req: CreatePartyRequest): Promise<string | null> => {
+        const actor = actorRef.current;
+        actorRef.current = nextActor(actor);
+        try {
+            const res = await invoke<ApiResponse<string>>('erp_create_party', { actor, req });
+            if (res.ok && res.data) {
+                await refreshAll();
+                return res.data;
+            }
+            setError(res.error_message ?? 'create_party failed');
+        } catch (e) { setError(String(e)); }
+        return null;
+    }, [refreshAll]);
+
     // Seed + initial load
     useEffect(() => {
         (async () => {
@@ -295,6 +321,7 @@ export function useErpStore(): ErpStore {
 
     return {
         transactions,
+        parties,
         auditChainIntact,
         proposals,
         briefingBullets,
@@ -308,6 +335,7 @@ export function useErpStore(): ErpStore {
         postTx,
         generatePostings,
         createInvMove,
+        createParty,
         dismissProposal,
     };
 }

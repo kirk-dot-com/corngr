@@ -10,7 +10,7 @@ use crate::erp::fragments;
 use crate::erp::replay::ReplayGuard;
 use crate::erp::types::{
     ActorContext, AddLineRequest, CreateInvMoveRequest, CreateTxRequest, InvMove, InventoryEffect,
-    Op, PolicyContext, Posting, TxHeader, TxLine, TxRef, TxStatus, TxType,
+    Op, Party, PolicyContext, Posting, TxHeader, TxLine, TxRef, TxStatus, TxType,
 };
 
 /// A Chart of Accounts record — stored in ErpStore::accounts keyed by account code.
@@ -36,6 +36,8 @@ pub struct ErpStore {
     pub accounts: std::collections::HashMap<String, AccountRecord>,
     /// Committed postings — keyed by posting_id; populated on erp_post_tx success
     pub postings: std::collections::HashMap<String, Posting>,
+    /// Party master — keyed by party_id (M9)
+    pub parties: std::collections::HashMap<String, Party>,
 }
 
 impl ErpStore {
@@ -48,6 +50,7 @@ impl ErpStore {
             actor_prev_hash: Default::default(),
             accounts: Default::default(),
             postings: Default::default(),
+            parties: Default::default(),
         }
     }
 }

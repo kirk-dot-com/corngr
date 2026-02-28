@@ -894,6 +894,9 @@ pub fn run() {
             erp::tauri_api::erp_transition_status,
             // ERP list transactions (Phase A M8)
             erp::tauri_api::erp_list_txs,
+            // ERP party master (Phase A M9)
+            erp::tauri_api::erp_create_party,
+            erp::tauri_api::erp_list_parties,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

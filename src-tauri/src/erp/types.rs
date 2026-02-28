@@ -333,3 +333,59 @@ pub struct CreateInvMoveRequest {
     /// ADR-0001 §5: defaults to "primary" if absent
     pub site_id: Option<String>,
 }
+
+// ─── M9: Party Master ────────────────────────────────────────────────────────
+
+/// Classification of a party (customer, supplier, employee, other).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PartyKind {
+    Customer,
+    Supplier,
+    Employee,
+    Other,
+}
+
+impl PartyKind {
+    pub fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "customer" => PartyKind::Customer,
+            "supplier" => PartyKind::Supplier,
+            "employee" => PartyKind::Employee,
+            _ => PartyKind::Other,
+        }
+    }
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            PartyKind::Customer => "customer",
+            PartyKind::Supplier => "supplier",
+            PartyKind::Employee => "employee",
+            PartyKind::Other => "other",
+        }
+    }
+}
+
+/// A party (customer / supplier / employee) — stored in fragment `party:{party_id}`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Party {
+    pub party_id: String,
+    pub org_id: String,
+    pub name: String,
+    pub kind: PartyKind,
+    pub email: Option<String>,
+    pub contact: Option<String>,
+    /// Australian Business Number — Phase A AU locale field
+    pub abn: Option<String>,
+    pub created_at_ms: i64,
+}
+
+/// Request payload for erp_create_party.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreatePartyRequest {
+    pub org_id: String,
+    pub name: String,
+    pub kind: String, // "customer" | "supplier" | "employee" | "other"
+    pub email: Option<String>,
+    pub contact: Option<String>,
+    pub abn: Option<String>,
+}

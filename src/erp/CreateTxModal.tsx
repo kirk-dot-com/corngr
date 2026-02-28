@@ -26,6 +26,7 @@ export const CreateTxModal: React.FC<CreateTxModalProps> = ({ onClose }) => {
 
     const today = new Date().toISOString().slice(0, 10);
     const [txType, setTxType] = useState<TxType>('invoice_out');
+    const [partyName, setPartyName] = useState('');
     const [description, setDescription] = useState('');
     const [txDate, setTxDate] = useState(today);
     const [currency, setCurrency] = useState('AUD');
@@ -39,9 +40,15 @@ export const CreateTxModal: React.FC<CreateTxModalProps> = ({ onClose }) => {
         setBusy(true);
         setErr(null);
 
+        // Resolve party_id from name if a matching party exists
+        const matchedParty = store.parties.find(
+            p => p.name.toLowerCase() === partyName.trim().toLowerCase()
+        );
+
         const req: CreateTxRequest = {
             tx_type: txType,
             org_id: 'org_default',
+            party_id: matchedParty?.party_id,
             description: description || undefined,
             currency,
             tx_date: txDate,
@@ -100,6 +107,32 @@ export const CreateTxModal: React.FC<CreateTxModalProps> = ({ onClose }) => {
                                 <option key={t.value} value={t.value}>{t.label}</option>
                             ))}
                         </select>
+                    </div>
+
+                    {/* Party picker */}
+                    <div className="modal-field">
+                        <label htmlFor="tx-party">Party (Customer / Supplier)</label>
+                        <input
+                            id="tx-party"
+                            type="text"
+                            className="modal-input"
+                            list="party-datalist"
+                            placeholder="Start typing a party name…"
+                            value={partyName}
+                            onChange={e => setPartyName(e.target.value)}
+                        />
+                        <datalist id="party-datalist">
+                            {store.parties.map(p => (
+                                <option key={p.party_id} value={p.name}>
+                                    {p.name} ({p.kind})
+                                </option>
+                            ))}
+                        </datalist>
+                        {partyName && !store.parties.find(p => p.name.toLowerCase() === partyName.toLowerCase()) && (
+                            <span style={{ fontSize: '0.68rem', color: 'var(--erp-amber)', marginTop: 2 }}>
+                                ⚠ No match — party_id will not be linked. Add the party via 👥 Parties first.
+                            </span>
+                        )}
                     </div>
 
                     <div className="modal-field">

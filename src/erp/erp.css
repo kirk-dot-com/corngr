@@ -1053,3 +1053,110 @@
   gap: 10px;
   padding-top: 4px;
 }
+/* ── M9 Party Manager ───────────────────────────────────── */
+.party-manager {
+  width: 480px;
+}
+
+.party-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--erp-border);
+  flex-shrink: 0;
+}
+
+.party-search {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--erp-border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  color: var(--erp-text);
+  font-size: 0.82rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.party-search:focus { border-color: var(--erp-accent); }
+.party-search::placeholder { color: var(--erp-text2); }
+
+.party-create-form {
+  padding: 14px 20px 6px;
+  border-bottom: 1px solid var(--erp-border);
+  background: rgba(255,255,255,0.02);
+}
+
+.party-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.party-row {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--erp-border);
+  border-radius: var(--erp-radius-sm);
+  padding: 10px 14px;
+  transition: all 0.15s;
+}
+
+.party-row:hover {
+  background: rgba(102,126,234,0.08);
+  border-color: rgba(102,126,234,0.25);
+}
+
+.party-row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.party-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--erp-text);
+}
+
+.party-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.7rem;
+  color: var(--erp-text2);
+}
+
+.party-abn {
+  font-family: monospace;
+}
+
+.party-id-chip {
+  font-family: monospace;
+  font-size: 0.65rem;
+  color: rgba(102,126,234,0.6);
+  cursor: pointer;
+  padding: 1px 6px;
+  background: rgba(102,126,234,0.08);
+  border-radius: 6px;
+  border: 1px solid rgba(102,126,234,0.15);
+  transition: all 0.1s;
+}
+
+.party-id-chip:hover { background: rgba(102,126,234,0.18); }
+
+/* Party kind colour badges */
+.party-kind-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.kind-customer { background: rgba(59,130,246,0.14); color: #60a5fa; border: 1px solid rgba(59,130,246,0.25); }
+.kind-supplier { background: rgba(245,158,11,0.14); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+.kind-employee { background: rgba(16,185,129,0.14); color: #34d399; border: 1px solid rgba(16,185,129,0.25); }
+.kind-other    { background: rgba(107,114,128,0.14); color: #9ca3af; border: 1px solid rgba(107,114,128,0.25); }
