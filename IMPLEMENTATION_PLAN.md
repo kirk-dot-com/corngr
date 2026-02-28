@@ -459,5 +459,202 @@ npm test
 
 ---
 
-**Last Updated:** 27 February 2026  
-**Version:** Implementation Plan v1 (Phase A Baseline)
+**Last Updated:** 28 February 2026  
+**Version:** Implementation Plan v1 (Phase A Baseline) → v2 (Phase B appended)
+
+---
+
+## Phase B — Antigravity Phase B
+
+> **Baseline:** Phase A complete — `corngr-app_0.1.0_x64.dmg` shipped (28 Feb 2026)  
+> **Phase A state:** All ERP data lives in `lazy_static Mutex<ErpStore>` — in-memory HashMaps. Data is lost on quit. Only persisted artefact is `audit.jsonl`.
+
+### Phase B Milestones
+
+| M | Name | Value | Est. Effort |
+|---|---|---|---|
+| **M10** | SQLite Persistence | Data survives restarts; real SME usability | Medium |
+| **M11** | Binary Parquet Export | Orbit export produces real analytics files | Small |
+| **M12** | Local LLM → CAIO | Inference-driven proposals replace hard-coded rules | Medium-Large |
+
+Recommended order: **M10 → M11 → M12**.
+
+---
+
+## Milestone 10 — SQLite Persistence
+
+### Problem
+`ErpStore` is a `lazy_static Mutex<...>` holding HashMaps. App restart resets all transactions, parties, postings, and CoA. An SME cannot use Phase A for real data.
+
+### Approach
+Add `rusqlite` as the persistence tier. Keep `ErpStore` as the in-memory working set — it becomes a write-through cache:
+
+```
+write path:  Tauri command → engine.rs → ErpStore (mut) + SQLite (durable)
+read path:   startup → load_from_db() populates ErpStore → commands read from RAM
+```
+
+This retains all existing command signatures with minimal disruption.
+
+### Proposed Changes
+
+#### `Cargo.toml`
+```toml
+rusqlite = { version = "0.32", features = ["bundled"] }
+```
+> `bundled` statically links libsqlite3 — no system dependency needed for the `.app` bundle.
+
+#### [NEW] `src-tauri/src/erp/db.rs`
+
+New module — SQLite schema + CRUD helpers:
+
+- `fn init_db() -> Connection` — opens (creates) `$APP_DATA/corngr.db`, runs `CREATE TABLE IF NOT EXISTS` for all entities
+- Schema tables: `tx_headers`, `tx_lines`, `postings`, `inv_moves`, `parties`, `accounts`
+- `fn upsert_tx(conn, &TxHeader)`
+- `fn upsert_party(conn, &Party)`
+- `fn upsert_posting(conn, &Posting)`
+- `fn upsert_invmove(conn, &InvMove)`
+- `fn upsert_account(conn, &AccountRecord)`
+- `fn load_all(conn) -> ErpStore` — bulk `SELECT *` on startup to warm the in-memory cache
+
+#### [engine.rs](./src-tauri/src/erp/engine.rs)
+- Call `db::load_all()` in the `lazy_static` initialiser to warm `ErpStore` from disk
+- After every mutating operation call the matching `db::upsert_*` function
+
+#### [lib.rs](./src-tauri/src/lib.rs)
+- Call `erp::db::init_db()` on app setup before `invoke_handler`, using `app_handle.path().app_data_dir()` to resolve `$APP_DATA`
+
+### Verification — M10
+```bash
+npm run tauri dev
+# 1. Create a transaction + party
+# 2. Quit app. Restart app.
+# 3. Verify tx and party are visible in cockpit — data survived restart.
+cd src-tauri && cargo test erp  # all 20 existing tests must still pass
+npx tsc --noEmit                # 0 errors
+```
+New Rust test: `test_sqlite_round_trip` — writes a `TxHeader`, calls `load_all`, asserts header is fully restored.
+
+---
+
+## Milestone 11 — Binary Parquet Export
+
+### Problem
+`OrbitExport`'s Parquet tab shows a manifest stub ("Phase A: schema manifest only"). Real Parquet is needed for analytics handoff (Power BI, DuckDB, pandas).
+
+### Approach
+Add `parquet` + `arrow` crates. New `erp_export_parquet` Tauri command builds an Arrow `RecordBatch` from the in-memory store and writes a `.parquet` file to `~/Downloads`.
+
+### Proposed Changes
+
+#### `Cargo.toml`
+```toml
+parquet = { version = "53", default-features = false, features = ["snap"] }
+arrow-array = "53"
+arrow-schema = "53"
+```
+
+#### [tauri_api.rs](./src-tauri/src/erp/tauri_api.rs)
+New commands:
+- `erp_export_parquet(org_id: String) -> ApiResponse<String>` — exports tx_headers table; returns output file path
+- `erp_export_postings_parquet(org_id: String) -> ApiResponse<String>` — exports postings ledger
+
+#### [OrbitExport.tsx](./src/erp/orbit/OrbitExport.tsx)
+- Replace "Download Manifest" stub with a button that calls `erp_export_parquet` via invoke
+- Show resulting file path in a success toast
+
+### Verification — M11
+```bash
+cd src-tauri && cargo test erp
+npx tsc --noEmit
+# Manual: ⬇ Export → Parquet tab → Download
+# Confirm: python3 -c "import pandas as pd; print(pd.read_parquet('~/Downloads/corngr_txs_*.parquet'))"
+```
+
+---
+
+## Milestone 12 — Local LLM → CAIO
+
+### Problem
+CAIO proposals are driven by three hard-coded rules in `runCaioRules()` (TypeScript). Phase B wires a local Ollama sidecar so proposals are inference-driven against real ledger context.
+
+### Approach
+```
+ErpStore snapshot (JSON) → erp_caio_query(prompt)
+  → POST http://localhost:11434/api/generate
+  → parse structured JSON response
+  → Vec<CaioProposal> → frontend
+```
+LLM remains advisory only — proposals still require a human Post action. Graceful fallback to deterministic rules if Ollama is unreachable.
+
+### Prerequisites (user)
+```bash
+brew install ollama
+ollama pull llama3.2:3b
+ollama serve   # or configure as a launchd service
+```
+
+### Proposed Changes
+
+#### `Cargo.toml`
+```toml
+reqwest = { version = "0.12", features = ["json", "blocking"] }
+```
+
+#### [NEW] `src-tauri/src/erp/caio_llm.rs`
+- `struct OllamaClient { base_url: String }` (default `http://localhost:11434`)
+- `fn build_prompt(store: &ErpStore) -> String` — compact ledger snapshot (last 20 txs, balances, party count) + system instruction requesting structured JSON proposals
+- `fn query_ollama(prompt: &str) -> Result<Vec<CaioProposalRaw>, ErpError>` — `POST /api/generate`, parses first JSON array in response text; returns `Err` if unreachable
+
+#### [tauri_api.rs](./src-tauri/src/erp/tauri_api.rs)
+New command `erp_caio_query(org_id: String) -> ApiResponse<Vec<CaioProposal>>`:
+- Calls `caio_llm::query_ollama()`
+- Falls back to existing deterministic rules on error
+
+#### [useErpStore.ts](./src/erp/store/useErpStore.ts)
+- Add `caioRefresh: () => Promise<void>` action — calls `erp_caio_query`, merges into proposals state
+- Keep `runCaioRules()` as the sync fallback
+
+#### [CAIOSidebar.tsx](./src/erp/caio/CAIOSidebar.tsx)
+- Add **"⚡ Refresh (LLM)"** button
+- Show `LLM` vs `rule` badge on each proposal
+- Show Ollama connection status dot (green/amber) in sidebar header
+
+### Verification — M12
+```bash
+# Prerequisite: ollama serve (llama3.2:3b pulled)
+npm run tauri dev
+# Click ⚡ Refresh (LLM) → verify proposals appear with "LLM" badge
+# Stop ollama → verify graceful fallback to deterministic rules
+cd src-tauri && cargo test erp   # existing tests unaffected
+npx tsc --noEmit
+```
+
+---
+
+## Phase B Dependency & Risk Summary
+
+| Risk | Mitigation |
+|---|---|
+| SQLite locking under concurrent Tauri commands | Serialize via existing `ERP_STORE` mutex; or use `r2d2` connection pool |
+| `parquet`/`arrow` compile time (~60 extra crates) | Expected; pre-approve longer build |
+| Ollama not installed / not running | Graceful fallback to deterministic rules — no hard dependency |
+| `reqwest` + Tauri async runtime conflict | Use `reqwest::blocking` inside `tauri::async_runtime::spawn_blocking` |
+
+---
+
+## Phase C Hooks (deferred from Phase B)
+
+These are in scope for Phase C once Phase B ships:
+
+- Multi-currency (`fx_rate`, `amount_base` fields + exchange rate feed)
+- Lot/serial/bin inventory + FIFO/Weighted Average valuation
+- Admin/ops console (key lifecycle, diagnostics, support bundle)
+- Optional cloud backup/relay (non-authoritative S3/R2)
+- Materialized balance rollups (account SOH by item/location)
+- Ghost Mode (projected fragment overlays)
+
+---
+
+**Last Updated:** 28 February 2026  
+**Version:** Implementation Plan v2 (Phase B)
