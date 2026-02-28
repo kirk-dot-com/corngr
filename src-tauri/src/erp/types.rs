@@ -140,6 +140,14 @@ impl InventoryEffect {
         }
     }
 
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            InventoryEffect::Increase => "increase",
+            InventoryEffect::Decrease => "decrease",
+            InventoryEffect::None => "none",
+        }
+    }
+
     /// Returns the expected sign for qty_delta given this effect.
     /// increase → positive (+), decrease → negative (-)
     pub fn expected_sign(&self) -> Option<f64> {
