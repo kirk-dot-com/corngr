@@ -55,6 +55,7 @@ export const CAIOSidebar: React.FC<CAIOSidebarProps> = ({
 }) => {
     const [query, setQuery] = useState('');
     const [llmProposals, setLlmProposals] = useState<LlmProposal[] | null>(null);
+    const [dismissedLlmIds, setDismissedLlmIds] = useState<Set<string>>(new Set());
     const [sourceLabel, setSourceLabel] = useState<string | null>(null);
     const [usedLlm, setUsedLlm] = useState(false);
     const [querying, setQuerying] = useState(false);
@@ -84,8 +85,19 @@ export const CAIOSidebar: React.FC<CAIOSidebarProps> = ({
         }
     };
 
+    const handleDismissLlm = (id: string) => {
+        setDismissedLlmIds(prev => new Set([...prev, id]));
+    };
+
+    const handleAcceptLlm = (p: LlmProposal) => {
+        if ((p as any).payload) {
+            onAccept((p as any).payload);
+        }
+        handleDismissLlm(p.id);
+    };
+
     const displayProposals = llmProposals !== null
-        ? llmProposals.map(llmToProposal)
+        ? llmProposals.map(llmToProposal).filter(p => !dismissedLlmIds.has(p.id))
         : proposals;
 
     return (
@@ -182,29 +194,40 @@ export const CAIOSidebar: React.FC<CAIOSidebarProps> = ({
                         No proposals — ledger looks healthy ✓
                     </div>
                 ) : (
-                    displayProposals.map(p => (
-                        <div key={p.id} className="proposal-card">
-                            <div className="proposal-type">
-                                {PROPOSAL_ICONS[p.type] ?? '💡'} {p.type.replace(/_/g, ' ')}
-                            </div>
-                            <div className="proposal-title">{p.title}</div>
-                            <div className="proposal-rationale">{p.rationale}</div>
-                            <div className="proposal-source">↳ {p.source_fragment}</div>
-                            <div className="proposal-actions">
-                                <button
-                                    className="proposal-btn accept"
-                                    onClick={() => p.payload && onAccept(p.payload)}
-                                    disabled={!p.payload}
-                                    title={!p.payload ? 'No action payload for this proposal type' : undefined}
-                                >
-                                    Accept
-                                </button>
-                                <button className="proposal-btn dismiss" onClick={() => onDismiss(p.id)}>
-                                    Dismiss
-                                </button>
-                            </div>
-                        </div>
-                    ))
+                    {
+                        displayProposals.map(p => {
+                            const isLlm = llmProposals !== null;
+                            return (
+                                <div key={p.id} className="proposal-card">
+                                    <div className="proposal-type">
+                                        {PROPOSAL_ICONS[p.type] ?? '💡'} {p.type.replace(/_/g, ' ')}
+                                    </div>
+                                    <div className="proposal-title">{p.title}</div>
+                                    <div className="proposal-rationale">{p.rationale}</div>
+                                    <div className="proposal-source">↳ {p.source_fragment}</div>
+                                    <div className="proposal-actions">
+                                        <button
+                                            className="proposal-btn accept"
+                                            onClick={() => isLlm
+                                                ? handleAcceptLlm(llmProposals!.find(lp => lp.id === p.id)!)
+                                                : p.payload && onAccept(p.payload)
+                                            }
+                                            disabled={!isLlm && !p.payload}
+                                            title={!isLlm && !p.payload ? 'No action payload for this proposal type' : undefined}
+                                        >
+                                            {isLlm ? 'Noted ✓' : 'Accept'}
+                                        </button>
+                                        <button
+                                            className="proposal-btn dismiss"
+                                            onClick={() => isLlm ? handleDismissLlm(p.id) : onDismiss(p.id)}
+                                        >
+                                            Dismiss
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    }
                 )}
 
                 {/* Phase B badge */}
