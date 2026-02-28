@@ -912,6 +912,8 @@ pub fn run() {
             // ERP Binary Parquet export (Phase B M11)
             erp::tauri_api::erp_export_parquet,
             erp::tauri_api::erp_export_postings_parquet,
+            // ERP Local LLM CAIO (Phase B M12)
+            erp::tauri_api::erp_caio_query,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
