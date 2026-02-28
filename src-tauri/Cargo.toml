@@ -42,4 +42,6 @@ async-trait = "0.1.89"
 sha2 = "0.10.9"
 ulid = "1"
 
+# Phase B — SQLite persistence (M10)
+rusqlite = { version = "0.32", features = ["bundled"] }
 
