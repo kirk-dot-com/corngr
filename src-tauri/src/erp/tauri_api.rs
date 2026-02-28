@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::erp::audit_log::{self, ErpAuditEntry};
 use crate::erp::coa_templates;
