@@ -306,7 +306,7 @@ use crate::erp::types::{CreatePartyRequest, Party, PartyKind};
 /// Create a new party (customer / supplier / employee / other).
 /// Returns the new party_id on success.
 #[tauri::command]
-pub fn erp_create_party(actor: ActorContext, req: CreatePartyRequest) -> ApiResponse<String> {
+pub fn erp_create_party(_actor: ActorContext, req: CreatePartyRequest) -> ApiResponse<String> {
     if req.name.trim().is_empty() {
         return ApiResponse::err(ErpError::ValidationFail(
             "party name must not be empty".to_string(),
@@ -695,7 +695,7 @@ pub fn erp_bulk_import(
 
     for (i, row) in rows.into_iter().enumerate() {
         // Validate tx_type
-        let tx_type = match TxType::from_str(&row.tx_type) {
+        let _tx_type = match TxType::from_str(&row.tx_type) {
             Ok(t) => t,
             Err(e) => {
                 errors.push(format!("row {}: {}", i, e));
