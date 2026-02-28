@@ -3,8 +3,9 @@ use uuid::Uuid;
 
 use crate::erp::audit_log::{self, ErpAuditEntry};
 use crate::erp::coa_templates;
-use crate::erp::engine::ERP_STORE;
+use crate::erp::db;
 use crate::erp::engine::{self, AccountRecord};
+use crate::erp::engine::{ERP_DB, ERP_STORE};
 use crate::erp::errors::ErpError;
 use crate::erp::ledger;
 use crate::erp::post::validate_post;
@@ -137,18 +138,35 @@ pub fn erp_post_tx(
     match validate_post(&actor, &tx, &lines, &invmoves, &postings, &approvals) {
         Ok(()) => {
             let mut store = ERP_STORE.lock().unwrap();
-            if let Some(t) = store.transactions.get_mut(&tx_id) {
+            // Update status
+            let tx_for_db = if let Some(t) = store.transactions.get_mut(&tx_id) {
                 t.status = crate::erp::types::TxStatus::Posted;
-            }
+                Some(t.clone())
+            } else {
+                None
+            };
             // Persist finalized postings into the ledger store
             for p in &postings {
                 store.postings.insert(p.posting_id.clone(), p.clone());
             }
+            let postings_for_db = postings.clone();
             let tx_ref = TxRef {
                 tx_id: tx_id.clone(),
                 org_id: tx.org_id.clone(),
                 status: crate::erp::types::TxStatus::Posted,
             };
+            drop(store);
+            // SQLite write-through (best-effort)
+            if let Ok(db_guard) = ERP_DB.lock() {
+                if let Some(ref conn) = *db_guard {
+                    if let Some(ref tx_h) = tx_for_db {
+                        let _ = db::upsert_tx(conn, tx_h);
+                    }
+                    for p in &postings_for_db {
+                        let _ = db::upsert_posting(conn, p);
+                    }
+                }
+            }
             ApiResponse::ok(tx_ref)
         }
         Err(e) => ApiResponse::err(e),
@@ -218,7 +236,14 @@ pub fn erp_transition_status(
 
     tx.status = target.clone();
     let org_id = tx.org_id.clone();
+    let tx_for_db = tx.clone();
     drop(store);
+    // SQLite write-through (best-effort)
+    if let Ok(db_guard) = ERP_DB.lock() {
+        if let Some(ref conn) = *db_guard {
+            let _ = db::upsert_tx(conn, &tx_for_db);
+        }
+    }
 
     ApiResponse::ok(TxRef {
         tx_id,
@@ -329,7 +354,14 @@ pub fn erp_create_party(_actor: ActorContext, req: CreatePartyRequest) -> ApiRes
 
     // Phase A: direct store write. Phase B: full signed MapSet envelope via engine.
     let mut store = ERP_STORE.lock().unwrap();
-    store.parties.insert(party_id.clone(), party);
+    store.parties.insert(party_id.clone(), party.clone());
+    drop(store);
+    // SQLite write-through (best-effort)
+    if let Ok(db_guard) = ERP_DB.lock() {
+        if let Some(ref conn) = *db_guard {
+            let _ = db::upsert_party(conn, &party);
+        }
+    }
 
     ApiResponse::ok(party_id)
 }
@@ -531,6 +563,16 @@ pub fn erp_seed_coa(actor: ActorContext, template_name: String) -> ApiResponse<u
     let mut store = ERP_STORE.lock().unwrap();
     engine::seed_coa_ops(&ops, &mut store.accounts);
     let count = store.accounts.len();
+    let accounts_for_db: Vec<_> = store.accounts.values().cloned().collect();
+    drop(store);
+    // SQLite write-through (best-effort)
+    if let Ok(db_guard) = ERP_DB.lock() {
+        if let Some(ref conn) = *db_guard {
+            for a in &accounts_for_db {
+                let _ = db::upsert_account(conn, a);
+            }
+        }
+    }
     ApiResponse::ok(count)
 }
 
